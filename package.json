@@ -1,0 +1,85 @@
+{
+  "name": "vscode-cadb",
+  "displayName": "vscode-cadb",
+  "description": "Powerful database management VSCode plugin!",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.106.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "datasource",
+          "title": "Datasource Explorer",
+          "icon": "resources/icon.svg"
+        }
+      ],
+      "panel": [
+        {
+          "id": "datasource",
+          "title": "Datasource Explorer",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "datasource": [
+        {
+          "id": "datasource",
+          "name": "Datasource Explorer",
+          "icon": "resources/icon.svg",
+          "contextualTitle": "Datasource Explorer"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "datasource.refreshEntry",
+        "title": "Refresh Data Sources",
+        "icon": {
+          "light": "resources/icon-light.svg",
+          "dark": "resources/icon-dark.svg"
+        }
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "datasource.refreshEntry",
+          "when": "view == datasource",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.107.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "typescript-eslint": "^8.48.1",
+    "eslint": "^9.39.1",
+    "typescript": "^5.9.3",
+    "ts-loader": "^9.5.4",
+    "webpack": "^5.103.0",
+    "webpack-cli": "^6.0.1",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2"
+  }
+}
