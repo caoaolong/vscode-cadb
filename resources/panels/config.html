@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="zh-CN">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<title>数据库配置</title>
+		<style>
+			:root {
+				--bg: var(--vscode-editor-background, #ffffff);
+				--fg: var(--vscode-editor-foreground, #000000);
+				--muted: var(--vscode-descriptionForeground, #666666);
+				--input-bg: var(--vscode-input-background, #ffffff);
+				--input-fg: var(--vscode-input-foreground, #000000);
+				--button-bg: var(--vscode-button-background, #0066cc);
+				--button-fg: var(--vscode-button-foreground, #ffffff);
+				--border: var(--vscode-editorWidget-border, #d0d0d0);
+			}
+
+			body {
+				display: flex;
+				justify-content: center;
+				align-items: center;
+				min-height: 100vh;
+				padding: 20px;
+				margin: 0;
+				background: var(--bg);
+				color: var(--fg);
+			}
+
+			.container {
+				width: 100%;
+				max-width: 500px;
+			}
+
+			h2 {
+				margin-top: 0;
+				text-align: center;
+				color: var(--fg);
+			}
+
+			.form-item {
+				display: flex;
+				flex-direction: column;
+				margin-bottom: 16px;
+			}
+
+			label {
+				margin-bottom: 6px;
+				font-weight: 500;
+				color: var(--fg);
+			}
+
+			input, select {
+				padding: 8px;
+				border-radius: 4px;
+				font-size: 14px;
+				background: var(--input-bg);
+				color: var(--input-fg);
+				border: 1px solid var(--border);
+			}
+
+			input:focus, select:focus {
+				outline: none;
+				box-shadow: 0 0 0 3px rgba(0,0,0,0.03);
+			}
+
+			.button-group {
+				display: flex;
+				gap: 8px;
+				margin-top: 20px;
+			}
+
+			button {
+				flex: 1;
+				padding: 10px;
+				border: none;
+				border-radius: 4px;
+				font-size: 14px;
+				cursor: pointer;
+				font-weight: 500;
+				color: var(--button-fg);
+				background: var(--button-bg);
+			}
+
+			#status {
+				margin-top: 16px;
+				text-align: center;
+				min-height: 20px;
+				font-size: 14px;
+				color: var(--muted);
+			}
+			#testBtn {
+				background-color: var(--vscode-button-secondaryBackground);
+				color: var(--vscode-button-secondaryForeground);
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<h2>数据库连接配置</h2>
+			<form id="dbForm">
+				<div class="form-item">
+					<label for="type">数据库类型</label>
+					<select name="type" id="type" required>
+						<option value="">请选择</option>
+						<option value="postgres">Postgres</option>
+						<option value="mysql">MySQL</option>
+						<option value="sqlite">SQLite</option>
+						<option value="mssql">MSSQL</option>
+					</select>
+				</div>
+
+				<div class="form-item">
+					<label for="name">名称</label>
+					<input type="text" name="name" id="name" placeholder="例如: test" value="test">
+				</div>
+
+				<div class="form-item">
+					<label for="host">主机</label>
+					<input type="text" name="host" id="host" placeholder="例如: localhost" value="115.190.43.124">
+				</div>
+
+				<div class="form-item">
+					<label for="port">端口</label>
+					<input type="number" name="port" id="port" placeholder="例如: 5432" value="13306">
+				</div>
+
+				<div class="form-item">
+					<label for="username">用户名</label>
+					<input type="text" name="username" id="user" value="root">
+				</div>
+
+				<div class="form-item">
+					<label for="password">密码</label>
+					<input type="password" name="password" id="password" value="Wi6pZf3XsRGLx4pJ">
+				</div>
+
+				<div class="form-item">
+					<label for="database">数据库名</label>
+					<input type="text" name="database" id="database" placeholder="Postgres/MySQL: dbname, SQLite: path/to/file.db">
+				</div>
+
+				<div class="button-group">
+					<button type="button" id="testBtn">测试连接</button>
+					<button type="button" id="connectBtn">连接并保存</button>
+				</div>
+			</form>
+
+			<div id="status" role="status" aria-live="polite"></div>
+		</div>
+
+		<script>
+			// 在 VS Code Webview 中可用：acquireVsCodeApi()
+			const vscode = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : null;
+
+			function getFormData() {
+				const fields = ['type', 'name', 'host', 'port', 'username', 'password', 'database'];
+				const data = {};
+				fields.forEach(k => {
+					const el = document.querySelector('[name="' + k + '"]');
+					data[k] = el ? el.value : '';
+				});
+				// default port if empty
+				if (!data.port) {
+					data.port = (data.type === 'postgres') ? '5432' : (data.type === 'mysql') ? '3306' : '';
+				}
+				return data;
+			}
+
+			function showStatus(text, ok = true) {
+				const el = document.getElementById('status');
+				el.textContent = text;
+				el.style.color = ok ? 'inherit' : 'crimson';
+			}
+
+			document.getElementById('testBtn').addEventListener('click', () => {
+				const payload = getFormData();
+				if (!vscode) { showStatus('未在 VS Code Webview 中运行，无法测试连接。', false); return; }
+				showStatus('正在测试连接…', true);
+				vscode.postMessage({ command: 'test', payload });
+			});
+
+			document.getElementById('connectBtn').addEventListener('click', () => {
+				const payload = getFormData();
+				if (!vscode) { showStatus('未在 VS Code Webview 中运行，无法执行连接。', false); return; }
+				showStatus('正在连接并保存配置…', true);
+				vscode.postMessage({ command: 'save', payload });
+			});
+
+			// 接收扩展发回的消息用于显示状态
+			window.addEventListener('message', (event) => {
+				const message = event.data;
+				if (!message || !message.command) return;
+				switch (message.command) {
+					case 'status':
+						showStatus(message.message || '', message.success !== false);
+						break;
+					case 'setValues':
+						// 可由扩展发送配置以填充表单
+						Object.keys(message.values || {}).forEach(k => {
+							const el = document.querySelector('[name="' + k + '"]');
+							if (el) el.value = message.values[k];
+						});
+						break;
+                case 'theme':
+                    // message.theme: 'light' | 'dark' | 'hc'
+                    applyTheme(message.theme);
+                    break;
+				}
+			});
+
+			function applyTheme(theme) {
+				// set an attribute so CSS can react if needed
+				if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+				else if (theme === 'hc') document.documentElement.setAttribute('data-theme', 'hc');
+				else document.documentElement.setAttribute('data-theme', 'light');
+				// VS Code provides color variables in webviews; updating attribute mainly for custom rules
+			}
+		</script>
+	</body>
+</html>

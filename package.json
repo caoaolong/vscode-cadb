@@ -12,19 +12,25 @@
   "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
+    "viewsWelcome": [
+      {
+        "view": "datasource",
+        "contents": "Welcome to Datasource Explorer!\nConnect to your databases to get started.\n[Add Datasource](command:datasource.addEntry)"
+      }
+    ],
     "viewsContainers": {
       "activitybar": [
         {
           "id": "datasource",
           "title": "Datasource Explorer",
-          "icon": "resources/icon.svg"
+          "icon": "resources/icons/logo.svg"
         }
       ],
       "panel": [
         {
           "id": "datasource",
           "title": "Datasource Explorer",
-          "icon": "resources/icon.svg"
+          "icon": "resources/icons/logo.svg"
         }
       ]
     },
@@ -33,7 +39,7 @@
         {
           "id": "datasource",
           "name": "Datasource Explorer",
-          "icon": "resources/icon.svg",
+          "icon": "resources/icons/logo.svg",
           "contextualTitle": "Datasource Explorer"
         }
       ]
@@ -43,8 +49,24 @@
         "command": "datasource.refreshEntry",
         "title": "Refresh Data Sources",
         "icon": {
-          "light": "resources/icon-light.svg",
-          "dark": "resources/icon-dark.svg"
+          "light": "resources/logo-light.svg",
+          "dark": "resources/logo-dark.svg"
+        }
+      },
+      {
+        "command": "datasource.addEntry",
+        "title": "Add Data Source",
+        "icon": {
+          "light": "resources/add-light.svg",
+          "dark": "resources/add-dark.svg"
+        }
+      },
+      {
+        "command": "datasource.editEntry",
+        "title": "Edit Data Source",
+        "icon": {
+          "light": "resources/edit-light.svg",
+          "dark": "resources/edit-dark.svg"
         }
       }
     ],
@@ -54,6 +76,22 @@
           "command": "datasource.refreshEntry",
           "when": "view == datasource",
           "group": "navigation"
+        },
+        {
+          "command": "datasource.addEntry",
+          "when": "view == datasource",
+          "group": "navigation"
+        },
+        {
+          "command": "datasource.editEntry",
+          "when": "view == datasource",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "datasource.editEntry",
+          "when": "view == datasource"
         }
       ]
     }
@@ -70,16 +108,21 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.107.0",
     "@types/mocha": "^10.0.10",
+    "@types/mysql": "^2.15.27",
     "@types/node": "22.x",
-    "typescript-eslint": "^8.48.1",
-    "eslint": "^9.39.1",
-    "typescript": "^5.9.3",
-    "ts-loader": "^9.5.4",
-    "webpack": "^5.103.0",
-    "webpack-cli": "^6.0.1",
+    "@types/vscode": "^1.107.0",
     "@vscode/test-cli": "^0.0.12",
-    "@vscode/test-electron": "^2.5.2"
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^9.39.1",
+    "ts-loader": "^9.5.4",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.48.1",
+    "webpack": "^5.103.0",
+    "webpack-cli": "^6.0.1"
+  },
+  "dependencies": {
+    "mysql": "^2.18.1",
+    "mysql2": "^3.15.3"
   }
 }
