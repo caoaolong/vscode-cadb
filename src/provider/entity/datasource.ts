@@ -8,6 +8,7 @@ export interface DatasourceInputData {
   type: "datasource" | "collection" | "document" | "field" | "index";
 
   name: string;
+  tooltip: string;
   extra?: string;
 
   dbType?: "mysql" | "redis";
@@ -28,6 +29,7 @@ export class Datasource extends vscode.TreeItem {
 
   private conn?: Connection;
   private root?: Datasource;
+  private parent?: Datasource;
   public type: string;
 
   public connect(): Promise<void> {
@@ -51,10 +53,57 @@ export class Datasource extends vscode.TreeItem {
         return this.listDatabases();
       case "collection":
         return this.listTables();
+      case "document":
+        return this.listColumns();
       default:
         return Promise.resolve([]);
     }
   };
+
+  private listColumns(): Promise<Datasource[]> {
+    return new Promise<Datasource[]>((resolve) => {
+      if (!this.root || !this.root.conn || !this.parent) {
+        return resolve([]);
+      }
+      const conn = this.root.conn;
+      conn.query(
+        `
+SELECT 
+	COLUMN_NAME AS name,
+	COLUMN_TYPE AS ctype,
+	COLUMN_COMMENT AS cc
+FROM 
+    information_schema.COLUMNS 
+WHERE 
+    TABLE_SCHEMA = '${this.parent.label}'
+    AND TABLE_NAME = '${this.label}'
+ORDER BY 
+    ORDINAL_POSITION;
+`,
+        (err, results) => {
+          if (err) {
+            vscode.window.showErrorMessage(`查询数据库失败：${err.message}`);
+            return resolve([]);
+          }
+          console.log(results);
+          return resolve(
+            (results as any[]).map(
+              (row) =>
+                new Datasource(
+                  {
+                    name: row["name"] as string,
+                    tooltip: row["cc"] as string,
+                    extra: row["ctype"] as string,
+                    type: "document",
+                  },
+                  this.root
+                )
+            )
+          );
+        }
+      );
+    });
+  }
 
   private listTables(): Promise<Datasource[]> {
     return new Promise<Datasource[]>((resolve) => {
@@ -79,10 +128,12 @@ WHERE TABLE_SCHEMA = '${this.label}';
                 new Datasource(
                   {
                     name: row["name"] as string,
-                    extra: row["tc"] as string,
+                    tooltip: row["tc"] as string,
+                    extra: "",
                     type: "document",
                   },
-                  this.root
+                  this.root,
+                  this
                 )
             )
           );
@@ -114,6 +165,7 @@ ORDER BY
                 new Datasource(
                   {
                     name: row["name"] as string,
+                    tooltip: "",
                     extra: row["charset_name"] as string,
                     type: "collection",
                   },
@@ -126,10 +178,16 @@ ORDER BY
     });
   }
 
-  public constructor(input: DatasourceInputData, root?: Datasource) {
+  public constructor(
+    input: DatasourceInputData,
+    root?: Datasource,
+    parent?: Datasource
+  ) {
     super(input.name);
     this.root = root;
+    this.parent = parent;
     this.type = input.type;
+		this.tooltip = input.tooltip;
     this.contextValue = "dsItem";
     // 设置节点的可折叠状态：如果是 datasource（可展开以列出数据库），则设置为 Collapsed
     if (input.type === "field" || input.type === "index") {
@@ -144,13 +202,13 @@ ORDER BY
       case "collection":
         this.initCollection(input);
         break;
-			case "document":
-				this.initDocument(input);
-				break;
+      case "document":
+        this.initDocument(input);
+        break;
     }
   }
 
-	  private initDocument(input: DatasourceInputData): void {
+  private initDocument(input: DatasourceInputData): void {
     this.description = `${input.extra}`;
     this.iconPath = {
       light: vscode.Uri.file(
