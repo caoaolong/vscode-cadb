@@ -30,16 +30,35 @@ export class DataSourceProvider implements vscode.TreeDataProvider<Datasource> {
   getTreeItem(
     element: Datasource
   ): vscode.TreeItem | Thenable<vscode.TreeItem> {
-    console.log("getTreeItem", element);
+    // Keep getTreeItem synchronous — child loading is handled in getChildren
     return element;
   }
   getChildren(
     element?: Datasource | undefined
   ): vscode.ProviderResult<Datasource[]> {
+    if (element) {
+      // If children already loaded, return them
+      if (element.children && element.children.length) {
+        return element.children;
+      }
+
+      // Otherwise load children asynchronously. Return a Promise so VS Code shows a loading indicator
+      return element.expand().then((children) => {
+        element.children = children || [];
+        // Set collapsible state depending on whether children exist
+        element.collapsibleState = (element.children && element.children.length)
+          ? vscode.TreeItemCollapsibleState.Collapsed
+          : vscode.TreeItemCollapsibleState.None;
+        // Fire change for the parent so UI updates if needed
+        this._onDidChangeTreeData.fire(element);
+        return element.children;
+      });
+    }
+
+    // Root items
     return this.model.map((e) => new Datasource(e));
   }
   getParent?(element: Datasource): vscode.ProviderResult<Datasource> {
-    console.log("getParent", element);
     return null;
   }
   resolveTreeItem?(
@@ -47,7 +66,6 @@ export class DataSourceProvider implements vscode.TreeDataProvider<Datasource> {
     element: Datasource,
     token: vscode.CancellationToken
   ): vscode.ProviderResult<vscode.TreeItem> {
-    console.log("resolveTreeItem", item, element, token);
     return null;
   }
 
@@ -56,11 +74,18 @@ export class DataSourceProvider implements vscode.TreeDataProvider<Datasource> {
       "cadb.connections",
       []
     );
-		console.log(this.model);
     this._onDidChangeTreeData.fire();
   };
 
   public edit = (): void => {};
+
+  public createChildren = (
+    parent: Datasource,
+    children: Datasource[]
+  ): void => {
+    parent.children.push(...children);
+    this._onDidChangeTreeData.fire(parent);
+  };
 
   public add = (): void => {
     const panel = vscode.window.createWebviewPanel(

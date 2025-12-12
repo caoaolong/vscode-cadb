@@ -63,10 +63,18 @@
       },
       {
         "command": "datasource.editEntry",
-        "title": "Edit Data Source",
+        "title": "Edit Datasource",
         "icon": {
           "light": "resources/edit-light.svg",
           "dark": "resources/edit-dark.svg"
+        }
+      },
+      {
+        "command": "datasource.expandEntry",
+        "title": "Expand Datasource",
+        "icon": {
+          "light": "resources/icons/Refresh_light.svg",
+          "dark": "resources/icons/Refresh_dark.svg"
         }
       }
     ],
@@ -81,17 +89,18 @@
           "command": "datasource.addEntry",
           "when": "view == datasource",
           "group": "navigation"
-        },
-        {
-          "command": "datasource.editEntry",
-          "when": "view == datasource",
-          "group": "navigation"
         }
       ],
       "view/item/context": [
         {
+          "command": "datasource.expandEntry",
+          "when": "view == datasource && viewItem == dsItem",
+          "group": "inline"
+        },
+        {
           "command": "datasource.editEntry",
-          "when": "view == datasource"
+          "when": "view == datasource && viewItem == dsItem",
+          "group": "inline"
         }
       ]
     }

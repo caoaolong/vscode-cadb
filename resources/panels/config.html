@@ -100,15 +100,16 @@
 			<h2>数据库连接配置</h2>
 			<form id="dbForm">
 				<div class="form-item">
-					<label for="type">数据库类型</label>
-					<select name="type" id="type" required>
-						<option value="">请选择</option>
+					<label for="dbType">数据库类型</label>
+					<select name="dbType" id="type" required>
 						<option value="postgres">Postgres</option>
-						<option value="mysql">MySQL</option>
+						<option value="mysql" selected>MySQL</option>
 						<option value="sqlite">SQLite</option>
 						<option value="mssql">MSSQL</option>
 					</select>
 				</div>
+
+				<input type="hidden" name="type" id="type" value="datasource"/>
 
 				<div class="form-item">
 					<label for="name">名称</label>
@@ -154,7 +155,7 @@
 			const vscode = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : null;
 
 			function getFormData() {
-				const fields = ['type', 'name', 'host', 'port', 'username', 'password', 'database'];
+				const fields = ['type', 'dbType', 'name', 'host', 'port', 'username', 'password', 'database'];
 				const data = {};
 				fields.forEach(k => {
 					const el = document.querySelector('[name="' + k + '"]');
