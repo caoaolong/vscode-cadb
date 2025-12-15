@@ -6,13 +6,18 @@ const iconDir: string[] = ["..", "..", "resources", "icons"];
 
 export interface DatasourceInputData {
   type:
+    | "datasourceType" // 数据源
     | "datasource"
+    | "collectionType" // 数据库
     | "collection"
-    | "document"
-    | "field"
-    | "index"
+    | "documentType"
+    | "document" // 表
     | "fieldType"
-    | "indexType";
+    | "field" // 字段
+    | "indexType"
+    | "index" // 索引
+    | "userType"
+    | "user"; // 用户
 
   name: string;
   tooltip: string;
@@ -56,43 +61,130 @@ export class Datasource extends vscode.TreeItem {
 
   public expand = (): Promise<Datasource[]> => {
     switch (this.type) {
-      case "datasource":
+      case "datasourceType":
         return this.listDatabases();
-      case "collection":
+      case "collectionType":
         return this.listTables();
-      case "document":
-        return this.listObjects();
       case "fieldType":
         return this.listColumns();
       case "indexType":
         return this.listIndexes();
+      case "userType":
+        return this.listUsers();
+      case "collection":
+      case "datasource":
+      case "document":
+        return this.listObjects(this.type);
       default:
         return Promise.resolve([]);
     }
   };
 
-  private listObjects(): Promise<Datasource[]> {
+  private listUsers(): Promise<Datasource[]> {
     return new Promise<Datasource[]>((resolve) => {
-      resolve([
-        new Datasource(
-          {
-            type: "fieldType",
-            name: "字段",
-            tooltip: "",
-          },
-          this.root,
-          this
-        ),
-        new Datasource(
-          {
-            type: "indexType",
-            name: "索引",
-            tooltip: "",
-          },
-          this.root,
-          this
-        ),
-      ]);
+      if (!this.root || !this.root.conn || !this.parent) {
+        return resolve([]);
+      }
+      const conn = this.root.conn;
+      conn.query(
+        `
+SELECT DISTINCT USER as name, HOST as host
+FROM mysql.DB
+WHERE db = '${this.parent.label}';
+`,
+        (err, results) => {
+          if (err) {
+            vscode.window.showErrorMessage(`查询数据库失败：${err.message}`);
+            return resolve([]);
+          }
+          return resolve(
+            (results as any[]).map(
+              (row) =>
+                new Datasource(
+                  {
+                    name: `${row["name"]}@${row["host"]}`,
+                    tooltip: "",
+                    extra: "",
+                    type: "user",
+                  },
+                  this.root,
+                  this
+                )
+            )
+          );
+        }
+      );
+    });
+  }
+
+  private listObjects(type: string): Promise<Datasource[]> {
+    return new Promise<Datasource[]>((resolve) => {
+      if (type === "document") {
+        resolve([
+          new Datasource(
+            {
+              type: "fieldType",
+              name: "字段",
+              tooltip: "",
+            },
+            this.root,
+            this
+          ),
+          new Datasource(
+            {
+              type: "indexType",
+              name: "索引",
+              tooltip: "",
+            },
+            this.root,
+            this
+          ),
+        ]);
+      } else if (type === "collection") {
+        resolve([
+          new Datasource(
+            {
+              type: "collectionType",
+              name: "表",
+              tooltip: "",
+            },
+            this.root,
+            this
+          ),
+          new Datasource(
+            {
+              type: "userType",
+              name: "用户",
+              tooltip: "",
+            },
+            this.root,
+            this
+          ),
+        ]);
+      } else if (type === "datasource") {
+        resolve([
+          new Datasource(
+            {
+              type: "datasourceType",
+              name: "数据库",
+              tooltip: "",
+            },
+            this,
+            this
+          ),
+          new Datasource(
+            {
+              type: "userType",
+              name: "用户",
+              tooltip: "",
+            },
+            this,
+            this
+          ),
+        ]);
+      } else {
+        return resolve([]);
+      }
     });
   }
 
@@ -102,7 +194,8 @@ export class Datasource extends vscode.TreeItem {
         !this.root ||
         !this.root.conn ||
         !this.parent ||
-        !this.parent.parent
+        !this.parent.parent ||
+        !this.parent.parent.parent
       ) {
         return resolve([]);
       }
@@ -118,10 +211,10 @@ SELECT
 FROM 
     information_schema.STATISTICS 
 WHERE 
-    TABLE_SCHEMA = '${this.parent.parent.label}'
+    TABLE_SCHEMA = '${this.parent.parent.parent.label}'
     AND TABLE_NAME = '${this.parent.label}'
 ORDER BY 
-    INDEX_NAME, SEQ_IN_INDEX;
+    NON_UNIQUE, INDEX_NAME, SEQ_IN_INDEX;
 `,
         (err, results) => {
           if (err) {
@@ -164,7 +257,8 @@ ORDER BY
         !this.root ||
         !this.root.conn ||
         !this.parent ||
-        !this.parent.parent
+        !this.parent.parent ||
+        !this.parent.parent.parent
       ) {
         return resolve([]);
       }
@@ -178,7 +272,7 @@ SELECT
 FROM 
     information_schema.COLUMNS 
 WHERE 
-    TABLE_SCHEMA = '${this.parent.parent.label}'
+    TABLE_SCHEMA = '${this.parent.parent.parent.label}'
     AND TABLE_NAME = '${this.parent.label}'
 ORDER BY 
     ORDINAL_POSITION;
@@ -209,7 +303,7 @@ ORDER BY
 
   private listTables(): Promise<Datasource[]> {
     return new Promise<Datasource[]>((resolve) => {
-      if (!this.root || !this.root.conn) {
+      if (!this.root || !this.root.conn || !this.parent) {
         return resolve([]);
       }
       const conn = this.root.conn;
@@ -217,7 +311,7 @@ ORDER BY
         `
 SELECT TABLE_NAME as name, TABLE_COMMENT as tc
 FROM information_schema.TABLES
-WHERE TABLE_SCHEMA = '${this.label}';
+WHERE TABLE_SCHEMA = '${this.parent.label}';
 `,
         (err, results) => {
           if (err) {
@@ -246,7 +340,10 @@ WHERE TABLE_SCHEMA = '${this.label}';
 
   private listDatabases(): Promise<Datasource[]> {
     return new Promise<Datasource[]>((resolve) => {
-      this.conn?.query(
+      if (!this.root || !this.root.conn) {
+        return resolve([]);
+      }
+      this.root.conn.query(
         `
 SELECT 
 	SCHEMA_NAME AS name,
@@ -271,6 +368,7 @@ ORDER BY
                     extra: row["charset_name"] as string,
                     type: "collection",
                   },
+									this.root,
                   this
                 )
             )
@@ -299,13 +397,19 @@ ORDER BY
     }
     switch (input.type) {
       case "datasource":
+      case "datasourceType":
         this.initDatasource(input);
-        break;
-      case "collection":
-        this.initCollection(input);
         break;
       case "document":
         this.initDocument(input);
+        break;
+      case "collection":
+      case "collectionType":
+        this.initCollectionType(input);
+        break;
+      case "user":
+      case "userType":
+        this.initUserType(input);
         break;
       case "field":
       case "fieldType":
@@ -358,8 +462,10 @@ ORDER BY
     };
   }
 
-  private initCollection(input: DatasourceInputData): void {
-    this.description = `${input.extra}`;
+  private initCollectionType(input: DatasourceInputData): void {
+    if (input.type === "collection") {
+      this.description = `${input.extra}`;
+    }
     this.iconPath = {
       light: vscode.Uri.file(
         path.join(__filename, ...iconDir, "Database_light.svg")
@@ -370,27 +476,50 @@ ORDER BY
     };
   }
 
+  private initUserType(input: DatasourceInputData): void {
+    if (input.type === "user") {
+      this.description = `${input.extra}`;
+    }
+    this.iconPath = {
+      light: vscode.Uri.file(
+        path.join(__filename, ...iconDir, "User_light.svg")
+      ),
+      dark: vscode.Uri.file(path.join(__filename, ...iconDir, "User_dark.svg")),
+    };
+  }
+
   private initDatasource(input: DatasourceInputData): void {
-    this.description = `${input.host}:${input.port}`;
-    switch (input.dbType) {
-      case "mysql":
-        this.iconPath = {
-          light: vscode.Uri.file(
-            path.join(__filename, ...iconDir, "mysql", "MySQL_light.svg")
-          ),
-          dark: vscode.Uri.file(
-            path.join(__filename, ...iconDir, "mysql", "MySQL_dark.svg")
-          ),
-        };
-        this.conn = createConnection({
-          host: input.host,
-          port: input.port,
-          user: input.username,
-          password: input.password,
-          database: input.database,
-          connectTimeout: 5000,
-        });
-        break;
+    if (input.type === "datasource") {
+      this.description = `${input.host}:${input.port}`;
+      switch (input.dbType) {
+        case "mysql":
+          this.iconPath = {
+            light: vscode.Uri.file(
+              path.join(__filename, ...iconDir, "mysql", "MySQL_light.svg")
+            ),
+            dark: vscode.Uri.file(
+              path.join(__filename, ...iconDir, "mysql", "MySQL_dark.svg")
+            ),
+          };
+          this.conn = createConnection({
+            host: input.host,
+            port: input.port,
+            user: input.username,
+            password: input.password,
+            database: input.database,
+            connectTimeout: 5000,
+          });
+          break;
+      }
+    } else {
+      this.iconPath = {
+        light: vscode.Uri.file(
+          path.join(__filename, ...iconDir, "Database_light.svg")
+        ),
+        dark: vscode.Uri.file(
+          path.join(__filename, ...iconDir, "Database_dark.svg")
+        ),
+      };
     }
   }
 
