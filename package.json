@@ -46,35 +46,27 @@
     },
     "commands": [
       {
-        "command": "datasource.refreshEntry",
-        "title": "Refresh Data Sources",
+        "command": "datasource.addEntry",
+        "title": "添加数据源",
         "icon": {
-          "light": "resources/logo-light.svg",
-          "dark": "resources/logo-dark.svg"
+          "light": "resources/plus-light.svg",
+          "dark": "resources/plus-dark.svg"
         }
       },
       {
-        "command": "datasource.addEntry",
-        "title": "Add Data Source",
+        "command": "datasource.refreshEntry",
+        "title": "刷新",
         "icon": {
-          "light": "resources/add-light.svg",
-          "dark": "resources/add-dark.svg"
+          "light": "resources/refresh-light.svg",
+          "dark": "resources/refresh-dark.svg"
         }
       },
       {
         "command": "datasource.editEntry",
-        "title": "Edit Datasource",
+        "title": "编辑",
         "icon": {
           "light": "resources/edit-light.svg",
           "dark": "resources/edit-dark.svg"
-        }
-      },
-      {
-        "command": "datasource.expandEntry",
-        "title": "Expand Datasource",
-        "icon": {
-          "light": "resources/icons/Refresh_light.svg",
-          "dark": "resources/icons/Refresh_dark.svg"
         }
       }
     ],
@@ -93,7 +85,7 @@
       ],
       "view/item/context": [
         {
-          "command": "datasource.expandEntry",
+          "command": "datasource.refreshEntry",
           "when": "view == datasource && viewItem == dsItem",
           "group": "inline"
         },
