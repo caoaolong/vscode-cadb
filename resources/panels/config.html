@@ -1,222 +1,310 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
-	<head>
-		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width,initial-scale=1" />
-		<title>数据库配置</title>
-		<style>
-			:root {
-				--bg: var(--vscode-editor-background, #ffffff);
-				--fg: var(--vscode-editor-foreground, #000000);
-				--muted: var(--vscode-descriptionForeground, #666666);
-				--input-bg: var(--vscode-input-background, #ffffff);
-				--input-fg: var(--vscode-input-foreground, #000000);
-				--button-bg: var(--vscode-button-background, #0066cc);
-				--button-fg: var(--vscode-button-foreground, #ffffff);
-				--border: var(--vscode-editorWidget-border, #d0d0d0);
-			}
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>数据库配置</title>
+    <link rel="stylesheet" href="{{global-css}}" />
+  </head>
+  <body class="config-container">
+    <div class="container">
+      <div class="header">
+        <h1>数据库连接配置</h1>
+        <p class="subtitle">配置数据库连接信息，支持多种数据库类型</p>
+      </div>
 
-			body {
-				display: flex;
-				justify-content: center;
-				align-items: center;
-				min-height: 100vh;
-				padding: 20px;
-				margin: 0;
-				background: var(--bg);
-				color: var(--fg);
-			}
+      <form id="dbForm">
+        <div class="form-group">
+          <div class="form-item">
+            <label for="dbType">数据库类型</label>
+            <select name="dbType" id="dbType" required>
+              <option value="mysql">MySQL</option>
+              <option value="postgres">PostgreSQL</option>
+              <option value="sqlite">SQLite</option>
+              <option value="mssql">SQL Server</option>
+            </select>
+          </div>
 
-			.container {
-				width: 100%;
-				max-width: 500px;
-			}
+          <div class="form-item">
+            <label for="name">连接名称</label>
+            <input
+              type="text"
+              name="name"
+              id="name"
+              placeholder="例如：生产数据库"
+              required
+            />
+            <div class="hint">给此连接起一个易于识别的名称</div>
+          </div>
+        </div>
 
-			h2 {
-				margin-top: 0;
-				text-align: center;
-				color: var(--fg);
-			}
+        <div class="form-divider"></div>
 
-			.form-item {
-				display: flex;
-				flex-direction: column;
-				margin-bottom: 16px;
-			}
+        <div id="standardConfig" class="form-group">
+          <div class="field-group">
+            <div class="form-item">
+              <label for="host">主机地址</label>
+              <input
+                type="text"
+                name="host"
+                id="host"
+                placeholder="localhost 或 IP 地址"
+              />
+            </div>
+            <div class="form-item">
+              <label for="port">端口</label>
+              <input
+                type="number"
+                name="port"
+                id="port"
+                placeholder="3306"
+                min="1"
+                max="65535"
+              />
+            </div>
+          </div>
 
-			label {
-				margin-bottom: 6px;
-				font-weight: 500;
-				color: var(--fg);
-			}
+          <div class="field-group">
+            <div class="form-item">
+              <label for="user">用户名</label>
+              <input
+                type="text"
+                name="username"
+                id="user"
+                placeholder="数据库用户名"
+              />
+            </div>
+            <div class="form-item">
+              <label for="password">密码</label>
+              <input
+                type="password"
+                name="password"
+                id="password"
+                placeholder="数据库密码"
+              />
+            </div>
+          </div>
 
-			input, select {
-				padding: 8px;
-				border-radius: 4px;
-				font-size: 14px;
-				background: var(--input-bg);
-				color: var(--input-fg);
-				border: 1px solid var(--border);
-			}
+          <div class="form-item">
+            <label for="database">数据库名</label>
+            <input
+              type="text"
+              name="database"
+              id="database"
+              placeholder="数据库名称"
+            />
+            <div class="hint">要连接的数据库名称</div>
+          </div>
+        </div>
 
-			input:focus, select:focus {
-				outline: none;
-				box-shadow: 0 0 0 3px rgba(0,0,0,0.03);
-			}
+        <div id="sqliteConfig" class="form-group" style="display: none">
+          <div class="form-item">
+            <label for="sqlitePath">文件路径</label>
+            <input
+              type="text"
+              name="database"
+              id="sqlitePath"
+              placeholder="/path/to/database.db"
+            />
+            <div class="hint">SQLite 数据库文件的完整路径</div>
+          </div>
+        </div>
 
-			.button-group {
-				display: flex;
-				gap: 8px;
-				margin-top: 20px;
-			}
+        <div class="form-divider"></div>
 
-			button {
-				flex: 1;
-				padding: 10px;
-				border: none;
-				border-radius: 4px;
-				font-size: 14px;
-				cursor: pointer;
-				font-weight: 500;
-				color: var(--button-fg);
-				background: var(--button-bg);
-			}
+        <div class="button-group">
+          <button type="button" id="testBtn" class="btn-secondary">
+            测试连接
+          </button>
+          <button type="button" id="connectBtn" class="btn-primary">
+            连接并保存
+          </button>
+        </div>
 
-			#status {
-				margin-top: 16px;
-				text-align: center;
-				min-height: 20px;
-				font-size: 14px;
-				color: var(--muted);
-			}
-			#testBtn {
-				background-color: var(--vscode-button-secondaryBackground);
-				color: var(--vscode-button-secondaryForeground);
-			}
-		</style>
-	</head>
-	<body>
-		<div class="container">
-			<h2>数据库连接配置</h2>
-			<form id="dbForm">
-				<div class="form-item">
-					<label for="dbType">数据库类型</label>
-					<select name="dbType" id="type" required>
-						<option value="postgres">Postgres</option>
-						<option value="mysql" selected>MySQL</option>
-						<option value="sqlite">SQLite</option>
-						<option value="mssql">MSSQL</option>
-					</select>
-				</div>
+        <div
+          id="status"
+          class="status-message"
+          role="status"
+          aria-live="polite"
+        ></div>
+      </form>
+    </div>
+    <script src="{{global-js}}"></script>
+    <script>
+      const vscode =
+        typeof acquireVsCodeApi === "function" ? acquireVsCodeApi() : null;
 
-				<input type="hidden" name="type" id="type" value="datasource"/>
+      class DatabaseConfigForm {
+        constructor() {
+          this.dbTypeEl = document.getElementById("dbType");
+          this.nameEl = document.getElementById("name");
+          this.hostEl = document.getElementById("host");
+          this.portEl = document.getElementById("port");
+          this.userEl = document.getElementById("user");
+          this.passwordEl = document.getElementById("password");
+          this.databaseEl = document.getElementById("database");
+          this.sqlitePathEl = document.getElementById("sqlitePath");
+          this.statusEl = document.getElementById("status");
+          this.testBtn = document.getElementById("testBtn");
+          this.connectBtn = document.getElementById("connectBtn");
+          this.standardConfig = document.getElementById("standardConfig");
+          this.sqliteConfig = document.getElementById("sqliteConfig");
 
-				<div class="form-item">
-					<label for="name">名称</label>
-					<input type="text" name="name" id="name" placeholder="例如: test" value="test">
-				</div>
+          this.init();
+        }
 
-				<div class="form-item">
-					<label for="host">主机</label>
-					<input type="text" name="host" id="host" placeholder="例如: localhost" value="115.190.43.124">
-				</div>
+        init() {
+          this.setupEventListeners();
+          this.listenToMessages();
+          this.setDefaultPort();
+        }
 
-				<div class="form-item">
-					<label for="port">端口</label>
-					<input type="number" name="port" id="port" placeholder="例如: 5432" value="13306">
-				</div>
+        setupEventListeners() {
+          this.dbTypeEl.addEventListener("change", () => {
+            this.onDatabaseTypeChange();
+            this.setDefaultPort();
+          });
 
-				<div class="form-item">
-					<label for="username">用户名</label>
-					<input type="text" name="username" id="user" value="root">
-				</div>
+          this.testBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            this.testConnection();
+          });
 
-				<div class="form-item">
-					<label for="password">密码</label>
-					<input type="password" name="password" id="password" value="Wi6pZf3XsRGLx4pJ">
-				</div>
+          this.connectBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            this.saveConnection();
+          });
+        }
 
-				<div class="form-item">
-					<label for="database">数据库名</label>
-					<input type="text" name="database" id="database" placeholder="Postgres/MySQL: dbname, SQLite: path/to/file.db">
-				</div>
+        onDatabaseTypeChange() {
+          const type = this.dbTypeEl.value;
+          if (type === "sqlite") {
+            this.standardConfig.style.display = "none";
+            this.sqliteConfig.style.display = "block";
+          } else {
+            this.standardConfig.style.display = "block";
+            this.sqliteConfig.style.display = "none";
+          }
+        }
 
-				<div class="button-group">
-					<button type="button" id="testBtn">测试连接</button>
-					<button type="button" id="connectBtn">连接并保存</button>
-				</div>
-			</form>
+        setDefaultPort() {
+          const type = this.dbTypeEl.value;
+          const defaultPorts = {
+            mysql: 3306,
+            postgres: 5432,
+            mssql: 1433,
+          };
+          if (defaultPorts[type]) {
+            this.portEl.placeholder = String(defaultPorts[type]);
+          }
+        }
 
-			<div id="status" role="status" aria-live="polite"></div>
-		</div>
+        getFormData() {
+          const type = this.dbTypeEl.value;
+          return {
+            type: "datasource",
+            dbType: type,
+            name: this.nameEl.value.trim(),
+            host: this.hostEl.value.trim(),
+            port: this.portEl.value ? parseInt(this.portEl.value) : null,
+            username: this.userEl.value.trim(),
+            password: this.passwordEl.value,
+            database:
+              type === "sqlite"
+                ? this.sqlitePathEl.value.trim()
+                : this.databaseEl.value.trim(),
+          };
+        }
 
-		<script>
-			// 在 VS Code Webview 中可用：acquireVsCodeApi()
-			const vscode = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : null;
+        validateForm() {
+          const data = this.getFormData();
+          if (!data.name) {
+            this.showStatus("请输入连接名称", "error");
+            return false;
+          }
+          if (data.dbType !== "sqlite") {
+            if (!data.host) {
+              this.showStatus("请输入主机地址", "error");
+              return false;
+            }
+            if (!data.database) {
+              this.showStatus("请输入数据库名", "error");
+              return false;
+            }
+          } else {
+            if (!data.database) {
+              this.showStatus("请输入 SQLite 文件路径", "error");
+              return false;
+            }
+          }
+          return true;
+        }
 
-			function getFormData() {
-				const fields = ['type', 'dbType', 'name', 'host', 'port', 'username', 'password', 'database'];
-				const data = {};
-				fields.forEach(k => {
-					const el = document.querySelector('[name="' + k + '"]');
-					data[k] = el ? el.value : '';
-				});
-				// default port if empty
-				if (!data.port) {
-					data.port = (data.type === 'postgres') ? '5432' : (data.type === 'mysql') ? '3306' : '';
-				}
-				return data;
-			}
+        testConnection() {
+          if (!this.validateForm()) return;
+          if (!vscode) {
+            this.showStatus("未在 VS Code Webview 中运行", "error");
+            return;
+          }
+          this.setButtonsDisabled(true);
+          this.showStatus("正在测试连接...", "info");
+          vscode.postMessage({ command: "test", payload: this.getFormData() });
+        }
 
-			function showStatus(text, ok = true) {
-				const el = document.getElementById('status');
-				el.textContent = text;
-				el.style.color = ok ? 'inherit' : 'crimson';
-			}
+        saveConnection() {
+          if (!this.validateForm()) return;
+          if (!vscode) {
+            this.showStatus("未在 VS Code Webview 中运行", "error");
+            return;
+          }
+          this.setButtonsDisabled(true);
+          this.showStatus("正在保存配置...", "info");
+          vscode.postMessage({ command: "save", payload: this.getFormData() });
+        }
 
-			document.getElementById('testBtn').addEventListener('click', () => {
-				const payload = getFormData();
-				if (!vscode) { showStatus('未在 VS Code Webview 中运行，无法测试连接。', false); return; }
-				showStatus('正在测试连接…', true);
-				vscode.postMessage({ command: 'test', payload });
-			});
+        listenToMessages() {
+          window.addEventListener("message", (event) => {
+            const message = event.data;
+            if (!message || !message.command) return;
 
-			document.getElementById('connectBtn').addEventListener('click', () => {
-				const payload = getFormData();
-				if (!vscode) { showStatus('未在 VS Code Webview 中运行，无法执行连接。', false); return; }
-				showStatus('正在连接并保存配置…', true);
-				vscode.postMessage({ command: 'save', payload });
-			});
+            switch (message.command) {
+              case "status":
+                const isSuccess = message.success !== false;
+                this.showStatus(
+                  message.message || "",
+                  isSuccess ? "success" : "error"
+                );
+                this.setButtonsDisabled(false);
+                break;
+              case "setValues":
+                this.loadValues(message.values || {});
+                break;
+            }
+          });
+        }
 
-			// 接收扩展发回的消息用于显示状态
-			window.addEventListener('message', (event) => {
-				const message = event.data;
-				if (!message || !message.command) return;
-				switch (message.command) {
-					case 'status':
-						showStatus(message.message || '', message.success !== false);
-						break;
-					case 'setValues':
-						// 可由扩展发送配置以填充表单
-						Object.keys(message.values || {}).forEach(k => {
-							const el = document.querySelector('[name="' + k + '"]');
-							if (el) el.value = message.values[k];
-						});
-						break;
-                case 'theme':
-                    // message.theme: 'light' | 'dark' | 'hc'
-                    applyTheme(message.theme);
-                    break;
-				}
-			});
+        loadValues(values) {
+          Object.keys(values).forEach((key) => {
+            const el = document.querySelector(`[name="${key}"]`);
+            if (el) {
+              el.value = values[key];
+            }
+          });
+          this.onDatabaseTypeChange();
+        }
 
-			function applyTheme(theme) {
-				// set an attribute so CSS can react if needed
-				if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
-				else if (theme === 'hc') document.documentElement.setAttribute('data-theme', 'hc');
-				else document.documentElement.setAttribute('data-theme', 'light');
-				// VS Code provides color variables in webviews; updating attribute mainly for custom rules
-			}
-		</script>
-	</body>
+        showStatus(message, type = "info") {
+          this.statusEl.textContent = message;
+          this.statusEl.className = `status-message show ${type}`;
+        }
+
+        setButtonsDisabled(disabled) {
+          this.testBtn.disabled = disabled;
+          this.connectBtn.disabled = disabled;
+        }
+      }
+
+      new DatabaseConfigForm();
+    </script>
+  </body>
 </html>

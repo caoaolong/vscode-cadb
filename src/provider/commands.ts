@@ -23,24 +23,6 @@ function createWebview(
     }
   );
 
-  const faviconUri = panel.webview.asWebviewUri(
-    vscode.Uri.joinPath(
-      provider.context.extensionUri,
-      "resources",
-      "panels",
-      "favicon.ico"
-    )
-  );
-
-  const agGridJsUri = panel.webview.asWebviewUri(
-    vscode.Uri.joinPath(
-      provider.context.extensionUri,
-      "resources",
-      "panels",
-      "ag-grid-community.min.js"
-    )
-  );
-
   const globalCssUri = panel.webview.asWebviewUri(
     vscode.Uri.joinPath(
       provider.context.extensionUri,
@@ -66,13 +48,18 @@ function createWebview(
     default-src 'none';
     style-src ${panel.webview.cspSource} 'unsafe-inline';
     script-src ${panel.webview.cspSource};
-		img-src ${panel.webview.cspSource} data:;
   `.trim()
     )
-    .replace(/{{favicon-ico}}/g, faviconUri.toString())
-    .replace(/{{ag-grid-js}}/g, agGridJsUri.toString())
     .replace(/{{global-css}}/g, globalCssUri.toString())
     .replace(/{{global-js}}/g, globalJsUri.toString());
+  panel.iconPath = vscode.Uri.file(
+    path.join(
+      provider.context.extensionPath,
+      "resources",
+      "panels",
+      "favicon.ico"
+    )
+  );
   return panel;
 }
 

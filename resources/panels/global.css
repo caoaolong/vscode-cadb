@@ -1,0 +1,342 @@
+/* VSCode Webview UI Toolkit Style */
+
+* {
+	box-sizing: border-box;
+}
+
+:root {
+	--bg: var(--vscode-editor-background, #ffffff);
+	--fg: var(--vscode-editor-foreground, #000000);
+	--muted: var(--vscode-descriptionForeground, #666666);
+	--input-bg: var(--vscode-input-background, #ffffff);
+	--input-fg: var(--vscode-input-foreground, #000000);
+	--input-border: var(--vscode-editorWidget-border, #d0d0d0);
+	--input-border-focus: var(--vscode-focusBorder, #007acc);
+	--button-bg: var(--vscode-button-background, #0066cc);
+	--button-fg: var(--vscode-button-foreground, #ffffff);
+	--button-hover: var(--vscode-button-hoverBackground, #005a9e);
+	--button-secondary-bg: var(--vscode-button-secondaryBackground, #3e3e42);
+	--button-secondary-fg: var(--vscode-button-secondaryForeground, #ffffff);
+	--button-secondary-hover: var(--vscode-button-secondaryHoverBackground, #464647);
+	--error: var(--vscode-errorForeground, #f48771);
+	--success: var(--vscode-charts-green, #89d185);
+	--widget-bg: var(--vscode-editorWidget-background, #f3f3f3);
+	--widget-border: var(--vscode-editorWidget-border, #d0d0d0);
+}
+
+body {
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+	margin: 0;
+	padding: 0;
+	background-color: var(--bg);
+	color: var(--fg);
+}
+
+/* Common input and select styles */
+input, select {
+	font-family: inherit;
+	font-size: 13px;
+	background: var(--input-bg);
+	color: var(--input-fg);
+	border: 1px solid var(--input-border);
+	border-radius: 2px;
+}
+
+input::placeholder {
+	color: var(--muted);
+}
+
+input:hover, select:hover {
+	border-color: var(--widget-border);
+}
+
+input:focus, select:focus {
+	outline: none;
+	border-color: var(--input-border-focus);
+	box-shadow: 0 0 0 1px var(--input-border-focus);
+}
+
+input:disabled, select:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+/* Common button styles */
+button {
+	border: none;
+	border-radius: 2px;
+	font-size: 13px;
+	font-weight: 500;
+	cursor: pointer;
+	font-family: inherit;
+	transition: background-color 0.2s;
+}
+
+/* Primary button */
+.btn-primary {
+	background-color: var(--button-bg);
+	color: var(--button-fg);
+	padding: 10px 16px;
+}
+
+.btn-primary:hover {
+	background-color: var(--button-hover);
+}
+
+.btn-primary:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+/* Toolbar primary button override */
+.toolbar .btn-primary {
+	padding: 6px 12px;
+}
+
+/* Secondary button */
+.btn-secondary {
+	background-color: var(--button-secondary-bg);
+	color: var(--button-secondary-fg);
+	padding: 10px 16px;
+}
+
+.btn-secondary:hover {
+	background-color: var(--button-secondary-hover);
+}
+
+.btn-secondary:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+/* Status message styles */
+.status-message {
+	margin-top: 16px;
+	padding: 10px 12px;
+	border-radius: 2px;
+	font-size: 13px;
+	min-height: 20px;
+	display: none;
+}
+
+.status-message.show {
+	display: block;
+}
+
+.status-message.success {
+	background: rgba(137, 209, 133, 0.2);
+	color: var(--success);
+	border: 1px solid var(--success);
+}
+
+.status-message.error {
+	background: rgba(244, 135, 113, 0.2);
+	color: var(--error);
+	border: 1px solid var(--error);
+}
+
+.status-message.info {
+	background: var(--widget-bg);
+	color: var(--muted);
+	border: 1px solid var(--widget-border);
+}
+
+/* Empty state */
+.empty-state {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	color: var(--muted);
+	font-size: 14px;
+}
+
+/* Loading animation */
+.loading {
+	animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+	from { transform: rotate(0deg); }
+	to { transform: rotate(360deg); }
+}
+
+/* ============ Grid Page Styles ============ */
+
+.container {
+	display: flex;
+	flex-direction: column;
+	height: 100vh;
+	width: 100%;
+}
+
+.toolbar {
+	display: flex;
+	gap: 8px;
+	padding: 12px 16px;
+	background-color: var(--bg);
+	border-bottom: 1px solid var(--widget-border);
+}
+
+.toolbar button {
+	padding: 6px 12px;
+}
+
+.toolbar input {
+	padding: 6px 8px;
+	flex: 1;
+	max-width: 300px;
+}
+
+.grid-wrapper {
+	flex: 1;
+	overflow: auto;
+	background-color: var(--bg);
+}
+
+table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 13px;
+}
+
+thead {
+	position: sticky;
+	top: 0;
+	background-color: var(--widget-bg);
+	border-bottom: 1px solid var(--widget-border);
+}
+
+th {
+	padding: 8px 12px;
+	text-align: left;
+	font-weight: 600;
+	color: var(--fg);
+	border-right: 1px solid var(--widget-border);
+	user-select: none;
+	cursor: pointer;
+}
+
+th:last-child {
+	border-right: none;
+}
+
+td {
+	padding: 8px 12px;
+	border-right: 1px solid var(--widget-border);
+	border-bottom: 1px solid var(--widget-border);
+}
+
+td:last-child {
+	border-right: none;
+}
+
+tbody tr:hover {
+	background-color: var(--vscode-list-hoverBackground, #f0f0f0);
+}
+
+tbody tr.selected {
+	background-color: var(--vscode-list-activeSelectionBackground, #0e639c);
+	color: var(--vscode-list-activeSelectionForeground, #ffffff);
+}
+
+tbody tr.selected td {
+	border-bottom-color: var(--vscode-list-activeSelectionBackground, #0e639c);
+}
+
+.status-bar {
+	padding: 8px 16px;
+	background-color: var(--widget-bg);
+	border-top: 1px solid var(--widget-border);
+	font-size: 12px;
+	color: var(--muted);
+}
+
+/* ============ Config Page Styles ============ */
+
+.config-container {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	min-height: 100vh;
+	padding: 20px;
+}
+
+.config-container .container {
+	width: 100%;
+	max-width: 480px;
+	height: auto;
+	flex-direction: column;
+}
+
+.header {
+	margin-bottom: 24px;
+}
+
+h1 {
+	margin: 0 0 8px 0;
+	font-size: 20px;
+	font-weight: 600;
+	color: var(--fg);
+}
+
+.subtitle {
+	margin: 0;
+	font-size: 13px;
+	color: var(--muted);
+}
+
+.form-group {
+	margin-bottom: 16px;
+}
+
+.form-item {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-bottom: 12px;
+}
+
+label {
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--fg);
+}
+
+.form-item input, 
+.form-item select {
+	width: 100%;
+	padding: 8px 12px;
+}
+
+.form-divider {
+	height: 1px;
+	background: var(--widget-border);
+	margin: 20px 0;
+}
+
+.button-group {
+	display: flex;
+	gap: 8px;
+	margin-top: 20px;
+}
+
+.button-group .btn-primary {
+	flex: 1;
+}
+
+.hint {
+	margin-top: 4px;
+	font-size: 12px;
+	color: var(--muted);
+}
+
+.field-group {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px;
+}
+
+.field-group .form-item {
+	margin-bottom: 0;
+}

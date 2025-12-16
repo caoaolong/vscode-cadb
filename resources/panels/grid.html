@@ -2,27 +2,252 @@
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="{{csp}}"
-    />
+    <meta http-equiv="Content-Security-Policy" content="{{csp}}" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-		<link rel="icon" type="image/x-icon" href="{{favicon-ico}}" />
-    <script src="{{ag-grid-js}}"></script>
-		<link rel="stylesheet" href="{{global-css}}">
-    <style>
-      body {
-        margin: 0;
-        padding: 0;
-      }
-      #dataGrid {
-        width: 100%;
-        height: 100vh;
-      }
-    </style>
+    <link rel="stylesheet" href="{{global-css}}" />
   </head>
   <body>
-    <div id="dataGrid"></div>
+    <div class="container">
+      <div class="toolbar">
+        <input type="text" id="searchInput" placeholder="搜索表格数据..." />
+        <button id="refreshBtn" class="btn-primary">刷新</button>
+        <button id="exportBtn" class="btn-primary">导出</button>
+      </div>
+
+      <div class="grid-wrapper">
+        <table id="dataTable">
+          <thead>
+            <tr id="headerRow"></tr>
+          </thead>
+          <tbody id="tableBody">
+            <tr>
+              <td colspan="100%" style="text-align: center; padding: 40px">
+                <div class="empty-state">等待数据加载...</div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="status-bar">
+        <span id="statusText">就绪</span>
+      </div>
+    </div>
+
     <script src="{{global-js}}"></script>
+    <script>
+      const vscode =
+        typeof acquireVsCodeApi === "function" ? acquireVsCodeApi() : null;
+
+      class DataGrid {
+        constructor() {
+          this.data = [];
+          this.filteredData = [];
+          this.selectedRows = new Set();
+          this.init();
+        }
+
+        init() {
+          this.setupEventListeners();
+          this.requestData();
+          this.listenToMessages();
+        }
+
+        setupEventListeners() {
+          document
+            .getElementById("searchInput")
+            .addEventListener("input", (e) => {
+              this.filterData(e.target.value);
+            });
+
+          document
+            .getElementById("refreshBtn")
+            .addEventListener("click", () => {
+              this.requestData();
+            });
+
+          document.getElementById("exportBtn").addEventListener("click", () => {
+            this.exportData();
+          });
+        }
+
+        requestData() {
+          if (!vscode) {
+            this.setStatus("未在 VS Code Webview 中运行", false);
+            return;
+          }
+          this.setStatus("正在加载数据...");
+          vscode.postMessage({ command: "loadData" });
+        }
+
+        listenToMessages() {
+          window.addEventListener("message", (event) => {
+            const message = event.data;
+            if (!message || !message.command) return;
+
+            switch (message.command) {
+              case "setData":
+                this.setData(message.data);
+                break;
+              case "status":
+                this.setStatus(message.message, message.success !== false);
+                break;
+            }
+          });
+        }
+
+        setData(data) {
+          this.data = data || [];
+          this.filteredData = [...this.data];
+          this.render();
+          this.setStatus(`已加载 ${this.data.length} 行数据`);
+        }
+
+        filterData(searchTerm) {
+          const term = searchTerm.toLowerCase();
+          this.filteredData = this.data.filter((row) => {
+            return Object.values(row).some((val) =>
+              String(val).toLowerCase().includes(term)
+            );
+          });
+          this.render();
+          this.setStatus(`搜索结果：${this.filteredData.length} 行`);
+        }
+
+        render() {
+          this.renderHeaders();
+          this.renderRows();
+        }
+
+        renderHeaders() {
+          const headerRow = document.getElementById("headerRow");
+          headerRow.innerHTML = "";
+
+          if (this.data.length === 0) return;
+
+          const firstRow = this.data[0];
+          Object.keys(firstRow).forEach((key) => {
+            const th = document.createElement("th");
+            th.textContent = key;
+            th.style.cursor = "pointer";
+            th.addEventListener("click", () => this.sortByColumn(key));
+            headerRow.appendChild(th);
+          });
+        }
+
+        renderRows() {
+          const tableBody = document.getElementById("tableBody");
+          tableBody.innerHTML = "";
+
+          if (this.filteredData.length === 0) {
+            tableBody.innerHTML = `
+              <tr>
+                <td colspan="100%" style="text-align: center; padding: 40px;">
+                  <div class="empty-state">没有数据</div>
+                </td>
+              </tr>
+            `;
+            return;
+          }
+
+          this.filteredData.forEach((row, index) => {
+            const tr = document.createElement("tr");
+            tr.dataset.index = index;
+
+            if (this.selectedRows.has(index)) {
+              tr.classList.add("selected");
+            }
+
+            tr.addEventListener("click", (e) => {
+              if (e.ctrlKey || e.metaKey) {
+                this.toggleRowSelection(index);
+              } else {
+                this.clearSelection();
+                this.toggleRowSelection(index);
+              }
+            });
+
+            Object.values(row).forEach((value) => {
+              const td = document.createElement("td");
+              td.textContent = value;
+              td.title = String(value);
+              tr.appendChild(td);
+            });
+
+            tableBody.appendChild(tr);
+          });
+        }
+
+        toggleRowSelection(index) {
+          if (this.selectedRows.has(index)) {
+            this.selectedRows.delete(index);
+          } else {
+            this.selectedRows.add(index);
+          }
+          this.render();
+        }
+
+        clearSelection() {
+          this.selectedRows.clear();
+        }
+
+        sortByColumn(columnKey) {
+          this.filteredData.sort((a, b) => {
+            const aVal = a[columnKey];
+            const bVal = b[columnKey];
+
+            if (typeof aVal === "number" && typeof bVal === "number") {
+              return aVal - bVal;
+            }
+
+            return String(aVal).localeCompare(String(bVal));
+          });
+
+          this.render();
+        }
+
+        exportData() {
+          if (this.filteredData.length === 0) {
+            this.setStatus("没有数据可导出", false);
+            return;
+          }
+
+          const headers = Object.keys(this.data[0]);
+          const csv = [
+            headers.join(","),
+            ...this.filteredData.map((row) =>
+              headers
+                .map((key) => {
+                  const value = String(row[key] || "").replace(/"/g, '""');
+                  return `"${value}"`;
+                })
+                .join(",")
+            ),
+          ].join("\n");
+
+          const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+          const link = document.createElement("a");
+          const url = URL.createObjectURL(blob);
+          link.setAttribute("href", url);
+          link.setAttribute("download", `data_${new Date().getTime()}.csv`);
+          link.style.visibility = "hidden";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+
+          this.setStatus("数据已导出");
+        }
+
+        setStatus(message, success = true) {
+          const statusEl = document.getElementById("statusText");
+          statusEl.textContent = message;
+          statusEl.style.color = success
+            ? "inherit"
+            : "var(--vscode-errorForeground, crimson)";
+        }
+      }
+
+      new DataGrid();
+    </script>
   </body>
 </html>
