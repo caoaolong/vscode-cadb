@@ -1,6 +1,8 @@
 import * as vscode from "vscode";
 import { Connection, createConnection } from "mysql2";
 import path from "path";
+import { Dataloader, PromiseResult, TableResult } from "./dataloader";
+import { MySQLDataloader } from "./mysql_dataloader";
 
 const iconDir: string[] = ["..", "..", "resources", "icons"];
 
@@ -31,360 +33,68 @@ export interface DatasourceInputData {
   port?: number;
 }
 
-export interface PromiseResult {
-  success: boolean;
-  message?: string;
-}
-
 export class Datasource extends vscode.TreeItem {
   public children: Datasource[] = [];
-
-  private conn?: Connection;
-  private root?: Datasource;
-  private parent?: Datasource;
+  public root?: Datasource;
+  public parent?: Datasource;
   public type: string;
+  public dataloder?: Dataloader;
 
   public connect(): Promise<void> {
-    return new Promise<void>((resolve) => {
-      if (this.conn?.authorized) {
-        this.listDatabases().then(() => resolve());
-      } else {
-        this.conn?.connect((err) => {
-          if (err) {
-            vscode.window.showErrorMessage(`连接失败：${err.message}`);
-          }
-          this.listDatabases().then(() => resolve());
-        });
-      }
-    });
+    if (!this.dataloder) {
+      return Promise.resolve();
+    }
+    return this.dataloder?.connect();
+  }
+
+  public test(): Promise<PromiseResult> {
+    if (!this.dataloder) {
+      return Promise.resolve({
+        success: false,
+        message: "未知错误导致连接失败",
+      });
+    }
+    return this.dataloder?.test();
   }
 
   public expand = (): Promise<Datasource[]> => {
+    if (!this.dataloder) {
+      return Promise.resolve([]);
+    }
     switch (this.type) {
       case "datasourceType":
-        return this.listDatabases();
+        return this.dataloder.listDatabases(this);
       case "collectionType":
-        return this.listTables();
+        return this.dataloder.listTables(this);
       case "fieldType":
-        return this.listColumns();
+        return this.dataloder.listColumns(this);
       case "indexType":
-        return this.listIndexes();
+        return this.dataloder.listIndexes(this);
       case "userType":
-        return this.listUsers();
+        return this.dataloder.listUsers(this);
       case "collection":
       case "datasource":
       case "document":
-        return this.listObjects(this.type);
+        return this.dataloder.listObjects(this, this.type);
       default:
         return Promise.resolve([]);
     }
   };
 
-  private listUsers(): Promise<Datasource[]> {
-    return new Promise<Datasource[]>((resolve) => {
-      if (!this.root || !this.root.conn || !this.parent) {
-        return resolve([]);
-      }
-      const conn = this.root.conn;
-      conn.query(
-        `
-SELECT DISTINCT USER as name, HOST as host
-FROM mysql.DB
-WHERE db = '${this.parent.label}';
-`,
-        (err, results) => {
-          if (err) {
-            vscode.window.showErrorMessage(`查询数据库失败：${err.message}`);
-            return resolve([]);
-          }
-          return resolve(
-            (results as any[]).map(
-              (row) =>
-                new Datasource(
-                  {
-                    name: `${row["name"]}@${row["host"]}`,
-                    tooltip: "",
-                    extra: "",
-                    type: "user",
-                  },
-                  this.root,
-                  this
-                )
-            )
-          );
-        }
-      );
-    });
-  }
-
-  private listObjects(type: string): Promise<Datasource[]> {
-    return new Promise<Datasource[]>((resolve) => {
-      if (type === "document") {
-        resolve([
-          new Datasource(
-            {
-              type: "fieldType",
-              name: "字段",
-              tooltip: "",
-            },
-            this.root,
-            this
-          ),
-          new Datasource(
-            {
-              type: "indexType",
-              name: "索引",
-              tooltip: "",
-            },
-            this.root,
-            this
-          ),
-        ]);
-      } else if (type === "collection") {
-        resolve([
-          new Datasource(
-            {
-              type: "collectionType",
-              name: "表",
-              tooltip: "",
-            },
-            this.root,
-            this
-          ),
-          new Datasource(
-            {
-              type: "userType",
-              name: "用户",
-              tooltip: "",
-            },
-            this.root,
-            this
-          ),
-        ]);
-      } else if (type === "datasource") {
-        resolve([
-          new Datasource(
-            {
-              type: "datasourceType",
-              name: "数据库",
-              tooltip: "",
-            },
-            this,
-            this
-          ),
-          new Datasource(
-            {
-              type: "userType",
-              name: "用户",
-              tooltip: "",
-            },
-            this,
-            this
-          ),
-        ]);
-      } else {
-        return resolve([]);
-      }
-    });
-  }
-
-  private listIndexes(): Promise<Datasource[]> {
-    return new Promise<Datasource[]>((resolve) => {
-      if (
-        !this.root ||
-        !this.root.conn ||
-        !this.parent ||
-        !this.parent.parent ||
-        !this.parent.parent.parent
-      ) {
-        return resolve([]);
-      }
-      const conn = this.root.conn;
-      conn.query(
-        `
-SELECT 
-	INDEX_NAME AS iname,
-	COLUMN_NAME AS cname,
-	SEQ_IN_INDEX AS sii,
-	NON_UNIQUE AS nu,
-	INDEX_TYPE AS it
-FROM 
-    information_schema.STATISTICS 
-WHERE 
-    TABLE_SCHEMA = '${this.parent.parent.parent.label}'
-    AND TABLE_NAME = '${this.parent.label}'
-ORDER BY 
-    NON_UNIQUE, INDEX_NAME, SEQ_IN_INDEX;
-`,
-        (err, results) => {
-          if (err) {
-            vscode.window.showErrorMessage(`查询索引失败：${err.message}`);
-            return resolve([]);
-          }
-          const indexes = new Map<string, string[]>();
-          const rows = results as any[];
-          for (const row of rows) {
-            if (!indexes.has(row["iname"] as string)) {
-              indexes.set(row["iname"] as string, [
-                `${row["it"]}`,
-                `${row["nu"]}`,
-              ]);
-            }
-            indexes.get(row["iname"] as string)?.push(`${row["cname"]}`);
-          }
-          const result: Datasource[] = [];
-          for (const [k, v] of indexes) {
-            const indexNames = v.slice(2).join(", ");
-            const tooltip = `${v[0]}(${indexNames})`;
-            result.push(
-              new Datasource({
-                name: k,
-                tooltip: tooltip,
-                extra: parseInt(v[1]) === 0 ? `UNIQUE` : ``,
-                type: "index",
-              })
-            );
-          }
-          return resolve(result);
-        }
-      );
-    });
-  }
-
-  private listColumns(): Promise<Datasource[]> {
-    return new Promise<Datasource[]>((resolve) => {
-      if (
-        !this.root ||
-        !this.root.conn ||
-        !this.parent ||
-        !this.parent.parent ||
-        !this.parent.parent.parent
-      ) {
-        return resolve([]);
-      }
-      const conn = this.root.conn;
-      conn.query(
-        `
-SELECT 
-	COLUMN_NAME AS name,
-	COLUMN_TYPE AS ctype,
-	COLUMN_COMMENT AS cc
-FROM 
-    information_schema.COLUMNS 
-WHERE 
-    TABLE_SCHEMA = '${this.parent.parent.parent.label}'
-    AND TABLE_NAME = '${this.parent.label}'
-ORDER BY 
-    ORDINAL_POSITION;
-`,
-        (err, results) => {
-          if (err) {
-            vscode.window.showErrorMessage(`查询数据库失败：${err.message}`);
-            return resolve([]);
-          }
-          return resolve(
-            (results as any[]).map(
-              (row) =>
-                new Datasource(
-                  {
-                    name: row["name"] as string,
-                    tooltip: row["cc"] as string,
-                    extra: row["ctype"] as string,
-                    type: "field",
-                  },
-                  this.root
-                )
-            )
-          );
-        }
-      );
-    });
-  }
-
-  private listTables(): Promise<Datasource[]> {
-    return new Promise<Datasource[]>((resolve) => {
-      if (!this.root || !this.root.conn || !this.parent) {
-        return resolve([]);
-      }
-      const conn = this.root.conn;
-      conn.query(
-        `
-SELECT TABLE_NAME as name, TABLE_COMMENT as tc
-FROM information_schema.TABLES
-WHERE TABLE_SCHEMA = '${this.parent.label}';
-`,
-        (err, results) => {
-          if (err) {
-            vscode.window.showErrorMessage(`查询数据库失败：${err.message}`);
-            return resolve([]);
-          }
-          return resolve(
-            (results as any[]).map(
-              (row) =>
-                new Datasource(
-                  {
-                    name: row["name"] as string,
-                    tooltip: row["tc"] as string,
-                    extra: "",
-                    type: "document",
-                  },
-                  this.root,
-                  this
-                )
-            )
-          );
-        }
-      );
-    });
-  }
-
-  private listDatabases(): Promise<Datasource[]> {
-    return new Promise<Datasource[]>((resolve) => {
-      if (!this.root || !this.root.conn) {
-        return resolve([]);
-      }
-      this.root.conn.query(
-        `
-SELECT 
-	SCHEMA_NAME AS name,
-	DEFAULT_CHARACTER_SET_NAME AS charset_name
-FROM 
-	information_schema.SCHEMATA
-ORDER BY 
-	SCHEMA_NAME;
-				`,
-        (err, results) => {
-          if (err) {
-            vscode.window.showErrorMessage(`获取数据库失败：${err.message}`);
-            return resolve([]);
-          }
-          return resolve(
-            (results as any[]).map(
-              (row) =>
-                new Datasource(
-                  {
-                    name: row["name"] as string,
-                    tooltip: "",
-                    extra: row["charset_name"] as string,
-                    type: "collection",
-                  },
-									this.root,
-                  this
-                )
-            )
-          );
-        }
-      );
-    });
+  public listData(): Promise<TableResult | null> {
+    if (!this.dataloder) {
+      return Promise.resolve(null);
+    }
+    return this.dataloder.listData(this);
   }
 
   public constructor(
     input: DatasourceInputData,
-    root?: Datasource,
+    dataloader?: Dataloader,
     parent?: Datasource
   ) {
     super(input.name);
-    this.root = root;
+		this.dataloder = dataloader;
     this.parent = parent;
     this.type = input.type;
     this.tooltip = input.tooltip;
@@ -460,6 +170,11 @@ ORDER BY
         path.join(__filename, ...iconDir, "Table_dark.svg")
       ),
     };
+    this.command = {
+      title: "查看数据",
+      command: "dsItem.showData",
+      arguments: [this],
+    };
   }
 
   private initCollectionType(input: DatasourceInputData): void {
@@ -501,14 +216,7 @@ ORDER BY
               path.join(__filename, ...iconDir, "mysql", "MySQL_dark.svg")
             ),
           };
-          this.conn = createConnection({
-            host: input.host,
-            port: input.port,
-            user: input.username,
-            password: input.password,
-            database: input.database,
-            connectTimeout: 5000,
-          });
+          this.dataloder = new MySQLDataloader(this, input);
           break;
       }
     } else {
@@ -538,23 +246,6 @@ ORDER BY
           .then(() => resolve(instance));
       }
       return resolve(instance);
-    });
-  }
-
-  public test(): Promise<PromiseResult> {
-    return new Promise<PromiseResult>((resolve) => {
-      this.conn?.connect((err) => {
-        if (err) {
-          resolve({
-            success: false,
-            message: err.message,
-          });
-        } else {
-          resolve({
-            success: true,
-          });
-        }
-      });
     });
   }
 }

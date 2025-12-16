@@ -1,0 +1,32 @@
+import { Datasource } from "./datasource";
+
+export interface PromiseResult {
+  success: boolean;
+  message?: string;
+}
+
+export interface ColDef {
+  field: string;
+  colId?: string;
+  type?: string | string[];
+}
+
+export interface TableResult {
+	title: string,
+  rowData: Record<string, any>[];
+  columnDefs: ColDef[];
+}
+
+export interface Dataloader {
+  test(): Promise<PromiseResult>;
+  connect(): Promise<void>;
+
+  listUsers(ds: Datasource): Promise<Datasource[]>;
+  listDatabases(ds: Datasource): Promise<Datasource[]>;
+
+  listObjects(ds: Datasource, type: string): Promise<Datasource[]>;
+  listIndexes(ds: Datasource): Promise<Datasource[]>;
+  listColumns(ds: Datasource): Promise<Datasource[]>;
+  listTables(ds: Datasource): Promise<Datasource[]>;
+  listData(ds: Datasource, page?: number, pageSize?: number): Promise<TableResult>;
+}
