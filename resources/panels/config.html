@@ -4,7 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>数据库配置</title>
-    <link rel="stylesheet" href="{{global-css}}" />
+		<meta http-equiv="Content-Security-Policy" content="{{csp}}" />
+    <link rel="stylesheet" href="{{resources-uri}}/global.css" />
+    <script nonce="{{resource-nonce}}" src="{{resources-uri}}/jquery-3.7.1.min.js"></script>
   </head>
   <body class="config-container">
     <div class="container">
@@ -129,182 +131,11 @@
         ></div>
       </form>
     </div>
-    <script src="{{global-js}}"></script>
-    <script>
-      const vscode =
-        typeof acquireVsCodeApi === "function" ? acquireVsCodeApi() : null;
-
-      class DatabaseConfigForm {
-        constructor() {
-          this.dbTypeEl = document.getElementById("dbType");
-          this.nameEl = document.getElementById("name");
-          this.hostEl = document.getElementById("host");
-          this.portEl = document.getElementById("port");
-          this.userEl = document.getElementById("user");
-          this.passwordEl = document.getElementById("password");
-          this.databaseEl = document.getElementById("database");
-          this.sqlitePathEl = document.getElementById("sqlitePath");
-          this.statusEl = document.getElementById("status");
-          this.testBtn = document.getElementById("testBtn");
-          this.connectBtn = document.getElementById("connectBtn");
-          this.standardConfig = document.getElementById("standardConfig");
-          this.sqliteConfig = document.getElementById("sqliteConfig");
-
-          this.init();
-        }
-
-        init() {
-          this.setupEventListeners();
-          this.listenToMessages();
-          this.setDefaultPort();
-        }
-
-        setupEventListeners() {
-          this.dbTypeEl.addEventListener("change", () => {
-            this.onDatabaseTypeChange();
-            this.setDefaultPort();
-          });
-
-          this.testBtn.addEventListener("click", (e) => {
-            e.preventDefault();
-            this.testConnection();
-          });
-
-          this.connectBtn.addEventListener("click", (e) => {
-            e.preventDefault();
-            this.saveConnection();
-          });
-        }
-
-        onDatabaseTypeChange() {
-          const type = this.dbTypeEl.value;
-          if (type === "sqlite") {
-            this.standardConfig.style.display = "none";
-            this.sqliteConfig.style.display = "block";
-          } else {
-            this.standardConfig.style.display = "block";
-            this.sqliteConfig.style.display = "none";
-          }
-        }
-
-        setDefaultPort() {
-          const type = this.dbTypeEl.value;
-          const defaultPorts = {
-            mysql: 3306,
-            postgres: 5432,
-            mssql: 1433,
-          };
-          if (defaultPorts[type]) {
-            this.portEl.placeholder = String(defaultPorts[type]);
-          }
-        }
-
-        getFormData() {
-          const type = this.dbTypeEl.value;
-          return {
-            type: "datasource",
-            dbType: type,
-            name: this.nameEl.value.trim(),
-            host: this.hostEl.value.trim(),
-            port: this.portEl.value ? parseInt(this.portEl.value) : null,
-            username: this.userEl.value.trim(),
-            password: this.passwordEl.value,
-            database:
-              type === "sqlite"
-                ? this.sqlitePathEl.value.trim()
-                : this.databaseEl.value.trim(),
-          };
-        }
-
-        validateForm() {
-          const data = this.getFormData();
-          if (!data.name) {
-            this.showStatus("请输入连接名称", "error");
-            return false;
-          }
-          if (data.dbType !== "sqlite") {
-            if (!data.host) {
-              this.showStatus("请输入主机地址", "error");
-              return false;
-            }
-            if (!data.database) {
-              this.showStatus("请输入数据库名", "error");
-              return false;
-            }
-          } else {
-            if (!data.database) {
-              this.showStatus("请输入 SQLite 文件路径", "error");
-              return false;
-            }
-          }
-          return true;
-        }
-
-        testConnection() {
-          if (!this.validateForm()) return;
-          if (!vscode) {
-            this.showStatus("未在 VS Code Webview 中运行", "error");
-            return;
-          }
-          this.setButtonsDisabled(true);
-          this.showStatus("正在测试连接...", "info");
-          vscode.postMessage({ command: "test", payload: this.getFormData() });
-        }
-
-        saveConnection() {
-          if (!this.validateForm()) return;
-          if (!vscode) {
-            this.showStatus("未在 VS Code Webview 中运行", "error");
-            return;
-          }
-          this.setButtonsDisabled(true);
-          this.showStatus("正在保存配置...", "info");
-          vscode.postMessage({ command: "save", payload: this.getFormData() });
-        }
-
-        listenToMessages() {
-          window.addEventListener("message", (event) => {
-            const message = event.data;
-            if (!message || !message.command) return;
-
-            switch (message.command) {
-              case "status":
-                const isSuccess = message.success !== false;
-                this.showStatus(
-                  message.message || "",
-                  isSuccess ? "success" : "error"
-                );
-                this.setButtonsDisabled(false);
-                break;
-              case "setValues":
-                this.loadValues(message.values || {});
-                break;
-            }
-          });
-        }
-
-        loadValues(values) {
-          Object.keys(values).forEach((key) => {
-            const el = document.querySelector(`[name="${key}"]`);
-            if (el) {
-              el.value = values[key];
-            }
-          });
-          this.onDatabaseTypeChange();
-        }
-
-        showStatus(message, type = "info") {
-          this.statusEl.textContent = message;
-          this.statusEl.className = `status-message show ${type}`;
-        }
-
-        setButtonsDisabled(disabled) {
-          this.testBtn.disabled = disabled;
-          this.connectBtn.disabled = disabled;
-        }
-      }
-
-      new DatabaseConfigForm();
+    <script nonce="{{resource-nonce}}" src="{{resources-uri}}/global.js"></script>
+    <script nonce="{{resource-nonce}}">
+      $(function () {
+        new DatabaseConfigForm();
+      });
     </script>
   </body>
 </html>

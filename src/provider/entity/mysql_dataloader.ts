@@ -2,7 +2,6 @@ import * as vscode from "vscode";
 import { Connection, createConnection } from "mysql2";
 import { ColDef, Dataloader, PromiseResult, TableResult } from "./dataloader";
 import { Datasource, DatasourceInputData } from "./datasource";
-import { table } from "console";
 
 export class MySQLDataloader implements Dataloader {
   private conn: Connection;
@@ -163,7 +162,6 @@ WHERE db = '${this.ds.parent.label}';
           ),
         ];
       }
-      console.log(ds);
       resolve(ds.children);
     });
   }

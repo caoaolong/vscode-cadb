@@ -19,39 +19,34 @@ function createWebview(
         vscode.Uri.file(
           path.join(provider.context.extensionPath, "resources", "panels")
         ),
+				vscode.Uri.file(
+          path.join(provider.context.extensionPath, "node_modules")
+        ),
       ],
     }
   );
 
-  const globalCssUri = panel.webview.asWebviewUri(
-    vscode.Uri.joinPath(
-      provider.context.extensionUri,
-      "resources",
-      "panels",
-      "global.css"
-    )
+  const resourcesUri = panel.webview.asWebviewUri(
+    vscode.Uri.joinPath(provider.context.extensionUri, "resources", "panels")
   );
-
-  const globalJsUri = panel.webview.asWebviewUri(
-    vscode.Uri.joinPath(
-      provider.context.extensionUri,
-      "resources",
-      "panels",
-      "global.js"
-    )
+	const nodeResourcesUri = panel.webview.asWebviewUri(
+    vscode.Uri.joinPath(provider.context.extensionUri, "node_modules")
   );
-
+	const nonce = generateNonce();
   panel.webview.html = provider.panels[viewType]
     .replace(
       /{{csp}}/g,
       `
     default-src 'none';
+		font-src ${panel.webview.cspSource};
     style-src ${panel.webview.cspSource} 'unsafe-inline';
-    script-src ${panel.webview.cspSource};
+    script-src 'nonce-${nonce}';
   `.trim()
     )
-    .replace(/{{global-css}}/g, globalCssUri.toString())
-    .replace(/{{global-js}}/g, globalJsUri.toString());
+    .replace(/{{node-resources-uri}}/g, nodeResourcesUri.toString())
+    .replace(/{{resources-uri}}/g, resourcesUri.toString())
+    .replace(/{{resource-nonce}}/g, nonce);
+	console.log(panel.webview.html);
   panel.iconPath = vscode.Uri.file(
     path.join(
       provider.context.extensionPath,
@@ -61,6 +56,16 @@ function createWebview(
     )
   );
   return panel;
+}
+
+function generateNonce() {
+  let text = "";
+  const possible =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  for (let i = 0; i < 32; i++) {
+    text += possible.charAt(Math.floor(Math.random() * possible.length));
+  }
+  return text;
 }
 
 export function registerDatasourceCommands(
@@ -103,32 +108,6 @@ function editEntry(provider: DataSourceProvider) {
 
 function addEntry(provider: DataSourceProvider) {
   const panel = createWebview(provider, "datasourceConfig", "数据库连接配置");
-  // send current theme to webview and keep it updated
-  const sendThemeToWebview = (kind: vscode.ColorThemeKind) => {
-    const themeName =
-      kind === vscode.ColorThemeKind.Dark
-        ? "dark"
-        : kind === vscode.ColorThemeKind.Light
-        ? "light"
-        : "hc";
-    panel.webview.postMessage({ command: "theme", theme: themeName });
-  };
-
-  // initial theme
-  try {
-    sendThemeToWebview(vscode.window.activeColorTheme.kind);
-  } catch (e) {
-    // ignore if not available
-  }
-
-  // listen for theme changes and forward to webview; dispose when panel closed
-  const themeListener = vscode.window.onDidChangeActiveColorTheme((event) => {
-    sendThemeToWebview(event.kind);
-  });
-  panel.onDidDispose(() => {
-    themeListener.dispose();
-  });
-
   panel.webview.onDidReceiveMessage(async (message) => {
     switch (message.command) {
       case "save":
