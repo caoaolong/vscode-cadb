@@ -25,6 +25,18 @@
   --success: var(--vscode-charts-green, #89d185);
   --widget-bg: var(--vscode-editorWidget-background, #f3f3f3);
   --widget-border: var(--vscode-editorWidget-border, #d0d0d0);
+
+  --vscode-bg: var(--vscode-editor-background, #1e1e1e);
+  --vscode-fg: var(--vscode-editor-foreground, #d4d4d4);
+  --vscode-border: var(--vscode-panel-border, #3e3e42);
+  --vscode-input-bg: var(--vscode-input-background, #3c3c3c);
+  --vscode-input-fg: var(--vscode-input-foreground, #cccccc);
+  --vscode-btn-bg: var(--vscode-button-background, #0e639c);
+  --vscode-btn-fg: var(--vscode-button-foreground, #ffffff);
+  --vscode-select-bg: var(--vscode-list-activeSelectionBackground, #094771);
+  --vscode-select-fg: var(--vscode-list-activeSelectionForeground, #ffffff);
+  --vscode-hover: var(--vscode-list-hoverBackground, #2d2d30);
+  --vscode-focus: var(--vscode-focusBorder, #007acc);
 }
 
 body {
@@ -335,19 +347,6 @@ label {
 
 /* ===== 以下样式从 resources/panels/grid.html 的 <style> 块中移入 ===== */
 /* Grid page specific styles */
-:root {
-  --vscode-bg: var(--vscode-editor-background, #1e1e1e);
-  --vscode-fg: var(--vscode-editor-foreground, #d4d4d4);
-  --vscode-border: var(--vscode-panel-border, #3e3e42);
-  --vscode-input-bg: var(--vscode-input-background, #3c3c3c);
-  --vscode-input-fg: var(--vscode-input-foreground, #cccccc);
-  --vscode-btn-bg: var(--vscode-button-background, #0e639c);
-  --vscode-btn-fg: var(--vscode-button-foreground, #ffffff);
-  --vscode-select-bg: var(--vscode-list-activeSelectionBackground, #094771);
-  --vscode-select-fg: var(--vscode-list-activeSelectionForeground, #ffffff);
-  --vscode-hover: var(--vscode-list-hoverBackground, #2d2d30);
-  --vscode-focus: var(--vscode-focusBorder, #007acc);
-}
 
 * {
   box-sizing: border-box;
@@ -402,122 +401,11 @@ body.grid-panel {
   align-items: center;
 }
 
-.stat-label {
-  color: #999;
-}
-
 .table-wrapper {
   background-color: var(--vscode-input-bg);
   border: 1px solid var(--vscode-border);
   border-radius: 2px;
   overflow: hidden;
-}
-
-/* DataTables base */
-table.dataTable {
-  width: 100% !important;
-  border-collapse: collapse;
-  margin: 0 !important;
-}
-
-table.dataTable thead {
-  background-color: rgba(255, 255, 255, 0.08);
-  border-bottom: 2px solid var(--vscode-border);
-}
-
-table.dataTable thead th {
-  color: var(--vscode-fg);
-  padding: 8px 10px !important;
-  text-align: left;
-  font-weight: 600;
-  border-right: 1px solid var(--vscode-border);
-  user-select: none;
-  position: relative;
-}
-
-table.dataTable thead th:last-child {
-  border-right: none;
-}
-
-table.dataTable thead th.select-checkbox {
-  width: 40px;
-  padding: 0 !important;
-  text-align: center;
-}
-
-table.dataTable tbody td.select-checkbox {
-  text-align: center;
-  width: 40px;
-  padding: 0 !important;
-}
-
-table.dataTable tbody td.select-checkbox input {
-  cursor: pointer;
-}
-
-table.dataTable tbody {
-  background-color: var(--vscode-bg);
-}
-
-table.dataTable tbody td {
-  color: var(--vscode-fg);
-  padding: 6px 10px !important;
-  border-bottom: 1px solid #2d2d30;
-  border-right: 1px solid #2d2d30;
-  position: relative;
-}
-
-table.dataTable tbody td:last-child {
-  border-right: none;
-}
-
-table.dataTable tbody tr:hover {
-  background-color: var(--vscode-hover) !important;
-}
-
-table.dataTable tbody tr.selected {
-  background-color: var(--vscode-select-bg) !important;
-}
-
-table.dataTable tbody tr.selected td {
-  background-color: var(--vscode-select-bg);
-  color: var(--vscode-select-fg);
-}
-
-td.cell-edit {
-  padding: 0 !important;
-}
-
-td.cell-edit input,
-td.cell-edit select {
-  width: 100%;
-  height: 100%;
-  box-sizing: border-box;
-
-  /* 关键：让控件“消失” */
-  background: transparent;
-  color: inherit;
-
-  border: none;
-  outline: none;
-
-	box-shadow: none;
-  -webkit-appearance: none;
-  appearance: none;
-
-  /* 保持与单元格一致的留白 */
-  padding: 0 6px;
-  margin: 0;
-
-  font: inherit;
-  text-align: inherit;
-
-  min-height: 0; /* 移除固定高度 */
-}
-
-td.cell-edit input::selection {
-  background-color: var(--vscode-select-bg);
-  color: var(--vscode-select-fg);
 }
 
 .filter-header {
@@ -555,61 +443,6 @@ td.cell-edit input::selection {
   outline: none;
   border-color: var(--vscode-focus);
   box-shadow: 0 0 0 1px var(--vscode-focus);
-}
-
-.dataTables_wrapper .dataTables_paginate {
-  margin-top: 12px;
-  padding: 8px 0;
-}
-
-.dataTables_wrapper .dataTables_paginate .paginate_button {
-  background-color: transparent !important;
-  color: var(--vscode-fg) !important;
-  border: 1px solid var(--vscode-border) !important;
-  padding: 4px 8px !important;
-  margin-left: 2px !important;
-  cursor: pointer;
-  border-radius: 2px;
-  font-size: 12px;
-}
-
-.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
-  background-color: var(--vscode-hover) !important;
-}
-
-.dataTables_wrapper .dataTables_paginate .paginate_button.current {
-  background-color: var(--vscode-select-bg) !important;
-  border-color: var(--vscode-select-bg) !important;
-  color: var(--vscode-select-fg) !important;
-}
-
-.dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.dataTables_wrapper .dataTables_info {
-  color: #999 !important;
-  font-size: 12px;
-  margin-bottom: 8px;
-}
-
-::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--vscode-bg);
-}
-
-::-webkit-scrollbar-thumb {
-  background: #555;
-  border-radius: 6px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #666;
 }
 /* End of styles moved from grid.html */
 
@@ -696,19 +529,6 @@ body.grid-panel {
   background: transparent;
 }
 
-/* 固定在页面底部的统计信息栏 */
-.stats {
-  position: fixed;
-  bottom: var(--panel-padding);
-  left: var(--panel-padding);
-  right: var(--panel-padding);
-  height: var(--stats-height);
-  z-index: 30;
-  display: flex;
-  align-items: center;
-  background: transparent;
-}
-
 /* 过滤输入行固定在工具栏下方 */
 .filter-row {
   position: fixed;
@@ -775,4 +595,10 @@ body.grid-panel {
   bottom: calc(var(--panel-padding) + var(--stats-height) + 8px);
   overflow: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+.tabulator {
+  background: var(--vscode-bg);
+  color: var(--vscode-fg);
+  border: 1px solid var(--vscode-border);
 }

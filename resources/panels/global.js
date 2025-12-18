@@ -200,209 +200,30 @@ class DatabaseTableData {
     this.tableData = JSON.parse(JSON.stringify(data));
     this.changedRows.clear();
     this.selectedRowIndexes.clear();
-
-    this._buildTableHead();
     this._initDataTable();
-    this._bindEvents();
-    this._updateStats();
   }
 
   /* ========== DataTable 初始化 ========== */
 
   _initDataTable() {
-    if ($.fn.DataTable.isDataTable(this.tableSelector)) {
-      $(this.tableSelector).DataTable().destroy();
-    }
-
-    this.table = $(this.tableSelector).DataTable({
-      data: this.tableData,
+    this.table = new Tabulator(this.tableSelector, {
+      height: "100%",
+      layout: "fitColumns",
       columns: this._buildColumns(),
-      dom: "tip",
-      pageLength: 10,
-      orderFixed: [[1, "asc"]],
     });
-
-    this.table.on("draw", () => this._applyRowHighlight());
+    return;
   }
 
   _buildColumns() {
     const cols = [];
-
-    // 序号列
-    cols.push({
-      data: null,
-      orderable: false,
-      searchable: false,
-      className: "row-index-cell",
-      width: "50px",
-      render: (_d, _t, _r, meta) => meta.row + 1 + meta.settings._iDisplayStart,
-    });
-
     this.columns.forEach((c) => {
-      cols.push({ data: c.field });
+      cols.push({
+        title: c.field.toUpperCase(),
+        field: c.field,
+        resizable: true,
+      });
     });
-
     return cols;
-  }
-
-  _buildTableHead() {
-    const $thead = $(`${this.tableSelector} thead`);
-    $thead.empty();
-
-    const $tr = $("<tr>");
-    $tr.append("<th>#</th>");
-    this.columns.forEach((c) => {
-      $tr.append(`<th>${c.field}</th>`);
-    });
-    $thead.append($tr);
-  }
-
-  /* ========== 事件绑定 ========== */
-
-  _bindEvents() {
-    const $tbody = $(`${this.tableSelector} tbody`);
-
-    // 序号列：整行高亮（支持 Ctrl / Shift）
-    $tbody
-      .off("click", "td.row-index-cell")
-      .on("click", "td.row-index-cell", (e) => this._handleRowIndexClick(e));
-
-    // 非序号列：单元格高亮
-    $tbody
-      .off("click", "td:not(.row-index-cell)")
-      .on("click", "td:not(.row-index-cell)", (e) => {
-        e.stopPropagation();
-        this._clearRowHighlight();
-        this._highlightCell(e.currentTarget);
-      });
-
-    // 双击编辑
-    $tbody
-      .off("dblclick", "td:not(.row-index-cell)")
-      .on("dblclick", "td:not(.row-index-cell)", (e) =>
-        this._editCell(e.currentTarget)
-      );
-  }
-
-  /* ========== 行选择逻辑 ========== */
-
-  _handleRowIndexClick(e) {
-    const row = this.table.row($(e.currentTarget).closest("tr"));
-    const idx = row.index();
-
-    if (e.shiftKey && this.lastClickedRowIndex !== null) {
-      const [s, eIdx] =
-        idx > this.lastClickedRowIndex
-          ? [this.lastClickedRowIndex, idx]
-          : [idx, this.lastClickedRowIndex];
-      for (let i = s; i <= eIdx; i++) {
-        this.selectedRowIndexes.add(i);
-      }
-    } else if (e.ctrlKey || e.metaKey) {
-      this.selectedRowIndexes.has(idx)
-        ? this.selectedRowIndexes.delete(idx)
-        : this.selectedRowIndexes.add(idx);
-      this.lastClickedRowIndex = idx;
-    } else {
-      this.selectedRowIndexes.clear();
-      this.selectedRowIndexes.add(idx);
-      this.lastClickedRowIndex = idx;
-    }
-
-    this._applyRowHighlight();
-  }
-
-  _applyRowHighlight() {
-    $(`${this.tableSelector} tbody tr`).removeClass("row-highlight");
-
-    this.selectedRowIndexes.forEach((idx) => {
-      const row = this.table.row(idx);
-      if (row.node()) {
-        $(row.node()).addClass("row-highlight");
-      }
-    });
-
-    this._clearCellHighlight();
-    this._updateStats();
-  }
-
-  _clearRowHighlight() {
-    this.selectedRowIndexes.clear();
-    $(`${this.tableSelector} tbody tr`).removeClass("row-highlight");
-  }
-
-  /* ========== 单元格高亮 ========== */
-
-  _highlightCell(cell) {
-    this._clearCellHighlight();
-    this.highlightedCell = cell;
-    $(cell).addClass("cell-highlight");
-  }
-
-  _clearCellHighlight() {
-    if (this.highlightedCell) {
-      $(this.highlightedCell).removeClass("cell-highlight");
-      this.highlightedCell = null;
-    }
-  }
-
-  /* ========== 单元格编辑 ========== */
-
-  _editCell(cell) {
-    const $cell = $(cell);
-    if ($cell.hasClass("cell-edit")) {
-      return;
-    }
-
-    const original = $cell.text();
-    const colIndex = $cell.index() - 1;
-    const row = this.table.row($cell.closest("tr"));
-    const field = Object.keys(row.data())[colIndex + 1];
-
-    $cell.addClass("cell-edit").empty();
-
-    const $input = $("<input>")
-      .val(original)
-      .on("blur", () =>
-        this._saveEdit($cell, row, field, $input.val(), original)
-      )
-      .on("keydown", (e) => {
-        if (e.key === "Enter") {
-          this._saveEdit($cell, row, field, $input.val(), original);
-        }
-        if (e.key === "Escape") {
-          this._cancelEdit($cell, original);
-        }
-      });
-
-    $cell.append($input);
-    $input.focus().select();
-  }
-
-  _saveEdit($cell, row, field, value, original) {
-    $cell.removeClass("cell-edit").text(value);
-
-    if (value !== original) {
-      row.data()[field] = value;
-      row.invalidate();
-      this.changedRows.add(row.index());
-    }
-    this._updateStats();
-  }
-
-  _cancelEdit($cell, original) {
-    $cell.removeClass("cell-edit").text(original);
-  }
-
-  /* ========== 统计 ========== */
-
-  _updateStats() {
-    if (!this.stats) {
-      return;
-    }
-    $(this.stats.total).text(this.tableData.length);
-    $(this.stats.selected).text(this.selectedRowIndexes.size);
-    $(this.stats.changed).text(this.changedRows.size);
   }
 }
 
