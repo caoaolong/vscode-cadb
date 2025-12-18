@@ -4,23 +4,37 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>数据表格编辑器</title>
-		<meta http-equiv="Content-Security-Policy" content="{{csp}}" />
+    <meta http-equiv="Content-Security-Policy" content="{{csp}}" />
     <link rel="stylesheet" href="{{resources-uri}}/global.css" />
-    <script nonce="{{resource-nonce}}" src="{{resources-uri}}/jquery-3.7.1.min.js"></script>
+    <script
+      nonce="{{resource-nonce}}"
+      src="{{resources-uri}}/jquery-3.7.1.min.js"
+    ></script>
 
     <link rel="stylesheet" href="{{resources-uri}}/jquery.dataTables.min.css" />
     <link rel="stylesheet" href="{{resources-uri}}/select.dataTables.min.css" />
     <link rel="stylesheet" href="{{resources-uri}}/codicon.css" />
-    <link rel="stylesheet" href="{{node-resources-uri}}/@vscode/codicons/dist/codicon.css" />
+    <link
+      rel="stylesheet"
+      href="{{node-resources-uri}}/@vscode/codicons/dist/codicon.css"
+    />
     <!-- Styles moved to resources/panels/global.css -->
   </head>
   <body class="grid-panel">
     <div class="toolbar">
-      <button class="btn btn-secondary btn-small" id="btn-save" title="保存修改到数据库">
+      <button
+        class="btn btn-secondary btn-small"
+        id="btn-save"
+        title="保存修改到数据库"
+      >
         <span class="codicon codicon-save" aria-hidden="true"></span>
         <span class="sr-only">保存</span>
       </button>
-      <button class="btn btn-secondary btn-small" id="btn-refresh" title="刷新表格数据">
+      <button
+        class="btn btn-secondary btn-small"
+        id="btn-refresh"
+        title="刷新表格数据"
+      >
         <span class="codicon codicon-refresh" aria-hidden="true"></span>
         <span class="sr-only">刷新</span>
       </button>
@@ -28,20 +42,36 @@
         <span class="codicon codicon-add" aria-hidden="true"></span>
         <span class="sr-only">新增</span>
       </button>
-      <button class="btn btn-secondary btn-small" id="btn-delete" title="删除选中行">
+      <button
+        class="btn btn-secondary btn-small"
+        id="btn-delete"
+        title="删除选中行"
+      >
         <span class="codicon codicon-trash" aria-hidden="true"></span>
         <span class="sr-only">删除</span>
       </button>
       <div style="flex: 1"></div>
-      <button class="btn btn-secondary btn-small" id="btn-export-csv" title="导出为 CSV 文件">
+      <button
+        class="btn btn-secondary btn-small"
+        id="btn-export-csv"
+        title="导出为 CSV 文件"
+      >
         <span class="codicon codicon-archive" aria-hidden="true"></span>
         <span class="sr-only">CSV</span>
       </button>
-      <button class="btn btn-secondary btn-small" id="btn-export-json" title="导出为 JSON 文件">
+      <button
+        class="btn btn-secondary btn-small"
+        id="btn-export-json"
+        title="导出为 JSON 文件"
+      >
         <span class="codicon codicon-file" aria-hidden="true"></span>
         <span class="sr-only">JSON</span>
       </button>
-      <button class="btn btn-secondary btn-small" id="btn-export-sql" title="导出为 SQL 语句">
+      <button
+        class="btn btn-secondary btn-small"
+        id="btn-export-sql"
+        title="导出为 SQL 语句"
+      >
         <span class="codicon codicon-database" aria-hidden="true"></span>
         <span class="sr-only">SQL</span>
       </button>
@@ -50,11 +80,21 @@
     <div class="filter-row">
       <div class="filter-group">
         <label for="input-where" class="filter-label">WHERE</label>
-        <input type="text" id="input-where" class="filter-input" placeholder="condition (e.g., status = 'Active')" />
+        <input
+          type="text"
+          id="input-where"
+          class="filter-input"
+          placeholder="condition (e.g., status = 'Active')"
+        />
       </div>
       <div class="filter-group">
         <label for="input-orderby" class="filter-label">ORDER BY</label>
-        <input type="text" id="input-orderby" class="filter-input" placeholder="columns (e.g., id ASC, name DESC)" />
+        <input
+          type="text"
+          id="input-orderby"
+          class="filter-input"
+          placeholder="columns (e.g., id ASC, name DESC)"
+        />
       </div>
     </div>
 
@@ -75,538 +115,51 @@
 
     <div class="table-wrapper">
       <table id="grid" class="display">
-        <thead>
-          <tr>
-            <th class="select-checkbox">
-              <input type="checkbox" id="select-all" title="全选/反选" />
-            </th>
-            <th data-column="id">ID</th>
-            <th data-column="name">姓名</th>
-            <th data-column="role">职位</th>
-            <th data-column="status">状态</th>
-            <th data-column="email">邮箱</th>
-          </tr>
-        </thead>
-        <tbody>
-          <!-- 数据由 JS 动态加载 -->
-        </tbody>
+        <thead></thead>
+        <tbody></tbody>
       </table>
     </div>
 
-    <script nonce="{{resource-nonce}}" src="{{resources-uri}}/dataTables.select.min.js"></script>
-    <script nonce="{{resource-nonce}}" src="{{resources-uri}}/jquery.dataTables.min.js"></script>
-    <script nonce="{{resource-nonce}}" src="{{resources-uri}}/global.js"></script>
+    <script
+      nonce="{{resource-nonce}}"
+      src="{{resources-uri}}/dataTables.select.min.js"
+    ></script>
+    <script
+      nonce="{{resource-nonce}}"
+      src="{{resources-uri}}/jquery.dataTables.min.js"
+    ></script>
+    <script
+      nonce="{{resource-nonce}}"
+      src="{{resources-uri}}/global.js"
+    ></script>
     <script nonce="{{resource-nonce}}">
       // ========== VSCode API & 初始化 ==========
-			let vscode = null
-			if (window.vscode) {
-				vscode = window.vscode
-			} else {
-				vscode = acquireVsCodeApi ? acquireVsCodeApi() : null;
-			}
-      // 数据存储
-      let tableData = [];
-      let changedRows = new Set(); // 跟踪修改过的行
-      let table = null;
-
-      // 初始化演示数据
-      const demoData = [
-        {
-          id: 1,
-          name: "Alice Johnson",
-          role: "Admin",
-          status: "Active",
-          email: "alice@example.com",
+      let vscode = null;
+      if (window.vscode) {
+        vscode = window.vscode;
+      } else {
+        vscode = acquireVsCodeApi ? acquireVsCodeApi() : null;
+      }
+      const dbTable = new DatabaseTableData({
+        tableSelector: "#grid",
+        vscode,
+        stats: {
+          total: "#stat-total",
+          selected: "#stat-selected",
+          changed: "#stat-changed",
         },
-        {
-          id: 2,
-          name: "Bob Smith",
-          role: "Editor",
-          status: "Inactive",
-          email: "bob@example.com",
-        },
-        {
-          id: 3,
-          name: "Charlie Brown",
-          role: "User",
-          status: "Active",
-          email: "charlie@example.com",
-        },
-        {
-          id: 4,
-          name: "David Wilson",
-          role: "Admin",
-          status: "Pending",
-          email: "david@example.com",
-        },
-        {
-          id: 5,
-          name: "Eve Davis",
-          role: "User",
-          status: "Active",
-          email: "eve@example.com",
-        },
-        {
-          id: 6,
-          name: "Frank Miller",
-          role: "Editor",
-          status: "Active",
-          email: "frank@example.com",
-        },
-        {
-          id: 7,
-          name: "Grace Lee",
-          role: "Admin",
-          status: "Active",
-          email: "grace@example.com",
-        },
-        {
-          id: 8,
-          name: "Henry Taylor",
-          role: "User",
-          status: "Inactive",
-          email: "henry@example.com",
-        },
-        {
-          id: 9,
-          name: "Iris Chen",
-          role: "Editor",
-          status: "Active",
-          email: "iris@example.com",
-        },
-        {
-          id: 10,
-          name: "Jack Anderson",
-          role: "User",
-          status: "Pending",
-          email: "jack@example.com",
-        },
-        {
-          id: 11,
-          name: "Karen White",
-          role: "Admin",
-          status: "Active",
-          email: "karen@example.com",
-        },
-        {
-          id: 12,
-          name: "Leo Martinez",
-          role: "Editor",
-          status: "Active",
-          email: "leo@example.com",
-        },
-        {
-          id: 13,
-          name: "Mona Robinson",
-          role: "User",
-          status: "Inactive",
-          email: "mona@example.com",
-        },
-        {
-          id: 14,
-          name: "Nathan Clark",
-          role: "Admin",
-          status: "Active",
-          email: "nathan@example.com",
-        },
-        {
-          id: 15,
-          name: "Olivia Hall",
-          role: "Editor",
-          status: "Active",
-          email: "olivia@example.com",
-        },
-        {
-          id: 16,
-          name: "Peter Young",
-          role: "User",
-          status: "Pending",
-          email: "peter@example.com",
-        },
-        {
-          id: 17,
-          name: "Quinn Lewis",
-          role: "Editor",
-          status: "Active",
-          email: "quinn@example.com",
-        },
-        {
-          id: 18,
-          name: "Rachel Green",
-          role: "Admin",
-          status: "Inactive",
-          email: "rachel@example.com",
-        },
-        {
-          id: 19,
-          name: "Samuel King",
-          role: "User",
-          status: "Active",
-          email: "samuel@example.com",
-        },
-        {
-          id: 20,
-          name: "Tina Wright",
-          role: "Editor",
-          status: "Active",
-          email: "tina@example.com",
-        },
-      ];
-
-      $(document).ready(function () {
-        tableData = JSON.parse(JSON.stringify(demoData)); // 深拷贝
-        initTable();
-        attachEventHandlers();
       });
-
-      // ========== 初始化表格 ==========
-      function initTable() {
-        if ($.fn.DataTable.isDataTable("#grid")) {
-          table.destroy();
-        }
-
-        table = $("#grid").DataTable({
-          data: tableData,
-          columns: [
-            {
-              data: null,
-              render: function () {
-                return '<input type="checkbox" class="row-checkbox">';
-              },
-              orderable: false,
-              searchable: false,
-              width: "40px",
-            },
-            { data: "id", width: "60px" },
-            { data: "name" },
-            { data: "role" },
-            { data: "status" },
-            { data: "email" },
-          ],
-          dom: "tip",
-          pageLength: 10,
-          orderFixed: [[1, "asc"]],
-          language: {
-            search: "搜索:",
-            paginate: {
-              first: "首页",
-              last: "末页",
-              next: "下一页",
-              previous: "上一页",
-            },
-            info: "显示第 _START_ 到 _END_ 条，共 _TOTAL_ 条",
-            infoEmpty: "无数据",
-            zeroRecords: "未找到匹配数据",
-          },
-        });
-
-        // 全选/反选逻辑
-        $("#select-all").on("click", function () {
-          const isChecked = this.checked;
-          $("input.row-checkbox").prop("checked", isChecked);
-          updateStats();
-        });
-
-        // 行复选框逻辑
-        $("#grid tbody").on("change", "input.row-checkbox", function () {
-          updateStats();
-          const allChecked =
-            $("input.row-checkbox").length ===
-            $("input.row-checkbox:checked").length;
-          $("#select-all").prop("checked", allChecked);
-        });
-
-        // 双击编辑单元格
-        $("#grid tbody").on("dblclick", "td:not(:first-child)", function () {
-          editCell(this);
-        });
-
-        // 行点击选中逻辑
-        $("#grid tbody").on("click", "tr", function (e) {
-          if (!$(e.target).is("input")) {
-            const $checkbox = $(this).find("input.row-checkbox");
-            $checkbox
-              .prop("checked", !$checkbox.prop("checked"))
-              .trigger("change");
-          }
-        });
-
-        updateStats();
-      }
-
-      // ========== 单元格编辑 ==========
-      function editCell(cell) {
-        const $cell = $(cell);
-
-        // 防止重复编辑
-        if ($cell.hasClass("cell-edit")) return;
-
-        const originalValue = $cell.text();
-        const colIndex = $cell.index() - 1; // 减去复选框列
-        const row = table.row($cell.closest("tr"));
-        const rowData = row.data();
-        const columnName = Object.keys(rowData)[colIndex + 1];
-
-        $cell.addClass("cell-edit");
-        const $input = $('<input type="text">')
-          .val(originalValue)
-          .on("blur", function () {
-            saveEdit($cell, row, columnName, $(this).val(), originalValue);
-          })
-          .on("keydown", function (e) {
-            if (e.key === "Enter") {
-              saveEdit($cell, row, columnName, $(this).val(), originalValue);
-            } else if (e.key === "Escape") {
-              cancelEdit($cell, originalValue);
-            }
-          })
-          .on("keydown", function (e) {
-            if (e.key === "Tab") {
-              e.preventDefault();
-              const nextCell = $cell.next("td");
-              saveEdit($cell, row, columnName, $(this).val(), originalValue);
-              if (nextCell.length && !nextCell.hasClass("select-checkbox")) {
-                editCell(nextCell[0]);
-              }
-            }
-          });
-
-        $cell.html($input);
-        $input.focus().select();
-      }
-
-      function saveEdit($cell, row, columnName, newValue, originalValue) {
-        $cell.removeClass("cell-edit");
-
-        if (newValue !== originalValue) {
-          row.data()[columnName] = newValue;
-          row.invalidate().draw(false);
-
-          const rowIndex = row.index();
-          changedRows.add(rowIndex);
-        }
-
-        $cell.text(newValue);
-        updateStats();
-      }
-
-      function cancelEdit($cell, originalValue) {
-        $cell.removeClass("cell-edit");
-        $cell.text(originalValue);
-      }
-
-      // ========== 按钮事件 ==========
-      function attachEventHandlers() {
-        console.log("Attaching event handlers...");
-
-        // 保存
-        $("#btn-save")
-          .off("click")
-          .on("click", function (e) {
-            e.preventDefault();
-            console.log("Save button clicked, changed rows:", changedRows.size);
-
-            if (changedRows.size === 0) {
-              return;
-            }
-
-            const changedData = [];
-            changedRows.forEach((idx) => {
-              if (tableData[idx]) changedData.push(tableData[idx]);
-            });
-
-            if (vscode) {
-              vscode.postMessage({
-                command: "save",
-                data: changedData,
-              });
-            }
-
-            changedRows.clear();
-            updateStats();
-          });
-
-        // 刷新
-        $("#btn-refresh")
-          .off("click")
-          .on("click", function (e) {
-            e.preventDefault();
-            console.log("Refresh button clicked");
-
-            if (vscode) {
-              vscode.postMessage({ command: "refresh" });
-            } else {
-              tableData = JSON.parse(JSON.stringify(demoData));
-              changedRows.clear();
-              initTable();
-            }
-          });
-
-        // 新增行
-        $("#btn-add")
-          .off("click")
-          .on("click", function (e) {
-            e.preventDefault();
-            console.log("Add button clicked");
-
-            const newRow = {
-              id: Math.max(...tableData.map((r) => r.id || 0)) + 1,
-              name: "新用户",
-              role: "用户",
-              status: "Pending",
-              email: "",
-            };
-            tableData.push(newRow);
-            changedRows.add(tableData.length - 1);
-            table.row.add(newRow).draw(false);
-            updateStats();
-          });
-
-        // 删除选中行
-        $("#btn-delete")
-          .off("click")
-          .on("click", function (e) {
-            e.preventDefault();
-            console.log("Delete button clicked");
-
-            const selectedRows = [];
-            $("input.row-checkbox:checked").each(function () {
-              const $row = $(this).closest("tr");
-              const row = table.row($row);
-              selectedRows.push(row.index());
-            });
-
-            if (selectedRows.length === 0) {
-              return;
-            }
-
-            // 按倒序删除，避免索引混乱
-            selectedRows.sort((a, b) => b - a);
-            selectedRows.forEach((idx) => {
-              tableData.splice(idx, 1);
-              changedRows.delete(idx);
-            });
-
-            initTable();
-            updateStats();
-          });
-
-        // 导出 CSV
-        $("#btn-export-csv")
-          .off("click")
-          .on("click", function (e) {
-            e.preventDefault();
-            console.log("Export CSV clicked");
-
-            const csv = convertToCSV(tableData);
-            downloadFile(csv, "data.csv", "text/csv");
-          });
-
-        // 导出 JSON
-        $("#btn-export-json")
-          .off("click")
-          .on("click", function (e) {
-            e.preventDefault();
-            console.log("Export JSON clicked");
-
-            const json = JSON.stringify(tableData, null, 2);
-            downloadFile(json, "data.json", "application/json");
-          });
-
-        // 导出 SQL
-        $("#btn-export-sql")
-          .off("click")
-          .on("click", function (e) {
-            e.preventDefault();
-            console.log("Export SQL clicked");
-
-            const sql = generateInsertSQL(tableData);
-            downloadFile(sql, "data.sql", "text/plain");
-          });
-      }
-
-      // ========== 导出功能 ==========
-      function convertToCSV(data) {
-        if (!data || data.length === 0) return "";
-
-        const headers = Object.keys(data[0]);
-        const csvHeaders = headers.join(",");
-        const csvRows = data.map((row) =>
-          headers
-            .map((header) => {
-              let value = row[header];
-              // 处理包含逗号、引号的值
-              if (
-                typeof value === "string" &&
-                (value.includes(",") || value.includes('"'))
-              ) {
-                value = '"' + value.replace(/"/g, '""') + '"';
-              }
-              return value;
-            })
-            .join(",")
-        );
-
-        return csvHeaders + "\n" + csvRows.join("\n");
-      }
-
-      function generateInsertSQL(data) {
-        if (!data || data.length === 0) return "";
-
-        const tableName = "table_name"; // 需要替换为实际表名
-        let sql = "";
-
-        data.forEach((row) => {
-          const columns = Object.keys(row);
-          const values = columns
-            .map((col) => {
-              const val = row[col];
-              if (val === null || val === undefined) return "NULL";
-              if (typeof val === "number") return val;
-              return "'" + String(val).replace(/'/g, "''") + "'";
-            })
-            .join(", ");
-
-          sql += `INSERT INTO ${tableName} (${columns.join(
-            ", "
-          )}) VALUES (${values});\n`;
-        });
-
-        return sql;
-      }
-
-      function downloadFile(content, filename, type) {
-        const blob = new Blob([content], { type: type });
-        const url = URL.createObjectURL(blob);
-        const $link = $("<a>")
-          .attr("href", url)
-          .attr("download", filename)
-          .appendTo("body");
-
-        $link[0].click();
-        $link.remove();
-        URL.revokeObjectURL(url);
-      }
-
-      // ========== 工具函数 ==========
-      function updateStats() {
-        $("#stat-total").text(tableData.length);
-        $("#stat-selected").text($("input.row-checkbox:checked").length);
-        $("#stat-changed").text(changedRows.size);
-      }
-
-      // ========== 接收 VSCode 消息 ==========
+      $("#btn-save").on("click", () =>
+        vscode.postMessage({ command: "save", data: dbTable.changedRows })
+      );
+      $("#btn-refresh").on("click", () =>
+        vscode.postMessage({ command: "refresh" })
+      );
       window.addEventListener("message", (event) => {
         const { command, data } = event.data;
 
-        if (command === "loadData") {
-          tableData = data || [];
-          changedRows.clear();
-          initTable();
-        } else if (command === "saveSuccess") {
-          // 保存成功
-        } else if (command === "saveError") {
-          // 保存失败
+        if (command === "load") {
+          dbTable.init(data.columnDefs, data.rowData);
         }
       });
     </script>

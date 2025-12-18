@@ -19,7 +19,7 @@ function createWebview(
         vscode.Uri.file(
           path.join(provider.context.extensionPath, "resources", "panels")
         ),
-				vscode.Uri.file(
+        vscode.Uri.file(
           path.join(provider.context.extensionPath, "node_modules")
         ),
       ],
@@ -29,10 +29,10 @@ function createWebview(
   const resourcesUri = panel.webview.asWebviewUri(
     vscode.Uri.joinPath(provider.context.extensionUri, "resources", "panels")
   );
-	const nodeResourcesUri = panel.webview.asWebviewUri(
+  const nodeResourcesUri = panel.webview.asWebviewUri(
     vscode.Uri.joinPath(provider.context.extensionUri, "node_modules")
   );
-	const nonce = generateNonce();
+  const nonce = generateNonce();
   panel.webview.html = provider.panels[viewType]
     .replace(
       /{{csp}}/g,
@@ -46,7 +46,6 @@ function createWebview(
     .replace(/{{node-resources-uri}}/g, nodeResourcesUri.toString())
     .replace(/{{resources-uri}}/g, resourcesUri.toString())
     .replace(/{{resource-nonce}}/g, nonce);
-	console.log(panel.webview.html);
   panel.iconPath = vscode.Uri.file(
     path.join(
       provider.context.extensionPath,
@@ -96,8 +95,15 @@ export function registerDatasourceItemCommands(provider: DataSourceProvider) {
       data?.title || "未命名页"
     );
     panel.webview.postMessage({
-      command: "data",
+      command: "load",
       data: data,
+    });
+    panel.webview.onDidReceiveMessage(async (message) => {
+      switch (message.command) {
+        case "save":
+          console.log(message.data);
+          break;
+      }
     });
   });
 }
