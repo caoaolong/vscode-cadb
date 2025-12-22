@@ -1,0 +1,305 @@
+/* Edit 页面专属样式 - 使用 VSCode 主题变量 */
+
+:root {
+  --vscode-bg: var(--vscode-editor-background, #1e1e1e);
+  --vscode-fg: var(--vscode-editor-foreground, #d4d4d4);
+  --vscode-border: var(--vscode-panel-border, #3e3e42);
+  --vscode-input-bg: var(--vscode-input-background, #3c3c3c);
+  --vscode-input-fg: var(--vscode-input-foreground, #cccccc);
+  --vscode-btn-bg: var(--vscode-button-background, #0e639c);
+  --vscode-btn-fg: var(--vscode-button-foreground, #ffffff);
+  --vscode-select-bg: var(--vscode-list-activeSelectionBackground, #094771);
+  --vscode-select-fg: var(--vscode-list-activeSelectionForeground, #ffffff);
+  --vscode-hover: var(--vscode-list-hoverBackground, #2d2d30);
+  --vscode-focus: var(--vscode-focusBorder, #007acc);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  background-color: var(--vscode-bg);
+  color: var(--vscode-fg);
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 20px;
+}
+
+.edit-container {
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  height: calc(100vh - 40px);
+}
+
+/* 左侧面板 */
+.left-panel {
+  flex: 0 0 250px;
+  border: 1px solid var(--vscode-border);
+  border-radius: 2px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--vscode-bg);
+}
+
+/* Layui Tab 样式适配 */
+.layui-tab {
+  margin: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.layui-tab-title {
+  background-color: var(--vscode-bg);
+  border-bottom: 1px solid var(--vscode-border);
+  margin: 0;
+  padding: 0;
+}
+
+.layui-tab-title li {
+  color: var(--vscode-fg);
+  background: var(--vscode-bg);
+  border-right: 1px solid var(--vscode-border);
+}
+
+.layui-tab-title li:hover {
+  background: var(--vscode-hover);
+}
+
+.layui-tab-title .layui-this {
+  background: var(--vscode-select-bg);
+  color: var(--vscode-select-fg);
+}
+
+.layui-tab-title .layui-this::after {
+  display: none;
+}
+
+.layui-tab-content {
+  flex: 1;
+  padding: 0;
+  overflow: hidden;
+}
+
+.layui-tab-item {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* 菜单列表 */
+.menu-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.menu-item {
+  padding: 12px 16px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--vscode-border);
+  background: var(--vscode-bg);
+  color: var(--vscode-fg);
+  transition: background 0.2s;
+  position: relative;
+}
+
+.menu-item:hover {
+  background: var(--vscode-hover);
+}
+
+.menu-item.active {
+  background: var(--vscode-select-bg);
+  color: var(--vscode-select-fg);
+}
+
+.menu-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background-color: var(--vscode-btn-bg);
+}
+
+/* 右侧面板 */
+.right-panel {
+  flex: 1;
+  border: 1px solid var(--vscode-border);
+  border-radius: 2px;
+  overflow-y: auto;
+  padding: 20px;
+  background: var(--vscode-bg);
+}
+
+/* 表单样式 */
+.form-container {
+  max-width: 600px;
+}
+
+.form-container h2 {
+  color: var(--vscode-fg);
+  margin: 0 0 20px 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.layui-form-item {
+  margin-bottom: 18px;
+}
+
+.layui-form-label {
+  color: var(--vscode-fg);
+  background: transparent;
+  font-weight: 500;
+}
+
+.layui-input,
+.layui-select,
+.layui-textarea {
+  background-color: var(--vscode-input-bg);
+  color: var(--vscode-input-fg);
+  border: 1px solid var(--vscode-border);
+  border-radius: 2px;
+}
+
+.layui-input:hover,
+.layui-select:hover,
+.layui-textarea:hover {
+  border-color: var(--vscode-focus);
+}
+
+.layui-input:focus,
+.layui-select:focus,
+.layui-textarea:focus {
+  border-color: var(--vscode-focus);
+  box-shadow: 0 0 0 1px var(--vscode-focus);
+}
+
+.layui-input::placeholder,
+.layui-textarea::placeholder {
+  color: #888;
+}
+
+/* 按钮样式 */
+.layui-btn {
+  background-color: var(--vscode-btn-bg);
+  border: none;
+  border-radius: 2px;
+}
+
+.layui-btn:hover {
+  background-color: #1177bb;
+}
+
+.layui-btn-primary {
+  background-color: transparent;
+  color: var(--vscode-fg);
+  border: 1px solid var(--vscode-border);
+}
+
+.layui-btn-primary:hover {
+  background-color: var(--vscode-hover);
+  border-color: var(--vscode-focus);
+}
+
+/* 提示文本 */
+.form-hint {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #888;
+}
+
+/* Select 下拉框适配 */
+.layui-form-select dl {
+  background-color: var(--vscode-input-bg);
+  border: 1px solid var(--vscode-border);
+}
+
+.layui-form-select dl dd {
+  color: var(--vscode-input-fg);
+}
+
+.layui-form-select dl dd:hover {
+  background-color: var(--vscode-hover);
+}
+
+.layui-form-select dl dd.layui-this {
+  background-color: var(--vscode-select-bg);
+  color: var(--vscode-select-fg);
+}
+
+/* 开关样式适配 */
+.layui-form-switch {
+  background-color: #555;
+}
+
+.layui-form-onswitch {
+  background-color: var(--vscode-btn-bg);
+}
+
+/* Checkbox 样式适配 */
+.layui-form-checkbox[lay-skin="primary"] {
+  border-color: var(--vscode-border);
+}
+
+.layui-form-checked[lay-skin="primary"] {
+  background-color: var(--vscode-btn-bg);
+  border-color: var(--vscode-btn-bg);
+}
+
+/* 字段组样式 */
+.field-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.field-group .layui-form-item {
+  margin-bottom: 0;
+}
+
+/* 按钮组 */
+.button-group {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--vscode-border);
+}
+
+/* 滚动条样式适配 VSCode */
+.left-panel ::-webkit-scrollbar,
+.right-panel ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.left-panel ::-webkit-scrollbar-thumb,
+.right-panel ::-webkit-scrollbar-thumb {
+  background: rgba(121, 121, 121, 0.4);
+  border-radius: 5px;
+}
+
+.left-panel ::-webkit-scrollbar-thumb:hover,
+.right-panel ::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 100, 100, 0.7);
+}
+
+.left-panel ::-webkit-scrollbar-track,
+.right-panel ::-webkit-scrollbar-track {
+  background: transparent;
+}
+

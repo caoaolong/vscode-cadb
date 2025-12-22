@@ -5,44 +5,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>编辑表结构</title>
     <meta http-equiv="Content-Security-Policy" content="{{csp}}" />
-    <script
-      nonce="{{resource-nonce}}"
-      src="{{node-resources-uri}}/jquery/dist/jquery.min.js"
-    ></script>
-    <script
-      nonce="{{resource-nonce}}"
-      src="{{resources-uri}}/jquery-ui.min.js"
-    ></script>
-    <link
-      rel="stylesheet"
-      href="{{node-resources-uri}}/@vscode/codicons/dist/codicon.css"
-    />
-    <link rel="stylesheet" href="{{resources-uri}}/global.css" />
-    <link rel="stylesheet" href="{{resources-uri}}/jquery-ui.min.css" />
+    <script nonce="{{resource-nonce}}" src="{{node-resources-uri}}/jquery/dist/jquery.min.js"></script>
+    <script nonce="{{resource-nonce}}" src="{{node-resources-uri}}/layui/dist/layui.js"></script>
+    <link rel="stylesheet" href="{{node-resources-uri}}/layui/dist/css/layui.css" />
+    <link rel="stylesheet" href="{{resources-uri}}/edit/edit.css" />
   </head>
-  <body class="root-container" style="align-items: start;">
+  <body>
     <div class="edit-container">
+      <!-- 左侧面板 -->
       <div class="left-panel">
-        <div id="tabs">
-          <ul>
-            <li><a href="#tabs-1">字段</a></li>
-            <li><a href="#tabs-2">索引</a></li>
+        <div class="layui-tab layui-tab-brief" lay-filter="edit-tabs">
+          <ul class="layui-tab-title">
+            <li class="layui-this">字段</li>
+            <li>索引</li>
           </ul>
-          <div id="tabs-1">
-            <ul id="field-menu">
-              <li id="field-name"><div>name</div></li>
-              <li id="field-email"><div>email</div></li>
-              <li id="field-age"><div>age</div></li>
-            </ul>
-          </div>
-          <div id="tabs-2">
-            <ul id="index-menu">
-              <li id="index-primary"><div>PRIMARY</div></li>
-              <li id="index-unique-email"><div>unique_email</div></li>
-            </ul>
+          <div class="layui-tab-content">
+            <div class="layui-tab-item layui-show">
+              <ul class="menu-list" id="field-list">
+                <!-- 字段列表动态生成 -->
+              </ul>
+            </div>
+            <div class="layui-tab-item">
+              <ul class="menu-list" id="index-list">
+                <!-- 索引列表动态生成 -->
+              </ul>
+            </div>
           </div>
         </div>
       </div>
+
+      <!-- 右侧面板 -->
       <div class="right-panel">
         <div class="form-container">
           <!-- 动态表单将在这里显示 -->
@@ -50,210 +42,6 @@
       </div>
     </div>
 
-    <script
-      nonce="{{resource-nonce}}"
-      src="{{resources-uri}}/global.js"
-    ></script>
-
-    <script nonce="{{resource-nonce}}">
-      // ========== VSCode API & 初始化 ==========
-      let vscode = null;
-      if (window.vscode) {
-        vscode = window.vscode;
-      } else {
-        vscode = acquireVsCodeApi ? acquireVsCodeApi() : null;
-      }
-
-      $(function () {
-        // 初始化 tabs
-        $("#tabs").tabs({
-          activate: function (event, ui) {
-            // 当切换 tab 时，加载对应的第一项表单
-            const activeTab = ui.newPanel.attr("id");
-            if (activeTab === "tabs-1") {
-              loadForm("field-name");
-              // 设置第一个字段为选中状态
-              $("#field-menu .ui-menu-item").removeClass(
-                "ui-state-active ui-state-selected"
-              );
-              $("#field-name").addClass("ui-state-active ui-state-selected");
-            } else if (activeTab === "tabs-2") {
-              loadForm("index-primary");
-              // 设置第一个索引为选中状态
-              $("#index-menu .ui-menu-item").removeClass(
-                "ui-state-active ui-state-selected"
-              );
-              $("#index-primary").addClass("ui-state-active ui-state-selected");
-            }
-            
-            // 防止滚动条闪烁
-            $('.ui-tabs-panel').scrollTop(0);
-          },
-        });
-
-        // 初始化字段菜单
-        $("#field-menu").menu({
-          select: function (event, ui) {
-            const itemId = ui.item.attr("id");
-            // 移除其他项的选中状态
-            $("#field-menu .ui-menu-item").removeClass(
-              "ui-state-active ui-state-selected"
-            );
-            // 为当前选中项添加选中状态
-            ui.item.addClass("ui-state-active ui-state-selected");
-            loadForm(itemId);
-          },
-        });
-
-        // 初始化索引菜单
-        $("#index-menu").menu({
-          select: function (event, ui) {
-            const itemId = ui.item.attr("id");
-            // 移除其他项的选中状态
-            $("#index-menu .ui-menu-item").removeClass(
-              "ui-state-active ui-state-selected"
-            );
-            // 为当前选中项添加选中状态
-            ui.item.addClass("ui-state-active ui-state-selected");
-            loadForm(itemId);
-          },
-        });
-
-        // 默认加载第一个字段表单
-        loadForm("field-name");
-        // 设置第一个字段为选中状态
-        $("#field-name").addClass("ui-state-active ui-state-selected");
-      });
-
-      function loadForm(itemId) {
-        const formContainer = $(".form-container");
-
-        if (itemId.startsWith("field-")) {
-          // 显示字段表单
-          formContainer.html(getFieldForm(itemId));
-        } else if (itemId.startsWith("index-")) {
-          // 显示索引表单
-          formContainer.html(getIndexForm(itemId));
-        }
-      }
-
-      function getFieldForm(fieldId) {
-        return `
-          <div class="form-group">
-            <h2>修改字段</h2>
-            <div class="form-item">
-              <label for="field-name">字段名</label>
-              <input type="text" id="field-name" value="${getFieldName(
-                fieldId
-              )}">
-            </div>
-            <div class="form-item">
-              <label for="field-type">数据类型</label>
-              <select id="field-type">
-                <option value="varchar">VARCHAR</option>
-                <option value="int">INT</option>
-                <option value="datetime">DATETIME</option>
-                <option value="text">TEXT</option>
-              </select>
-            </div>
-            <div class="form-item">
-              <label for="field-length">长度</label>
-              <input type="number" id="field-length" value="255">
-            </div>
-            <div class="form-item">
-              <label for="field-default">默认值</label>
-              <input type="text" id="field-default" placeholder="可选">
-            </div>
-            <div class="button-group">
-              <button onclick="saveField()" class="btn-primary">保存字段</button>
-            </div>
-          </div>
-        `;
-      }
-
-      function getIndexForm(indexId) {
-        return `
-          <div class="form-group">
-            <h2>修改索引</h2>
-            <div class="form-item">
-              <label for="index-name">索引名</label>
-              <input type="text" id="index-name" value="${getIndexName(
-                indexId
-              )}">
-            </div>
-            <div class="form-item">
-              <label for="index-type">索引类型</label>
-              <select id="index-type">
-                <option value="primary">主键索引</option>
-                <option value="unique">唯一索引</option>
-                <option value="normal">普通索引</option>
-              </select>
-            </div>
-            <div class="form-item">
-              <label for="index-fields">涉及字段</label>
-              <input type="text" id="index-fields" value="${getIndexFields(
-                indexId
-              )}">
-            </div>
-            <div class="button-group">
-              <button onclick="saveIndex()" class="btn-primary">保存索引</button>
-            </div>
-          </div>
-        `;
-      }
-
-      function getFieldName(fieldId) {
-        const fieldNames = {
-          "field-name": "name",
-          "field-email": "email",
-          "field-age": "age",
-        };
-        return fieldNames[fieldId] || "unknown";
-      }
-
-      function getIndexName(indexId) {
-        const indexNames = {
-          "index-primary": "PRIMARY",
-          "index-unique-email": "unique_email",
-        };
-        return indexNames[indexId] || "unknown_index";
-      }
-
-      function getIndexFields(indexId) {
-        const indexFields = {
-          "index-primary": "id",
-          "index-unique-email": "email",
-        };
-        return indexFields[indexId] || "";
-      }
-
-      function saveField() {
-        alert("字段保存成功！");
-      }
-
-      function saveIndex() {
-        alert("索引保存成功！");
-      }
-
-      const dbTable = new DatabaseTableData({
-        tableSelector: "#edit",
-        vscode,
-      });
-
-      $("#btn-add").on("click", dbTable.addRow);
-      $("#btn-refresh").on("click", dbTable.refreshTable);
-      $("#btn-save").on("click", () =>
-        vscode.postMessage({ command: "save", data: dbTable.changedRows })
-      );
-
-      window.addEventListener("message", (event) => {
-        const { command, data } = event.data;
-
-        if (command === "load") {
-          console.log(data);
-          dbTable.init(data.columnDefs, data.rowData);
-        }
-      });
-    </script>
+    <script nonce="{{resource-nonce}}" src="{{resources-uri}}/edit/edit.js"></script>
   </body>
 </html>

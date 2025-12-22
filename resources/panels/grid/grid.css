@@ -1,0 +1,223 @@
+/* Grid 页面专属样式 - 使用 VSCode 主题变量 */
+
+:root {
+  --vscode-bg: var(--vscode-editor-background, #1e1e1e);
+  --vscode-fg: var(--vscode-editor-foreground, #d4d4d4);
+  --vscode-border: var(--vscode-panel-border, #3e3e42);
+  --vscode-input-bg: var(--vscode-input-background, #3c3c3c);
+  --vscode-input-fg: var(--vscode-input-foreground, #cccccc);
+  --vscode-btn-bg: var(--vscode-button-background, #0e639c);
+  --vscode-btn-fg: var(--vscode-button-foreground, #ffffff);
+  --vscode-select-bg: var(--vscode-list-activeSelectionBackground, #094771);
+  --vscode-select-fg: var(--vscode-list-activeSelectionForeground, #ffffff);
+  --vscode-hover: var(--vscode-list-hoverBackground, #2d2d30);
+  --vscode-focus: var(--vscode-focusBorder, #007acc);
+  --panel-padding: 16px;
+  --toolbar-height: 48px;
+  --filter-height: 40px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  position: relative;
+  min-height: 100vh;
+  background-color: var(--vscode-bg);
+  color: var(--vscode-fg);
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* 固定在页面顶部的工具栏 */
+.toolbar {
+  position: fixed;
+  top: 0;
+  left: var(--panel-padding);
+  right: var(--panel-padding);
+  height: var(--toolbar-height);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+}
+
+.toolbar button {
+  background-color: transparent;
+  color: var(--vscode-fg);
+  border: 1px solid transparent;
+  padding: 6px;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-radius: 2px;
+}
+
+.toolbar button:hover {
+  background-color: var(--vscode-hover);
+  border-color: #555;
+}
+
+.toolbar button:active {
+  background-color: var(--vscode-select-bg);
+}
+
+.toolbar .codicon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* 过滤输入行固定在工具栏下方 */
+.filter-row {
+  position: fixed;
+  top: var(--toolbar-height);
+  left: var(--panel-padding);
+  right: var(--panel-padding);
+  height: var(--filter-height);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  background-color: rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid var(--vscode-border);
+  z-index: 35;
+}
+
+.filter-group {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-label {
+  font-size: 12px;
+  color: var(--vscode-fg);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.filter-input {
+  flex: 1;
+  min-width: 150px;
+  background-color: var(--vscode-input-bg);
+  color: var(--vscode-input-fg);
+  border: 1px solid var(--vscode-border);
+  padding: 6px 8px;
+  border-radius: 2px;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.filter-input:focus {
+  outline: none;
+  border-color: var(--vscode-focus);
+  box-shadow: 0 0 0 1px var(--vscode-focus);
+}
+
+.filter-input::placeholder {
+  color: #888;
+  font-style: italic;
+}
+
+/* 表格容器放在工具栏和过滤栏之间并可滚动 */
+.table-wrapper {
+  position: absolute;
+  left: var(--panel-padding);
+  right: var(--panel-padding);
+  top: calc(var(--toolbar-height) + var(--filter-height) + 8px);
+  bottom: var(--panel-padding);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Tabulator 主题适配 VSCode */
+.tabulator {
+  background: var(--vscode-bg);
+  color: var(--vscode-fg);
+  border: 1px solid var(--vscode-border);
+}
+
+.tabulator .tabulator-header {
+  background: var(--vscode-bg);
+  border-bottom: 1px solid var(--vscode-border);
+}
+
+.tabulator .tabulator-header .tabulator-col {
+  background: var(--vscode-bg) !important;
+  color: var(--vscode-fg) !important;
+  border-right: 1px solid var(--vscode-border);
+}
+
+.tabulator .tabulator-row {
+  background: var(--vscode-bg);
+  color: var(--vscode-fg);
+  border-bottom: 1px solid var(--vscode-border);
+}
+
+.tabulator .tabulator-row:hover {
+  background: var(--vscode-hover) !important;
+}
+
+.tabulator .tabulator-row.tabulator-row-odd {
+  background: var(--vscode-bg) !important;
+}
+
+.tabulator .tabulator-row.tabulator-row-even {
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+
+.tabulator .tabulator-cell {
+  border-right: 1px solid var(--vscode-border);
+}
+
+.tabulator .tabulator-cell-edited {
+  background: var(--vscode-select-bg) !important;
+  color: var(--vscode-select-fg) !important;
+}
+
+.tabulator .tabulator-footer {
+  background: var(--vscode-bg);
+  color: var(--vscode-fg);
+  border-top: 1px solid var(--vscode-border);
+}
+
+.tabulator .tabulator-footer .tabulator-page {
+  background: transparent;
+  color: var(--vscode-fg);
+  border: 1px solid var(--vscode-border);
+  margin: 0 2px;
+}
+
+.tabulator .tabulator-footer .tabulator-page:hover {
+  background: var(--vscode-hover);
+}
+
+.tabulator .tabulator-footer .tabulator-page.active {
+  background: var(--vscode-btn-bg);
+  color: var(--vscode-btn-fg);
+}
+
+/* Accessibility helper */
+.sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
