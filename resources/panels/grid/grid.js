@@ -35,8 +35,22 @@ class DatabaseTableData {
       layout: "fitColumns",
       pagination: "local",
       paginationSize: 50,
+      paginationCounter: "rows",
       columns: this._buildColumns(),
       data: [],
+      // 启用行选择
+      selectable: true,
+      selectableRangeMode: "click",
+      // 启用列排序
+      headerSort: true,
+      // 启用列调整大小
+      resizableColumns: true,
+      // 占位符文本
+      placeholder: "暂无数据",
+      // 启用虚拟 DOM（提升大数据性能）
+      virtualDom: true,
+      // 响应式列
+      responsiveLayout: false,
     });
     
     // 异步加载数据
@@ -124,6 +138,7 @@ class DatabaseTableData {
       return;
     }
 
+    const self = this;
     layui.use('layer', function() {
       const layer = layui.layer;
       layer.confirm('确定要删除选中的 ' + selectedRows.length + ' 行吗？', {
@@ -131,11 +146,11 @@ class DatabaseTableData {
         title: '确认删除'
       }, function(index) {
         // 用户确认删除
-        this.table.getSelectedRows().forEach(row => row.delete());
+        self.table.getSelectedRows().forEach(row => row.delete());
         layer.close(index);
         layer.msg('删除成功', { icon: 1, time: 1500 });
-      }.bind(this));
-    }.bind(this));
+      });
+    });
   };
 
   /**
