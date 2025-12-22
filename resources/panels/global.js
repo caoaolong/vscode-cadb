@@ -180,8 +180,9 @@ class DatabaseConfigForm {
 class DatabaseTableData {
   constructor(options) {
     this.tableSelector = options.tableSelector;
-    this.stats = options.stats;
     this.vscode = options.vscode || null;
+
+		this.newRow = {};
 
     this.table = null;
     this.tableData = [];
@@ -193,11 +194,23 @@ class DatabaseTableData {
     this.highlightedCell = null;
   }
 
+	// 外部函数
+
+	addRow = () => {
+		this.table.addData(this.newRow, false).then(rows => {
+			console.log(rows);
+		});
+	};
+
+	refreshTable = () => {
+		this.table.replaceData(this.tableData);
+	};
+
   /* ========== 初始化入口 ========== */
 
   init(columns, data) {
     this.columns = columns;
-    this.tableData = JSON.parse(JSON.stringify(data));
+    this.tableData = data;
     this.changedRows.clear();
     this.selectedRowIndexes.clear();
     this._initDataTable();
@@ -206,12 +219,15 @@ class DatabaseTableData {
   /* ========== DataTable 初始化 ========== */
 
   _initDataTable() {
+    console.log(this.tableData);
     this.table = new Tabulator(this.tableSelector, {
       height: "100%",
       layout: "fitColumns",
+			pagination:"local",
       columns: this._buildColumns(),
+      data: [],
     });
-    return;
+    requestAnimationFrame(() => this.table.setData(this.tableData));
   }
 
   _buildColumns() {
@@ -220,11 +236,27 @@ class DatabaseTableData {
       cols.push({
         title: c.field.toUpperCase(),
         field: c.field,
+        editor: "input",
         resizable: true,
+        cellEdited: this._cellEdited,
+        rawData: c,
       });
+			this.newRow[c.field] = c.defaultValue;
     });
     return cols;
   }
+
+  _cellEdited = (cell) => {
+		const item = cell._cell;
+		// eslint-disable-next-line eqeqeq
+		if (item.value.trim() != item.initialValue) {
+			$(cell._cell.element).addClass("tabulator-cell-edited");
+			this.changedRows.add(item.row);
+		} else {
+			$(cell._cell.element).removeClass("tabulator-cell-edited");
+			this.changedRows.delete(item.row);
+		}
+  };
 }
 
 (function ($) {

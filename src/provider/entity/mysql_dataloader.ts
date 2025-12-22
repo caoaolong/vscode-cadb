@@ -1,6 +1,12 @@
 import * as vscode from "vscode";
 import { Connection, createConnection } from "mysql2";
-import { ColDef, Dataloader, PromiseResult, TableResult } from "./dataloader";
+import {
+  ColDef,
+  Dataloader,
+  FormResult,
+  PromiseResult,
+  TableResult,
+} from "./dataloader";
 import { Datasource, DatasourceInputData } from "./datasource";
 
 export class MySQLDataloader implements Dataloader {
@@ -16,6 +22,57 @@ export class MySQLDataloader implements Dataloader {
       password: input.password,
       database: input.database,
       connectTimeout: 5000,
+    });
+  }
+  descStructure(): string[] {
+    return ["Field", "Type", "Null", "Key", "Default", "Extra"];
+  }
+  descDatabase(ds: Datasource): Promise<FormResult | undefined> {
+    return new Promise<FormResult | undefined>((resolve) => {
+      this.conn.query(``, (err, results) => {
+        if (err) {
+          vscode.window.showErrorMessage(err.message);
+          return resolve(undefined);
+        }
+      });
+    });
+  }
+  descTable(ds: Datasource): Promise<FormResult | undefined> {
+    if (!ds.dataloder || !ds.parent || !ds.parent.parent) {
+      return Promise.resolve(undefined);
+    }
+    const table = ds.label || "";
+    const database = ds.parent.parent.label || "";
+    return new Promise<FormResult | undefined>((resolve) => {
+      this.conn.query(`DESC ${database}.${table}`, (err, results) => {
+        if (err) {
+          vscode.window.showErrorMessage(err.message);
+          return resolve(undefined);
+        }
+        return resolve({
+          rowData: results as Record<string, any>[],
+        });
+      });
+    });
+  }
+  descColumn(ds: Datasource): Promise<FormResult | undefined> {
+    return new Promise<FormResult | undefined>((resolve) => {
+      this.conn.query(``, (err, results) => {
+        if (err) {
+          vscode.window.showErrorMessage(err.message);
+          return resolve(undefined);
+        }
+      });
+    });
+  }
+  descIndex(ds: Datasource): Promise<FormResult | undefined> {
+    return new Promise<FormResult | undefined>((resolve) => {
+      this.conn.query(``, (err, results) => {
+        if (err) {
+          vscode.window.showErrorMessage(err.message);
+          return resolve(undefined);
+        }
+      });
     });
   }
 
@@ -363,6 +420,10 @@ ORDER BY
           (results as any[]).map((e) => {
             return {
               field: e["Field"],
+              type: e["Type"],
+              canNull: e["Null"],
+              key: e["Key"],
+              defaultValue: e["Default"],
             } as ColDef;
           })
         );

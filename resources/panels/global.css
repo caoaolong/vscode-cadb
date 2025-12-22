@@ -258,7 +258,7 @@ td.cell-highlight {
 
 /* ============ Config Page Styles ============ */
 
-.config-container {
+.root-container {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -266,11 +266,21 @@ td.cell-highlight {
   padding: 20px;
 }
 
-.config-container .container {
+.root-container .config-container {
   width: 100%;
   max-width: 480px;
   height: auto;
   flex-direction: column;
+}
+
+.root-container .edit-container {
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  height: auto;
+  padding: 10px;
+  box-sizing: border-box;
 }
 
 .header {
@@ -395,12 +405,6 @@ body.grid-panel {
   font-size: 12px;
 }
 
-.stat-item {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
 .table-wrapper {
   background-color: var(--vscode-input-bg);
   border: 1px solid var(--vscode-border);
@@ -516,6 +520,15 @@ body.grid-panel {
   --stats-height: 40px;
 }
 
+body.edit-panel {
+  position: relative;
+  min-height: 100vh;
+  --panel-padding: 16px;
+  --toolbar-height: 0;
+  --filter-height: 40px;
+  --stats-height: 40px;
+}
+
 /* 固定在页面顶部的工具栏 */
 .toolbar {
   position: fixed;
@@ -601,4 +614,236 @@ body.grid-panel {
   background: var(--vscode-bg);
   color: var(--vscode-fg);
   border: 1px solid var(--vscode-border);
+}
+
+.tabulator .tabulator-footer {
+  background: var(--vscode-bg);
+  color: var(--vscode-fg);
+}
+
+.tabulator .tabulator-page {
+  background: var(--button-secondary-bg);
+  color: var(--button-secondary-fg);
+}
+
+.tabulator .tabulator-footer .tabulator-page.active {
+  background: var(--button-bg);
+  color: var(--button-fg);
+}
+
+.tabulator .tabulator-header .tabulator-col {
+  background: var(--vscode-menu-background) !important;
+  color: var(--vscode-menu-foreground) !important;
+  border-right: none;
+}
+
+.tabulator .tabulator-row:hover {
+  background: var(--vscode-hover) !important;
+}
+
+.tabulator .tabulator-row-odd {
+  background: var(--bg) !important;
+  color: var(--fg) !important;
+}
+
+.tabulator .tabulator-row-even {
+  background: var(--input-bg) !important;
+  color: var(--input-fg) !important;
+}
+
+.tabulator .tabulator-cell {
+  border-right: none;
+}
+
+.tabulator .tabulator-cell-edited {
+  border-right: none;
+  background: var(--vscode-select-bg) !important;
+  color: var(--vscode-select-fg) !important;
+}
+
+/* ============ Edit Page Styles ============ */
+.left-panel {
+  flex: 1;
+  border: 1px solid var(--vscode-border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.right-panel {
+  flex: 3;
+  border: 1px solid var(--vscode-border);
+  border-radius: 2px;
+  overflow-y: auto;
+  padding: 15px;
+  box-sizing: border-box;
+}
+
+#tabs {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+#tabs .ui-tabs-panel {
+  flex: 1;
+  padding: 0;
+  overflow-y: auto;
+}
+
+.ui-tabs-nav {
+  background-color: var(--vscode-bg);
+  border: none;
+  border-bottom: 1px solid var(--vscode-border);
+  border-radius: 0;
+  padding: 0;
+}
+
+.ui-tabs-tab {
+  background-color: var(--vscode-bg);
+  border: 1px solid var(--vscode-border);
+  border-bottom: none;
+  border-radius: 0;
+  margin: 0;
+}
+
+.ui-tabs-tab.ui-state-active {
+  background-color: var(--vscode-select-bg);
+}
+
+.ui-tabs-tab a {
+  color: var(--vscode-fg);
+}
+
+.ui-menu {
+  border: none;
+  border-radius: 0;
+}
+
+.ui-menu-item {
+  border: none;
+  background-color: var(--vscode-bg);
+  color: var(--vscode-fg);
+  padding: 8px 12px;
+}
+
+.ui-menu-item:hover {
+  background-color: var(--vscode-hover);
+}
+
+.ui-menu-item.ui-state-active {
+  background-color: var(--vscode-select-bg);
+  color: var(--vscode-select-fg);
+}
+
+/* 新增：为选中的菜单项添加更明显的高亮状态 */
+.ui-menu-item.ui-state-active.ui-state-selected {
+  background-color: var(--vscode-select-bg);
+  color: var(--vscode-select-fg);
+  position: relative;
+}
+
+.ui-menu-item.ui-state-active.ui-state-selected::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background-color: var(--vscode-btn-fg);
+}
+
+.form-container {
+  padding: 15px 0;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.right-panel label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+  color: var(--fg);
+}
+
+.right-panel input,
+.right-panel select,
+.right-panel textarea {
+  width: 100%;
+  padding: 8px;
+  box-sizing: border-box;
+  background: var(--input-bg);
+  color: var(--input-fg);
+  border: 1px solid var(--input-border);
+  border-radius: 2px;
+}
+
+.right-panel input:focus,
+.right-panel select:focus,
+.right-panel textarea:focus {
+  outline: none;
+  border-color: var(--input-border-focus);
+  box-shadow: 0 0 0 1px var(--input-border-focus);
+}
+
+.right-panel button {
+  border: none;
+  border-radius: 2px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background-color 0.2s;
+  background-color: var(--button-bg);
+  color: var(--button-fg);
+  padding: 10px 16px;
+}
+
+.right-panel button:hover {
+  background-color: var(--button-hover);
+}
+
+.right-panel h2 {
+  color: var(--fg);
+  margin-top: 0;
+}
+
+/* 解决tab切换时的滚动条闪烁问题 */
+.left-panel {
+  overflow: hidden;
+}
+
+.left-panel .ui-tabs-panel {
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: calc(100vh - 100px);
+}
+
+/* 适配VSCode主题的选中样式 */
+.ui-menu .ui-state-active.ui-state-selected {
+  background-color: var(--vscode-list-activeSelectionBackground) !important;
+  color: var(--vscode-list-activeSelectionForeground) !important;
+  border: none;
+}
+
+/* 调整保存按钮样式，移到right-panel右下角 */
+.right-panel {
+  position: relative;
+  padding-bottom: 60px; /* 给底部固定按钮留出空间 */
+}
+
+.button-group {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+}
+
+.btn-primary {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.form-group {
+  padding-bottom: 20px;
 }

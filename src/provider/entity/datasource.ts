@@ -1,7 +1,6 @@
 import * as vscode from "vscode";
-import { Connection, createConnection } from "mysql2";
 import path from "path";
-import { Dataloader, PromiseResult, TableResult } from "./dataloader";
+import { Dataloader, FormResult, PromiseResult, TableResult } from "./dataloader";
 import { MySQLDataloader } from "./mysql_dataloader";
 
 const iconDir: string[] = ["..", "..", "resources", "icons"];
@@ -57,6 +56,18 @@ export class Datasource extends vscode.TreeItem {
     return this.dataloder?.test();
   }
 
+  public edit = (): Promise<FormResult | undefined> => {
+    if (!this.dataloder) {
+      return Promise.resolve(undefined);
+    }
+    switch (this.type) {
+      case "document":
+        return this.dataloder.descTable(this);
+      default:
+        return Promise.resolve(undefined);
+    }
+  };
+
   public expand = (): Promise<Datasource[]> => {
     if (!this.dataloder) {
       return Promise.resolve([]);
@@ -94,11 +105,10 @@ export class Datasource extends vscode.TreeItem {
     parent?: Datasource
   ) {
     super(input.name);
-		this.dataloder = dataloader;
+    this.dataloder = dataloader;
     this.parent = parent;
-    this.type = input.type;
+    this.type = this.contextValue = input.type;
     this.tooltip = input.tooltip;
-    this.contextValue = "dsItem";
     // 设置节点的可折叠状态：如果是 datasource（可展开以列出数据库），则设置为 Collapsed
     if (input.type === "field" || input.type === "index") {
       this.collapsibleState = vscode.TreeItemCollapsibleState.None;

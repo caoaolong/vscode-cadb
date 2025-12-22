@@ -2,10 +2,11 @@ import * as vscode from "vscode";
 import { DataSourceProvider } from "./database_provider";
 import { Datasource } from "./entity/datasource";
 import path from "path";
+import { FormResult } from "./entity/dataloader";
 
 function createWebview(
   provider: DataSourceProvider,
-  viewType: "datasourceConfig" | "datasourceTable",
+  viewType: "datasourceConfig" | "datasourceTable" | "tableEdit",
   title: string
 ): vscode.WebviewPanel {
   const panel = vscode.window.createWebviewPanel(
@@ -76,8 +77,8 @@ export function registerDatasourceCommands(
   vscode.commands.registerCommand("datasource.addEntry", () =>
     addEntry(provider)
   );
-  vscode.commands.registerCommand("datasource.editEntry", () =>
-    editEntry(provider)
+  vscode.commands.registerCommand("datasource.editEntry", (item) =>
+    editEntry(provider, item)
   );
   vscode.commands.registerCommand("datasource.expandEntry", async (item) => {
     const children = await (item as Datasource).expand();
@@ -109,8 +110,20 @@ export function registerDatasourceItemCommands(provider: DataSourceProvider) {
   });
 }
 
-function editEntry(provider: DataSourceProvider) {
-  console.log(provider);
+async function editEntry(provider: DataSourceProvider, item: Datasource) {
+  const panel = createWebview(provider, "tableEdit", `【${item.label}】编辑`);
+  const data: FormResult | undefined = await item.edit();
+	panel.webview.postMessage({
+      command: "load",
+      data: data,
+    });
+  panel.webview.onDidReceiveMessage(async (message) => {
+    switch (message.command) {
+      case "save":
+        console.log(message.data);
+        break;
+    }
+  });
 }
 
 function addEntry(provider: DataSourceProvider) {

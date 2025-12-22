@@ -86,12 +86,12 @@
       "view/item/context": [
         {
           "command": "datasource.refreshEntry",
-          "when": "view == datasource && viewItem == dsItem",
+          "when": "view == datasource && !(viewItem =~ /Type$/)",
           "group": "inline"
         },
         {
           "command": "datasource.editEntry",
-          "when": "view == datasource && viewItem == dsItem",
+          "when": "view == datasource && !(viewItem =~ /Type$/)",
           "group": "inline"
         }
       ]
@@ -125,6 +125,7 @@
   "dependencies": {
     "@vscode/codicons": "^0.0.44",
     "jquery": "^3.7.1",
+    "layui": "^2.13.2",
     "mysql": "^2.18.1",
     "mysql2": "^3.15.3",
     "tabulator-tables": "^6.3.1"

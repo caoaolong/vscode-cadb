@@ -121,18 +121,12 @@
       }
       const dbTable = new DatabaseTableData({
         tableSelector: "#grid",
-        vscode,
-        stats: {
-          total: "#stat-total",
-          selected: "#stat-selected",
-          changed: "#stat-changed",
-        },
+        vscode
       });
+			$("#btn-add").on("click", dbTable.addRow);
+			$("#btn-refresh").on("click", dbTable.refreshTable);
       $("#btn-save").on("click", () =>
         vscode.postMessage({ command: "save", data: dbTable.changedRows })
-      );
-      $("#btn-refresh").on("click", () =>
-        vscode.postMessage({ command: "refresh" })
       );
       window.addEventListener("message", (event) => {
         const { command, data } = event.data;

@@ -12,9 +12,13 @@ export interface ColDef {
 }
 
 export interface TableResult {
-	title: string,
+  title: string;
   rowData: Record<string, any>[];
   columnDefs: ColDef[];
+}
+
+export interface FormResult {
+  rowData: Record<string, any>[];
 }
 
 export interface Dataloader {
@@ -28,5 +32,16 @@ export interface Dataloader {
   listIndexes(ds: Datasource): Promise<Datasource[]>;
   listColumns(ds: Datasource): Promise<Datasource[]>;
   listTables(ds: Datasource): Promise<Datasource[]>;
-  listData(ds: Datasource, page?: number, pageSize?: number): Promise<TableResult>;
+  listData(
+    ds: Datasource,
+    page?: number,
+    pageSize?: number
+  ): Promise<TableResult>;
+
+  descDatabase(ds: Datasource): Promise<FormResult | undefined>;
+  descTable(ds: Datasource): Promise<FormResult | undefined>;
+  descColumn(ds: Datasource): Promise<FormResult | undefined>;
+  descIndex(ds: Datasource): Promise<FormResult | undefined>;
+
+	descStructure(): string[];
 }
