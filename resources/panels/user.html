@@ -3,26 +3,230 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>编辑表结构</title>
+    <title>用户管理</title>
     <meta http-equiv="Content-Security-Policy" content="{{csp}}" />
-    <script
-      nonce="{{resource-nonce}}"
-      src="{{node-resources-uri}}/jquery/dist/jquery.min.js"
-    ></script>
-    <script
-      nonce="{{resource-nonce}}"
-      src="{{node-resources-uri}}/layui/dist/layui.js"
-    ></script>
-    <link
-      rel="stylesheet"
-      href="{{node-resources-uri}}/layui/dist/css/layui.css"
-    />
+    <script nonce="{{resource-nonce}}" src="{{node-resources-uri}}/jquery/dist/jquery.min.js"></script>
+    <script nonce="{{resource-nonce}}" src="{{node-resources-uri}}/layui/dist/layui.js"></script>
+    <link rel="stylesheet" href="{{node-resources-uri}}/layui/dist/css/layui.css" />
     <link rel="stylesheet" href="{{resources-uri}}/user/user.css" />
   </head>
   <body>
-    <script
-      nonce="{{resource-nonce}}"
-      src="{{resources-uri}}/user/user.js"
-    ></script>
+    <div class="user-container">
+      <div class="header">
+        <h1>数据库用户配置</h1>
+        <p class="subtitle">管理数据库用户信息和连接设置</p>
+      </div>
+
+      <form class="layui-form" lay-filter="user-form">
+        <!-- 基本信息 -->
+        <div class="section-title">基本信息</div>
+        
+        <div class="field-group">
+          <div class="layui-form-item">
+            <label class="layui-form-label">名称</label>
+            <div class="layui-input-block">
+              <input
+                type="text"
+                name="name"
+                id="name"
+                placeholder="用户名"
+                lay-verify="required"
+                class="layui-input"
+              />
+            </div>
+          </div>
+          <div class="layui-form-item">
+            <label class="layui-form-label">主机</label>
+            <div class="layui-input-block">
+              <input
+                type="text"
+                name="host"
+                id="host"
+                placeholder="localhost 或 IP 地址"
+                lay-verify="required"
+                class="layui-input"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="layui-form-item">
+          <label class="layui-form-label">可以登录</label>
+          <div class="layui-input-block">
+            <input type="checkbox" name="canLogin" lay-skin="switch" lay-text="是|否" checked />
+          </div>
+        </div>
+
+        <div class="form-divider"></div>
+
+        <!-- 认证信息 -->
+        <div class="section-title">认证信息</div>
+
+        <div class="field-group">
+          <div class="layui-form-item">
+            <label class="layui-form-label">插件</label>
+            <div class="layui-input-block">
+              <select name="plugin" id="plugin">
+                <option value="caching_sha2_password">caching_sha2_password</option>
+                <option value="mysql_native_password">mysql_native_password</option>
+                <option value="sha256_password">sha256_password</option>
+              </select>
+            </div>
+          </div>
+          <div class="layui-form-item">
+            <label class="layui-form-label">密码</label>
+            <div class="layui-input-block">
+              <input
+                type="password"
+                name="password"
+                id="password"
+                placeholder="留空则不修改"
+                class="layui-input"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="form-divider"></div>
+
+        <!-- 连接限制 -->
+        <div class="section-title">连接限制</div>
+
+        <div class="field-group field-group-4">
+          <div class="layui-form-item">
+            <label class="layui-form-label">最大连接数</label>
+            <div class="layui-input-block">
+              <input
+                type="number"
+                name="maxConnections"
+                id="maxConnections"
+                placeholder="0"
+                min="0"
+                value="0"
+                class="layui-input"
+              />
+            </div>
+          </div>
+          <div class="layui-form-item">
+            <label class="layui-form-label">最大问题数</label>
+            <div class="layui-input-block">
+              <input
+                type="number"
+                name="maxQuestions"
+                id="maxQuestions"
+                placeholder="0"
+                min="0"
+                value="0"
+                class="layui-input"
+              />
+            </div>
+          </div>
+          <div class="layui-form-item">
+            <label class="layui-form-label">最大更新数</label>
+            <div class="layui-input-block">
+              <input
+                type="number"
+                name="maxUpdates"
+                id="maxUpdates"
+                placeholder="0"
+                min="0"
+                value="0"
+                class="layui-input"
+              />
+            </div>
+          </div>
+          <div class="layui-form-item">
+            <label class="layui-form-label">最大用户连接数</label>
+            <div class="layui-input-block">
+              <input
+                type="number"
+                name="maxUserConnections"
+                id="maxUserConnections"
+                placeholder="0"
+                min="0"
+                value="0"
+                class="layui-input"
+              />
+            </div>
+          </div>
+        </div>
+        <div class="form-hint">0 表示不限制</div>
+
+        <div class="form-divider"></div>
+
+        <!-- SSL 配置 -->
+        <div class="section-title">SSL 配置</div>
+
+        <div class="layui-form-item">
+          <label class="layui-form-label">SSL 类型</label>
+          <div class="layui-input-block">
+            <select name="sslType" id="sslType" lay-filter="sslType">
+              <option value="NONE">NONE</option>
+              <option value="ANY">ANY</option>
+              <option value="X509">X509</option>
+              <option value="SPECIFIED">SPECIFIED</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="sslConfig" style="display: none;">
+          <div class="layui-form-item">
+            <label class="layui-form-label">SSL 密码</label>
+            <div class="layui-input-block">
+              <input
+                type="text"
+                name="sslCipher"
+                id="sslCipher"
+                placeholder="SSL 密码套件"
+                class="layui-input"
+              />
+            </div>
+          </div>
+
+          <div class="layui-form-item">
+            <label class="layui-form-label">X509 颁发者</label>
+            <div class="layui-input-block">
+              <input
+                type="text"
+                name="x509Issuer"
+                id="x509Issuer"
+                placeholder="X509 证书颁发者"
+                class="layui-input"
+              />
+            </div>
+          </div>
+
+          <div class="layui-form-item">
+            <label class="layui-form-label">X509 使用者</label>
+            <div class="layui-input-block">
+              <input
+                type="text"
+                name="x509Subject"
+                id="x509Subject"
+                placeholder="X509 证书使用者"
+                class="layui-input"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="form-divider"></div>
+
+        <!-- 按钮组 -->
+        <div class="button-group">
+          <button type="button" id="saveBtn" class="layui-btn">
+            <i class="layui-icon layui-icon-ok"></i> 保存
+          </button>
+          <button type="button" id="cancelBtn" class="layui-btn layui-btn-primary">
+            <i class="layui-icon layui-icon-close"></i> 取消
+          </button>
+        </div>
+
+        <!-- 状态消息 -->
+        <div id="status" class="status-message" role="status" aria-live="polite"></div>
+      </form>
+    </div>
+
+    <script nonce="{{resource-nonce}}" src="{{resources-uri}}/user/user.js"></script>
   </body>
 </html>

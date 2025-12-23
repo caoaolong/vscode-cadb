@@ -1,0 +1,311 @@
+/* User 页面专属样式 - 使用 VSCode 主题变量 */
+
+:root {
+  --vscode-bg: var(--vscode-editor-background, #1e1e1e);
+  --vscode-fg: var(--vscode-editor-foreground, #d4d4d4);
+  --vscode-border: var(--vscode-panel-border, #3e3e42);
+  --vscode-input-bg: var(--vscode-input-background, #3c3c3c);
+  --vscode-input-fg: var(--vscode-input-foreground, #cccccc);
+  --vscode-btn-bg: var(--vscode-button-background, #0e639c);
+  --vscode-btn-fg: var(--vscode-button-foreground, #ffffff);
+  --vscode-btn-secondary-bg: var(--vscode-button-secondaryBackground, #3e3e42);
+  --vscode-btn-secondary-fg: var(--vscode-button-secondaryForeground, #ffffff);
+  --vscode-focus: var(--vscode-focusBorder, #007acc);
+  --vscode-error: var(--vscode-errorForeground, #f48771);
+  --vscode-success: var(--vscode-charts-green, #89d185);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  background-color: var(--vscode-bg);
+  color: var(--vscode-fg);
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.user-container {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  background: var(--vscode-bg);
+  border: 1px solid var(--vscode-border);
+  border-radius: 4px;
+  padding: 32px;
+}
+
+.header {
+  margin-bottom: 28px;
+  text-align: left;
+}
+
+.header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--vscode-fg);
+  margin: 0 0 8px 0;
+}
+
+.header .subtitle {
+  font-size: 13px;
+  color: #888;
+  margin: 0;
+}
+
+/* 分段标题 */
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--vscode-fg);
+  margin: 24px 0 16px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--vscode-border);
+}
+
+.section-title:first-of-type {
+  margin-top: 0;
+}
+
+/* Layui 表单样式适配 */
+.layui-form-item {
+  margin-bottom: 20px;
+}
+
+.layui-form-label {
+  color: var(--vscode-fg);
+  background: transparent;
+  font-weight: 500;
+  padding: 9px 15px;
+  width: 130px;
+}
+
+.layui-input,
+.layui-select,
+.layui-textarea {
+  background-color: var(--vscode-input-bg);
+  color: var(--vscode-input-fg);
+  border: 1px solid var(--vscode-border);
+  border-radius: 2px;
+  height: 36px;
+  line-height: 36px;
+}
+
+.layui-input:hover,
+.layui-select:hover,
+.layui-textarea:hover {
+  border-color: var(--vscode-focus);
+}
+
+.layui-input:focus,
+.layui-select:focus,
+.layui-textarea:focus {
+  border-color: var(--vscode-focus);
+  box-shadow: 0 0 0 1px var(--vscode-focus);
+}
+
+.layui-input::placeholder,
+.layui-textarea::placeholder {
+  color: #888;
+}
+
+/* Select 下拉框适配 */
+.layui-form-select dl {
+  background-color: var(--vscode-input-bg);
+  border: 1px solid var(--vscode-border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.layui-form-select dl dd {
+  color: var(--vscode-input-fg);
+}
+
+.layui-form-select dl dd:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.layui-form-select dl dd.layui-this {
+  background-color: var(--vscode-btn-bg);
+  color: var(--vscode-btn-fg);
+}
+
+.layui-form-select .layui-edge {
+  border-top-color: var(--vscode-input-fg);
+}
+
+/* 开关样式适配 */
+.layui-form-switch {
+  background-color: #555;
+  border: 1px solid var(--vscode-border);
+}
+
+.layui-form-onswitch {
+  background-color: var(--vscode-btn-bg);
+  border-color: var(--vscode-btn-bg);
+}
+
+/* 提示文本 */
+.form-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #888;
+  padding-left: 145px;
+}
+
+/* 字段组 - 两列布局 */
+.field-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.field-group .layui-form-item {
+  margin-bottom: 0;
+}
+
+/* 字段组 - 四列布局 */
+.field-group-4 {
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+/* 分割线 */
+.form-divider {
+  height: 1px;
+  background: var(--vscode-border);
+  margin: 24px 0;
+}
+
+/* 按钮组 */
+.button-group {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--vscode-border);
+}
+
+.layui-btn {
+  background-color: var(--vscode-btn-bg);
+  border: none;
+  border-radius: 2px;
+  height: 36px;
+  line-height: 36px;
+  padding: 0 20px;
+  font-size: 13px;
+}
+
+.layui-btn:hover {
+  background-color: #1177bb;
+}
+
+.layui-btn-primary {
+  background-color: var(--vscode-btn-secondary-bg);
+  color: var(--vscode-btn-secondary-fg);
+  border: 1px solid var(--vscode-border);
+}
+
+.layui-btn-primary:hover {
+  background-color: #545456;
+  border-color: var(--vscode-focus);
+}
+
+.layui-btn:disabled,
+.layui-btn.layui-btn-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 状态消息 */
+.status-message {
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: 2px;
+  font-size: 13px;
+  display: none;
+  transition: all 0.3s;
+}
+
+.status-message.show {
+  display: block;
+}
+
+.status-message.info {
+  background-color: rgba(14, 99, 156, 0.15);
+  color: #4fc3f7;
+  border-left: 3px solid #4fc3f7;
+}
+
+.status-message.success {
+  background-color: rgba(137, 209, 133, 0.15);
+  color: var(--vscode-success);
+  border-left: 3px solid var(--vscode-success);
+}
+
+.status-message.error {
+  background-color: rgba(244, 135, 113, 0.15);
+  color: var(--vscode-error);
+  border-left: 3px solid var(--vscode-error);
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .user-container {
+    padding: 20px;
+  }
+
+  .field-group,
+  .field-group-4 {
+    grid-template-columns: 1fr;
+  }
+
+  .layui-form-label {
+    width: 110px;
+  }
+
+  .form-hint {
+    padding-left: 125px;
+  }
+}
+
+/* 滚动条样式适配 VSCode */
+body ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+body ::-webkit-scrollbar-thumb {
+  background: rgba(121, 121, 121, 0.4);
+  border-radius: 5px;
+}
+
+body ::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 100, 100, 0.7);
+}
+
+body ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 加载动画 */
+.layui-btn .layui-icon-loading {
+  animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
