@@ -86,6 +86,7 @@ export class Datasource extends vscode.TreeItem {
       case "collection":
       case "datasource":
       case "document":
+      case "user":
         return this.dataloder.listObjects(this, this.type);
       default:
         return Promise.resolve([]);
@@ -110,7 +111,7 @@ export class Datasource extends vscode.TreeItem {
     this.type = this.contextValue = input.type;
     this.tooltip = input.tooltip;
     // 设置节点的可折叠状态：如果是 datasource（可展开以列出数据库），则设置为 Collapsed
-    if (input.type === "field" || input.type === "index") {
+    if (input.type === "field" || input.type === "index" || input.type === "user") {
       this.collapsibleState = vscode.TreeItemCollapsibleState.None;
     } else {
       this.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;

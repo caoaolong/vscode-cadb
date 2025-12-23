@@ -208,32 +208,11 @@ body {
 }
 
 /* ========== 表格行样式 - 隔行变色 ========== */
-/*
- * 使用 VSCode 原生变量实现隔行变色效果
- * 颜色变量优先级（降级策略）：
- * - 奇数行：--vscode-editor-background（编辑器主背景）
- * - 偶数行：--vscode-list-alternateBackground（列表交替背景）
- *          -> --vscode-editor-lineHighlightBackground（行高亮背景）
- *          -> rgba(255, 255, 255, 0.04)（降级透明色）
- */
 .tabulator .tabulator-row {
   background: var(--vscode-bg) !important;
   color: var(--vscode-fg) !important;
   border-bottom: 1px solid var(--vscode-border) !important;
   min-height: 30px;
-}
-
-/* 奇数行 - 使用编辑器背景色 */
-.tabulator .tabulator-row.tabulator-row-odd {
-  background: var(--vscode-editor-background, var(--vscode-bg)) !important;
-}
-
-/* 偶数行 - 使用列表交替背景色，自动适配深色/浅色主题 */
-.tabulator .tabulator-row.tabulator-row-even {
-  background: var(
-    --vscode-list-alternateBackground,
-    var(--vscode-editor-lineHighlightBackground, rgba(255, 255, 255, 0.04))
-  ) !important;
 }
 
 /* 悬停效果 - 优先级高于隔行变色，使用列表悬停背景色 */

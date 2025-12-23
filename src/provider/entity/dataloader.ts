@@ -26,6 +26,7 @@ export interface Dataloader {
   connect(): Promise<void>;
 
   listUsers(ds: Datasource): Promise<Datasource[]>;
+	listAllUsers(ds: Datasource): Promise<Datasource[]>;
   listDatabases(ds: Datasource): Promise<Datasource[]>;
 
   listObjects(ds: Datasource, type: string): Promise<Datasource[]>;

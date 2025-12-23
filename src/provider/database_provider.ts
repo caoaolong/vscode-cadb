@@ -38,6 +38,24 @@ export class DataSourceProvider implements vscode.TreeDataProvider<Datasource> {
         ),
         "utf-8"
       ),
+			userEdit: readFileSync(
+        path.join(
+          this.context.extensionPath,
+          "resources",
+          "panels",
+          "user.html"
+        ),
+        "utf-8"
+      ),
+			structEdit: readFileSync(
+        path.join(
+          this.context.extensionPath,
+          "resources",
+          "panels",
+          "struct.html"
+        ),
+        "utf-8"
+      ),
     };
   }
 

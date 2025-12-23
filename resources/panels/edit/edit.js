@@ -81,8 +81,6 @@ layui.use(['element', 'form', 'layer'], function() {
 
     const formHtml = `
       <form class="layui-form" lay-filter="field-form">
-        <h2>编辑字段</h2>
-        
         <div class="layui-form-item">
           <label class="layui-form-label">字段名</label>
           <div class="layui-input-block">
@@ -166,8 +164,6 @@ layui.use(['element', 'form', 'layer'], function() {
 
     const formHtml = `
       <form class="layui-form" lay-filter="index-form">
-        <h2>编辑索引</h2>
-        
         <div class="layui-form-item">
           <label class="layui-form-label">索引名</label>
           <div class="layui-input-block">
@@ -289,10 +285,14 @@ layui.use(['element', 'form', 'layer'], function() {
     // 加载对应表单
     if (type === 'field') {
       const field = mockData.fields.find(f => f.id === id);
-      if (field) loadFieldForm(field);
+      if (field) {
+				loadFieldForm(field);
+			}
     } else if (type === 'index') {
       const index = mockData.indexes.find(i => i.id === id);
-      if (index) loadIndexForm(index);
+      if (index) {
+				loadIndexForm(index);
+			}
     }
   });
 
@@ -371,8 +371,12 @@ layui.use(['element', 'form', 'layer'], function() {
 
     if (command === 'loadData') {
       // 加载数据
-      if (data.fields) mockData.fields = data.fields;
-      if (data.indexes) mockData.indexes = data.indexes;
+      if (data.fields) {
+				mockData.fields = data.fields;
+			}
+      if (data.indexes) {
+				mockData.indexes = data.indexes;
+			}
       
       renderFieldList();
       renderIndexList();

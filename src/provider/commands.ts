@@ -6,7 +6,7 @@ import { FormResult } from "./entity/dataloader";
 
 function createWebview(
   provider: DataSourceProvider,
-  viewType: "datasourceConfig" | "datasourceTable" | "tableEdit",
+  viewType: "datasourceConfig" | "datasourceTable" | "tableEdit" | "userEdit" | "structEdit",
   title: string
 ): vscode.WebviewPanel {
   const panel = vscode.window.createWebviewPanel(
@@ -111,7 +111,18 @@ export function registerDatasourceItemCommands(provider: DataSourceProvider) {
 }
 
 async function editEntry(provider: DataSourceProvider, item: Datasource) {
-  const panel = createWebview(provider, "tableEdit", `【${item.label}】编辑`);
+	let panel = null;
+	if (item.type === "datasource") {
+		panel = createWebview(provider, "datasourceConfig", `【${item.label}】编辑`);
+	} else if (item.type === "collection") {
+		panel = createWebview(provider, "structEdit", `【${item.label}】编辑`);
+	} else if (item.type === "user") {
+		panel = createWebview(provider, "userEdit", `【${item.label}】编辑`);
+	} else if (item.type === "document" || item.type === "field" || item.type === "index") {
+		panel = createWebview(provider, "tableEdit", `【${item.label}】编辑`);
+	} else {
+		return;
+	}
   const data: FormResult | undefined = await item.edit();
 	panel.webview.postMessage({
       command: "load",

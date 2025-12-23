@@ -117,8 +117,37 @@ export class MySQLDataloader implements Dataloader {
       }
     });
   }
-
+  listAllUsers(ds: Datasource): Promise<Datasource[]> {
+    return new Promise<Datasource[]>((resolve) => {
+      this.conn.query(
+        `SELECT * FROM mysql.user;`,
+        (err, results) => {
+          if (err) {
+            vscode.window.showErrorMessage(`查询数据库失败：${err.message}`);
+            return resolve([]);
+          }
+          ds.children = (results as any[]).map(
+            (row) =>
+              new Datasource(
+                {
+                  name: `${row["User"]}@${row["Host"]}`,
+                  tooltip: "",
+                  extra: "",
+                  type: "user",
+                },
+                this,
+                this.ds
+              )
+          );
+          return resolve(ds.children);
+        }
+      );
+    });
+  }
   listUsers(ds: Datasource): Promise<Datasource[]> {
+		if (ds.parent && ds.parent.type === "datasource") {
+			return this.listAllUsers(ds);
+		}
     return new Promise<Datasource[]>((resolve) => {
       if (!this.ds.root || !this.ds.parent) {
         return resolve([]);
