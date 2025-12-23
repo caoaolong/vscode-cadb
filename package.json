@@ -22,15 +22,15 @@
       "activitybar": [
         {
           "id": "datasource",
-          "title": "Datasource Explorer",
+          "title": "CADB",
           "icon": "resources/icons/logo.svg"
         }
       ],
       "panel": [
         {
-          "id": "datasource",
-          "title": "Datasource Explorer",
-          "icon": "resources/icons/logo.svg"
+          "id": "query",
+          "title": "结果",
+          "icon": "resources/icons/query.svg"
         }
       ]
     },
@@ -38,13 +38,29 @@
       "datasource": [
         {
           "id": "datasource",
-          "name": "Datasource Explorer",
+          "name": "数据源",
           "icon": "resources/icons/logo.svg",
           "contextualTitle": "Datasource Explorer"
+        }
+      ],
+      "query": [
+        {
+          "id": "query",
+          "name": "查询结果",
+          "icon": "resources/icons/query.svg",
+          "contextualTitle": "Query Result"
         }
       ]
     },
     "commands": [
+			{
+        "command": "datasource.sqlFile",
+        "title": "创建查询",
+        "icon": {
+          "light": "resources/sql-light.svg",
+          "dark": "resources/sql-dark.svg"
+        }
+      },
       {
         "command": "datasource.addEntry",
         "title": "添加数据源",
@@ -79,6 +95,11 @@
         },
         {
           "command": "datasource.addEntry",
+          "when": "view == datasource",
+          "group": "navigation"
+        },
+				{
+          "command": "datasource.sqlFile",
           "when": "view == datasource",
           "group": "navigation"
         }
