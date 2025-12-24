@@ -1,3 +1,4 @@
+import * as vscode from "vscode";
 import { Datasource } from "./datasource";
 
 export interface PromiseResult {
@@ -24,6 +25,8 @@ export interface FormResult {
 export interface Dataloader {
   test(): Promise<PromiseResult>;
   connect(): Promise<void>;
+
+	listFiles(ds: Datasource, path: vscode.Uri): Promise<Datasource[]>;
 
   listUsers(ds: Datasource): Promise<Datasource[]>;
 	listAllUsers(ds: Datasource): Promise<Datasource[]>;

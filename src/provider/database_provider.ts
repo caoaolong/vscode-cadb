@@ -74,7 +74,7 @@ export class DataSourceProvider implements vscode.TreeDataProvider<Datasource> {
       }
 
       // Otherwise load children asynchronously. Return a Promise so VS Code shows a loading indicator
-      return element.expand().then((children) => {
+      return element.expand(this.context).then((children) => {
         element.children = children || [];
         // Set collapsible state depending on whether children exist
         element.collapsibleState =
@@ -86,7 +86,6 @@ export class DataSourceProvider implements vscode.TreeDataProvider<Datasource> {
         return element.children;
       });
     }
-
     // Root items
     return this.model.map((e) => new Datasource(e));
   }

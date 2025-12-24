@@ -1,7 +1,13 @@
 import * as vscode from "vscode";
 import path from "path";
-import { Dataloader, FormResult, PromiseResult, TableResult } from "./dataloader";
+import {
+  Dataloader,
+  FormResult,
+  PromiseResult,
+  TableResult,
+} from "./dataloader";
 import { MySQLDataloader } from "./mysql_dataloader";
+import { CaEditor } from "../editor";
 
 const iconDir: string[] = ["..", "..", "resources", "icons"];
 
@@ -18,7 +24,9 @@ export interface DatasourceInputData {
     | "indexType"
     | "index" // 索引
     | "userType"
-    | "user"; // 用户
+    | "user" // 用户
+    | "fileType"
+    | "file"; // 文件
 
   name: string;
   tooltip: string;
@@ -68,7 +76,23 @@ export class Datasource extends vscode.TreeItem {
     }
   };
 
-  public expand = (): Promise<Datasource[]> => {
+  public create = async (context: vscode.ExtensionContext): Promise<void> => {
+    switch (this.type) {
+      case "fileType":
+        if (!this.parent || !this.parent.label) {
+          return Promise.resolve();
+        }
+        const dsPath = vscode.Uri.joinPath(
+          context.globalStorageUri,
+          this.parent.label.toString()
+        );
+        await new CaEditor().open(dsPath);
+        this.dataloder?.listFiles(this, dsPath);
+        break;
+    }
+  };
+
+  public expand = (context: vscode.ExtensionContext): Promise<Datasource[]> => {
     if (!this.dataloder) {
       return Promise.resolve([]);
     }
@@ -83,6 +107,17 @@ export class Datasource extends vscode.TreeItem {
         return this.dataloder.listIndexes(this);
       case "userType":
         return this.dataloder.listUsers(this);
+      case "fileType":
+        if (!this.parent || !this.parent.label) {
+          return Promise.resolve([]);
+        }
+        return this.dataloder.listFiles(
+          this,
+          vscode.Uri.joinPath(
+            context.globalStorageUri,
+            this.parent.label.toString()
+          )
+        );
       case "collection":
       case "datasource":
       case "document":
@@ -111,7 +146,12 @@ export class Datasource extends vscode.TreeItem {
     this.type = this.contextValue = input.type;
     this.tooltip = input.tooltip;
     // 设置节点的可折叠状态：如果是 datasource（可展开以列出数据库），则设置为 Collapsed
-    if (input.type === "field" || input.type === "index" || input.type === "user") {
+    if (
+      input.type === "field" ||
+      input.type === "index" ||
+      input.type === "user" ||
+      input.type === "file"
+    ) {
       this.collapsibleState = vscode.TreeItemCollapsibleState.None;
     } else {
       this.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
@@ -139,8 +179,23 @@ export class Datasource extends vscode.TreeItem {
       case "index":
       case "indexType":
         this.initIndexType(input);
+      case "file":
+      case "fileType":
+        this.initFileType(input);
         break;
     }
+  }
+
+  private initFileType(input: DatasourceInputData): void {
+    if (input.type === "file") {
+      this.description = input.extra;
+    }
+    this.iconPath = {
+      light: vscode.Uri.file(
+        path.join(__filename, ...iconDir, "SQL_light.svg")
+      ),
+      dark: vscode.Uri.file(path.join(__filename, ...iconDir, "SQL_dark.svg")),
+    };
   }
 
   private initIndexType(input: DatasourceInputData): void {

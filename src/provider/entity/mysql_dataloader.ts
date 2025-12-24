@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import * as fs from "fs/promises";
 import { Connection, createConnection } from "mysql2";
 import {
   ColDef,
@@ -8,6 +9,8 @@ import {
   TableResult,
 } from "./dataloader";
 import { Datasource, DatasourceInputData } from "./datasource";
+import { readdirSync } from "fs";
+import path from "path";
 
 export class MySQLDataloader implements Dataloader {
   private conn: Connection;
@@ -119,35 +122,32 @@ export class MySQLDataloader implements Dataloader {
   }
   listAllUsers(ds: Datasource): Promise<Datasource[]> {
     return new Promise<Datasource[]>((resolve) => {
-      this.conn.query(
-        `SELECT * FROM mysql.user;`,
-        (err, results) => {
-          if (err) {
-            vscode.window.showErrorMessage(`查询数据库失败：${err.message}`);
-            return resolve([]);
-          }
-          ds.children = (results as any[]).map(
-            (row) =>
-              new Datasource(
-                {
-                  name: `${row["User"]}@${row["Host"]}`,
-                  tooltip: "",
-                  extra: "",
-                  type: "user",
-                },
-                this,
-                this.ds
-              )
-          );
-          return resolve(ds.children);
+      this.conn.query(`SELECT * FROM mysql.user;`, (err, results) => {
+        if (err) {
+          vscode.window.showErrorMessage(`查询数据库失败：${err.message}`);
+          return resolve([]);
         }
-      );
+        ds.children = (results as any[]).map(
+          (row) =>
+            new Datasource(
+              {
+                name: `${row["User"]}@${row["Host"]}`,
+                tooltip: "",
+                extra: "",
+                type: "user",
+              },
+              this,
+              this.ds
+            )
+        );
+        return resolve(ds.children);
+      });
     });
   }
   listUsers(ds: Datasource): Promise<Datasource[]> {
-		if (ds.parent && ds.parent.type === "datasource") {
-			return this.listAllUsers(ds);
-		}
+    if (ds.parent && ds.parent.type === "datasource") {
+      return this.listAllUsers(ds);
+    }
     return new Promise<Datasource[]>((resolve) => {
       if (!this.ds.root || !this.ds.parent) {
         return resolve([]);
@@ -180,6 +180,30 @@ WHERE db = '${this.ds.parent.label}';
         }
       );
     });
+  }
+  async listFiles(ds: Datasource, dsPath: vscode.Uri): Promise<Datasource[]> {
+    try {
+      const stats = await fs.stat(dsPath.fsPath);
+      if (stats.isDirectory()) {
+        readdirSync(dsPath.fsPath).forEach((file) => {
+          ds.children.push(
+            new Datasource(
+              {
+                name: file,
+                tooltip: path.join(dsPath.fsPath, file),
+                extra: "",
+                type: "file",
+              },
+              this,
+              ds.parent
+            )
+          );
+        });
+      }
+    } catch (error) {
+      await fs.mkdir(dsPath.fsPath, { recursive: true });
+    }
+    return ds.children;
   }
 
   listObjects(ds: Datasource, type: string): Promise<Datasource[]> {
@@ -241,6 +265,15 @@ WHERE db = '${this.ds.parent.label}';
             {
               type: "userType",
               name: "用户",
+              tooltip: "",
+            },
+            this,
+            ds
+          ),
+          new Datasource(
+            {
+              type: "fileType",
+              name: "查询",
               tooltip: "",
             },
             this,

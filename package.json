@@ -45,6 +45,7 @@
       ],
       "query": [
         {
+          "type": "webview",
           "id": "query",
           "name": "查询结果",
           "icon": "resources/icons/query.svg",
@@ -53,7 +54,7 @@
       ]
     },
     "commands": [
-			{
+      {
         "command": "datasource.sqlFile",
         "title": "创建查询",
         "icon": {
@@ -63,7 +64,7 @@
       },
       {
         "command": "datasource.addEntry",
-        "title": "添加数据源",
+        "title": "新建项",
         "icon": {
           "light": "resources/plus-light.svg",
           "dark": "resources/plus-dark.svg"
@@ -97,11 +98,6 @@
           "command": "datasource.addEntry",
           "when": "view == datasource",
           "group": "navigation"
-        },
-				{
-          "command": "datasource.sqlFile",
-          "when": "view == datasource",
-          "group": "navigation"
         }
       ],
       "view/item/context": [
@@ -113,6 +109,11 @@
         {
           "command": "datasource.editEntry",
           "when": "view == datasource && !(viewItem =~ /Type$/)",
+          "group": "inline"
+        },
+        {
+          "command": "datasource.addEntry",
+          "when": "view == datasource && viewItem =~ /Type$/",
           "group": "inline"
         }
       ]
@@ -145,6 +146,7 @@
   },
   "dependencies": {
     "@vscode/codicons": "^0.0.44",
+    "dayjs": "^1.11.19",
     "jquery": "^3.7.1",
     "layui": "^2.13.2",
     "mysql": "^2.18.1",

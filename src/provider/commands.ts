@@ -3,6 +3,8 @@ import { DataSourceProvider } from "./database_provider";
 import { Datasource } from "./entity/datasource";
 import path from "path";
 import { FormResult } from "./entity/dataloader";
+import { CaEditor } from "./editor";
+import { SQLCodeLensProvider } from "./sql_provider";
 
 function createWebview(
   provider: DataSourceProvider,
@@ -69,57 +71,6 @@ function generateNonce() {
   return text;
 }
 
-export function registerDatasourceCommands(
-  provider: DataSourceProvider,
-  treeView: vscode.TreeView<Datasource>
-) {
-  vscode.commands.registerCommand("datasource.refreshEntry", provider.refresh);
-  vscode.commands.registerCommand("datasource.addEntry", () =>
-    addEntry(provider)
-  );
-  vscode.commands.registerCommand("datasource.sqlFile", async () => {
-    const doc = await vscode.workspace.openTextDocument({
-      language: "sql",
-      content: "-- Write your SQL here\nSELECT 1;",
-    });
-    await vscode.window.showTextDocument(doc, {
-      preview: false,
-      viewColumn: vscode.ViewColumn.Active,
-    });
-  });
-  vscode.commands.registerCommand("datasource.editEntry", (item) =>
-    editEntry(provider, item)
-  );
-  vscode.commands.registerCommand("datasource.expandEntry", async (item) => {
-    const children = await (item as Datasource).expand();
-    provider.createChildren(item as Datasource, children);
-    treeView.reveal(item as Datasource, { expand: true });
-  });
-}
-
-export function registerDatasourceItemCommands(provider: DataSourceProvider) {
-  vscode.commands.registerCommand("dsItem.showData", async (args) => {
-    const datasource = args as Datasource;
-    const data = await datasource.listData();
-    const panel = createWebview(
-      provider,
-      "datasourceTable",
-      data?.title || "未命名页"
-    );
-    panel.webview.postMessage({
-      command: "load",
-      data: data,
-    });
-    panel.webview.onDidReceiveMessage(async (message) => {
-      switch (message.command) {
-        case "save":
-          console.log(message.data);
-          break;
-      }
-    });
-  });
-}
-
 async function editEntry(provider: DataSourceProvider, item: Datasource) {
   let panel = null;
   if (item.type === "datasource") {
@@ -153,49 +104,104 @@ async function editEntry(provider: DataSourceProvider, item: Datasource) {
   });
 }
 
-function addEntry(provider: DataSourceProvider) {
-  const panel = createWebview(provider, "datasourceConfig", "数据库连接配置");
-  panel.webview.onDidReceiveMessage(async (message) => {
-    switch (message.command) {
-      case "save":
-        {
-          await Datasource.createInstance(
-            provider.model,
-            provider.context,
-            message.payload,
-            true
-          );
-          provider.refresh();
-          panel.webview.postMessage({
-            command: "status",
-            success: true,
-            message: "✔️保存成功",
-          });
-        }
-        return;
-      case "test":
-        {
-          const db = await Datasource.createInstance(
-            provider.model,
-            provider.context,
-            message.payload
-          );
-          const res = await db.test();
-          if (res.success) {
+async function addEntry(item: any, provider: DataSourceProvider) {
+  if (item) {
+    await (item as Datasource).create(provider.context);
+    provider.refresh();
+  } else {
+    const panel = createWebview(provider, "datasourceConfig", "数据库连接配置");
+    panel.webview.onDidReceiveMessage(async (message) => {
+      switch (message.command) {
+        case "save":
+          {
+            await Datasource.createInstance(
+              provider.model,
+              provider.context,
+              message.payload,
+              true
+            );
+            provider.refresh();
             panel.webview.postMessage({
               command: "status",
-              success: res.success,
-              message: "✔️连接成功",
-            });
-          } else {
-            panel.webview.postMessage({
-              command: "status",
-              success: res.success,
-              message: `❗${res.message}`,
+              success: true,
+              message: "✔️保存成功",
             });
           }
-        }
-        break;
-    }
+          return;
+        case "test":
+          {
+            const db = await Datasource.createInstance(
+              provider.model,
+              provider.context,
+              message.payload
+            );
+            const res = await db.test();
+            if (res.success) {
+              panel.webview.postMessage({
+                command: "status",
+                success: res.success,
+                message: "✔️连接成功",
+              });
+            } else {
+              panel.webview.postMessage({
+                command: "status",
+                success: res.success,
+                message: `❗${res.message}`,
+              });
+            }
+          }
+          break;
+      }
+    });
+  }
+}
+
+export function registerDatasourceCommands(
+  provider: DataSourceProvider,
+  treeView: vscode.TreeView<Datasource>
+) {
+  vscode.commands.registerCommand("datasource.refreshEntry", provider.refresh);
+  vscode.commands.registerCommand("datasource.addEntry", (item) =>
+    addEntry(item, provider)
+  );
+  vscode.commands.registerCommand("datasource.editEntry", (item) =>
+    editEntry(provider, item)
+  );
+  vscode.commands.registerCommand("datasource.expandEntry", async (item) => {
+    const children = await (item as Datasource).expand(provider.context);
+    provider.createChildren(item as Datasource, children);
+    treeView.reveal(item as Datasource, { expand: true });
   });
+}
+
+export function registerDatasourceItemCommands(provider: DataSourceProvider) {
+  vscode.commands.registerCommand("dsItem.showData", async (args) => {
+    const datasource = args as Datasource;
+    const data = await datasource.listData();
+    const panel = createWebview(
+      provider,
+      "datasourceTable",
+      data?.title || "未命名页"
+    );
+    panel.webview.postMessage({
+      command: "load",
+      data: data,
+    });
+    panel.webview.onDidReceiveMessage(async (message) => {
+      switch (message.command) {
+        case "save":
+          console.log(message.data);
+          break;
+      }
+    });
+  });
+}
+
+export function registerCodeLensCommands(provider: SQLCodeLensProvider) {
+  vscode.commands.registerCommand("sql.explainSql", (args) =>
+    provider.explainSql(args)
+  );
+  vscode.commands.registerCommand("sql.runSql", (args) =>
+    provider.runSql(args)
+  );
 }
