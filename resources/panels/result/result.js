@@ -3,10 +3,9 @@
  * 使用 Layui Tabs 标准 API 展示多个查询结果
  */
 
-layui.use(['tabs', 'layer', 'dropdown'], function () {
+layui.use(['tabs', 'layer'], function () {
   const tabs = layui.tabs;
   const layer = layui.layer;
-  const dropdown = layui.dropdown;
   const $ = layui.$;
 
   // 获取 VSCode API
@@ -20,8 +19,8 @@ layui.use(['tabs', 'layer', 'dropdown'], function () {
   // Tabs 实例 ID
   const TABS_ID = 'results';
   
-  // Dropdown 实例配置
-  let dropdownConfig = null;
+  // 当前右键菜单的标签
+  let contextMenuTabId = null;
 
   /**
    * 初始化 Tabs
@@ -32,59 +31,143 @@ layui.use(['tabs', 'layer', 'dropdown'], function () {
       elem: '#' + TABS_ID
     });
 
-    // 初始化右键菜单配置
-    initDropdownConfig();
+    // 初始化自定义右键菜单
+    initContextMenu();
     
     console.log('Tabs 初始化完成');
   }
 
   /**
-   * 初始化右键菜单配置
+   * 初始化自定义右键菜单
    */
-  function initDropdownConfig() {
-    dropdownConfig = {
-      trigger: 'contextmenu',
-      data: [
-        {
-          title: '固定',
-          id: 'pin',
-          templet: '<span><i class="layui-icon layui-icon-rate"></i> <span class="pin-text">固定</span></span>'
-        },
-        { type: '-' },
-        {
-          title: '关闭当前结果',
-          id: 'close'
-        },
-        {
-          title: '关闭左侧结果',
-          id: 'close-left'
-        },
-        {
-          title: '关闭右侧结果',
-          id: 'close-right'
-        },
-        { type: '-' },
-        {
-          title: '关闭全部结果',
-          id: 'close-all'
-        }
-      ],
-      click: function(data, othis, event) {
-        const $headerItem = this.elem;
-        const index = $headerItem.index();
-        const layId = $headerItem.attr('lay-id');
-        
-        handleDropdownAction(data.id, layId, index);
-      }
-    };
+  function initContextMenu() {
+    const $body = $('body');
+    
+    // 创建右键菜单 HTML
+    const menuHtml = `
+      <div class="tab-context-menu" id="tabContextMenu">
+        <div class="tab-context-menu-item" data-action="pin">
+          <i class="layui-icon layui-icon-rate"></i>
+          <span class="menu-text">固定</span>
+        </div>
+        <div class="tab-context-menu-separator"></div>
+        <div class="tab-context-menu-item" data-action="close">
+          <i class="layui-icon layui-icon-close"></i>
+          <span>关闭当前结果</span>
+        </div>
+        <div class="tab-context-menu-item" data-action="close-left">
+          <i class="layui-icon layui-icon-left"></i>
+          <span>关闭左侧结果</span>
+        </div>
+        <div class="tab-context-menu-item" data-action="close-right">
+          <i class="layui-icon layui-icon-right"></i>
+          <span>关闭右侧结果</span>
+        </div>
+        <div class="tab-context-menu-separator"></div>
+        <div class="tab-context-menu-item" data-action="close-all">
+          <i class="layui-icon layui-icon-close-fill"></i>
+          <span>关闭全部结果</span>
+        </div>
+      </div>
+    `;
+    
+    $body.append(menuHtml);
+    
+    const $menu = $('#tabContextMenu');
+    
+    // 点击菜单项
+    $menu.on('click', '.tab-context-menu-item:not(.disabled)', function(e) {
+      e.stopPropagation();
+      const action = $(this).data('action');
+      handleContextMenuAction(action);
+      hideContextMenu();
+    });
+    
+    // 点击页面其他地方隐藏菜单
+    $(document).on('click', function() {
+      hideContextMenu();
+    });
+    
+    // 阻止菜单自身的右键
+    $menu.on('contextmenu', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+  }
+
+  /**
+   * 显示右键菜单
+   */
+  function showContextMenu(tabId, x, y) {
+    contextMenuTabId = tabId;
+    const $menu = $('#tabContextMenu');
+    const $tab = $(`#${TABS_ID} .layui-tabs-header>li[lay-id="${tabId}"]`);
+    const $allTabs = $(`#${TABS_ID} .layui-tabs-header>li`);
+    const isPinned = $tab.hasClass('tab-pinned');
+    const currentIndex = $allTabs.index($tab);
+    
+    // 更新固定按钮文本和图标
+    const $pinItem = $menu.find('[data-action="pin"]');
+    if (isPinned) {
+      $pinItem.find('.menu-text').text('取消固定');
+      $pinItem.find('.layui-icon').removeClass('layui-icon-rate').addClass('layui-icon-rate-solid');
+    } else {
+      $pinItem.find('.menu-text').text('固定');
+      $pinItem.find('.layui-icon').removeClass('layui-icon-rate-solid').addClass('layui-icon-rate');
+    }
+    
+    // 检查是否可以关闭
+    $menu.find('[data-action="close"]').toggleClass('disabled', isPinned);
+    
+    // 检查是否有左侧/右侧标签
+    const hasLeft = currentIndex > 0;
+    const hasRight = currentIndex < $allTabs.length - 1;
+    $menu.find('[data-action="close-left"]').toggleClass('disabled', !hasLeft);
+    $menu.find('[data-action="close-right"]').toggleClass('disabled', !hasRight);
+    
+    // 检查是否有可关闭的标签
+    const hasClosable = $allTabs.filter(':not(.tab-pinned)').length > 0;
+    $menu.find('[data-action="close-all"]').toggleClass('disabled', !hasClosable);
+    
+    // 定位菜单
+    $menu.css({
+      left: x + 'px',
+      top: y + 'px'
+    }).addClass('show');
+    
+    // 确保菜单不超出屏幕
+    const menuWidth = $menu.outerWidth();
+    const menuHeight = $menu.outerHeight();
+    const windowWidth = $(window).width();
+    const windowHeight = $(window).height();
+    
+    if (x + menuWidth > windowWidth) {
+      $menu.css('left', (windowWidth - menuWidth - 5) + 'px');
+    }
+    if (y + menuHeight > windowHeight) {
+      $menu.css('top', (windowHeight - menuHeight - 5) + 'px');
+    }
+  }
+
+  /**
+   * 隐藏右键菜单
+   */
+  function hideContextMenu() {
+    $('#tabContextMenu').removeClass('show');
+    contextMenuTabId = null;
   }
 
   /**
    * 处理右键菜单操作
    */
-  function handleDropdownAction(action, tabId, index) {
+  function handleContextMenuAction(action) {
+    if (!contextMenuTabId) return;
+    
+    const tabId = contextMenuTabId;
     const $tab = $(`#${TABS_ID} .layui-tabs-header>li[lay-id="${tabId}"]`);
+    const $allTabs = $(`#${TABS_ID} .layui-tabs-header>li`);
     const isPinned = $tab.hasClass('tab-pinned');
+    const currentIndex = $allTabs.index($tab);
     
     switch (action) {
       case 'pin':
@@ -111,11 +194,11 @@ layui.use(['tabs', 'layer', 'dropdown'], function () {
         break;
         
       case 'close-left':
-        closeTabsByDirection('left', index);
+        closeTabsByDirection('left', currentIndex);
         break;
         
       case 'close-right':
-        closeTabsByDirection('right', index);
+        closeTabsByDirection('right', currentIndex);
         break;
         
       case 'close-all':
@@ -131,6 +214,8 @@ layui.use(['tabs', 'layer', 'dropdown'], function () {
     const $allTabs = $(`#${TABS_ID} .layui-tabs-header>li`);
     let closedCount = 0;
     
+    // 收集要关闭的标签ID
+    const toClose = [];
     $allTabs.each(function(index) {
       const $tab = $(this);
       const shouldClose = direction === 'left' 
@@ -138,10 +223,14 @@ layui.use(['tabs', 'layer', 'dropdown'], function () {
         : index > currentIndex;
       
       if (shouldClose && !$tab.hasClass('tab-pinned')) {
-        const tabId = $tab.attr('lay-id');
-        tabs.close(TABS_ID, tabId);
-        closedCount++;
+        toClose.push($tab.attr('lay-id'));
       }
+    });
+    
+    // 关闭收集的标签
+    toClose.forEach(function(tabId) {
+      tabs.close(TABS_ID, tabId);
+      closedCount++;
     });
     
     if (closedCount > 0) {
@@ -209,12 +298,15 @@ layui.use(['tabs', 'layer', 'dropdown'], function () {
         // 如果是固定标签，添加固定样式
         if (pinned) {
           $headerItem.addClass('tab-pinned');
+          $headerItem.find('.layui-tabs-close').hide();
         }
         
-        // 为新标签添加右键菜单
-        dropdown.render($.extend({}, dropdownConfig, {
-          elem: $headerItem
-        }));
+        // 为新标签绑定右键菜单事件
+        $headerItem.on('contextmenu', function(e) {
+          e.preventDefault();
+          const layId = $(this).attr('lay-id');
+          showContextMenu(layId, e.clientX, e.clientY);
+        });
         
         // 显示 tabs 容器
         $(`#${TABS_ID}`).removeClass('layui-hide-v');

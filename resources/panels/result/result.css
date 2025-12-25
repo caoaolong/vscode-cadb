@@ -238,6 +238,68 @@ body {
   overflow: auto;
 }
 
+/* ========== 自定义右键菜单 - VSCode 主题 ========== */
+
+/* 右键菜单容器 */
+.tab-context-menu {
+  position: fixed;
+  background: var(--vscode-input-bg);
+  border: 1px solid var(--vscode-border);
+  border-radius: 3px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  padding: 4px 0;
+  min-width: 180px;
+  z-index: 99999;
+  display: none;
+  font-size: 12px;
+}
+
+.tab-context-menu.show {
+  display: block;
+}
+
+/* 菜单项 */
+.tab-context-menu-item {
+  padding: 6px 16px;
+  color: var(--vscode-input-fg);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.2s;
+  user-select: none;
+}
+
+.tab-context-menu-item:hover {
+  background: var(--vscode-hover);
+}
+
+.tab-context-menu-item.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.tab-context-menu-item.disabled:hover {
+  background: transparent;
+}
+
+.tab-context-menu-item .layui-icon {
+  font-size: 12px;
+  opacity: 0.8;
+  flex-shrink: 0;
+}
+
+.tab-context-menu-item .menu-text {
+  flex: 1;
+}
+
+/* 菜单分隔线 */
+.tab-context-menu-separator {
+  height: 1px;
+  background: var(--vscode-border);
+  margin: 4px 0;
+}
+
 /* ========== 其他组件样式适配 ========== */
 
 /* 卡片 */
