@@ -12,12 +12,6 @@
   "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
-    "viewsWelcome": [
-      {
-        "view": "datasource",
-        "contents": "Welcome to Datasource Explorer!\nConnect to your databases to get started.\n[Add Datasource](command:cadb.datasource.add)"
-      }
-    ],
     "viewsContainers": {
       "activitybar": [
         {
@@ -29,7 +23,7 @@
       "panel": [
         {
           "id": "query",
-          "title": "结果",
+          "title": "查询结果",
           "icon": "resources/icons/query.svg"
         }
       ]
@@ -54,14 +48,6 @@
       ]
     },
     "commands": [
-      {
-        "command": "cadb.datasource.createSqlFile",
-        "title": "创建查询",
-        "icon": {
-          "light": "resources/sql-light.svg",
-          "dark": "resources/sql-dark.svg"
-        }
-      },
       {
         "command": "cadb.datasource.add",
         "title": "新建项",

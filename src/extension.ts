@@ -50,8 +50,15 @@ export function activate(context: vscode.ExtensionContext) {
   // SQL 执行器需要 editor 引用
   sqlCodeLens.setEditor(editor);
 
-  // 查询结果 Webview
+  // 查询结果 Webview（底部面板）
   const resultProvider = new ResultWebviewProvider(context);
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider("query", resultProvider, {
+      webviewOptions: {
+        retainContextWhenHidden: true
+      }
+    })
+  );
   registerResultCommands(resultProvider);
 
   // SQL 自动补全

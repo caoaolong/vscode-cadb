@@ -3,8 +3,12 @@ import path from "path";
 import { readFileSync } from "fs";
 import { generateNonce } from "./utils";
 
-export class ResultWebviewProvider {
-  private panel?: vscode.WebviewPanel;
+/**
+ * 查询结果 Webview Provider
+ * 显示在 VSCode 底部面板（与终端、输出等一起）
+ */
+export class ResultWebviewProvider implements vscode.WebviewViewProvider {
+  private webviewView?: vscode.WebviewView;
   private context: vscode.ExtensionContext;
   private htmlTemplate: string;
   private isWebviewReady: boolean = false;
@@ -24,25 +28,85 @@ export class ResultWebviewProvider {
   }
 
   /**
+   * 实现 WebviewViewProvider 接口
+   * VSCode 调用此方法来解析 webview view
+   */
+  public resolveWebviewView(
+    webviewView: vscode.WebviewView,
+    context: vscode.WebviewViewResolveContext,
+    token: vscode.CancellationToken
+  ): void | Thenable<void> {
+    this.webviewView = webviewView;
+    this.isWebviewReady = false;
+    this.pendingMessages = [];
+
+    // 配置 webview 选项
+    webviewView.webview.options = {
+      enableScripts: true,
+      localResourceRoots: [
+        vscode.Uri.file(
+          path.join(this.context.extensionPath, "resources", "panels")
+        ),
+        vscode.Uri.file(
+          path.join(this.context.extensionPath, "node_modules")
+        ),
+      ],
+    };
+
+    // 设置 HTML 内容
+    webviewView.webview.html = this.getHtmlContent(webviewView.webview);
+
+    // 监听来自 webview 的消息
+    webviewView.webview.onDidReceiveMessage((message) => {
+      if (message.command === 'ready') {
+        console.log('Webview 已就绪');
+        this.isWebviewReady = true;
+        
+        // 发送所有待处理的消息
+        this.pendingMessages.forEach(msg => {
+          this.webviewView?.webview.postMessage(msg);
+        });
+        this.pendingMessages = [];
+      }
+    });
+
+    // 监听 webview 可见性变化
+    webviewView.onDidChangeVisibility(() => {
+      if (webviewView.visible && this.pendingMessages.length > 0) {
+        // 如果 webview 变为可见且有待处理的消息，尝试发送
+        if (this.isWebviewReady) {
+          this.pendingMessages.forEach(msg => {
+            this.webviewView?.webview.postMessage(msg);
+          });
+          this.pendingMessages = [];
+        }
+      }
+    });
+
+    // 监听 webview 释放
+    webviewView.onDidDispose(() => {
+      this.webviewView = undefined;
+      this.isWebviewReady = false;
+      this.pendingMessages = [];
+    });
+  }
+
+  /**
    * 显示查询结果
    */
   public showResult(result: any, sql: string): void {
-    // 如果面板不存在，创建它
-    if (!this.panel) {
-      this.createPanel();
-    } else {
-      // 如果面板已存在，显示它
-      this.panel.reveal(vscode.ViewColumn.Two);
-    }
-
     // 准备结果消息
     const message = this.prepareResultMessage(result, sql);
     
     // 如果 webview 已就绪，立即发送；否则加入队列
-    if (this.isWebviewReady) {
-      this.panel?.webview.postMessage(message);
+    if (this.webviewView && this.isWebviewReady) {
+      this.webviewView.webview.postMessage(message);
+      // 显示面板
+      this.revealView();
     } else {
       this.pendingMessages.push(message);
+      // 尝试显示面板（会触发 resolveWebviewView）
+      this.revealView();
     }
   }
 
@@ -50,12 +114,6 @@ export class ResultWebviewProvider {
    * 显示错误消息
    */
   public showError(error: string, sql: string): void {
-    if (!this.panel) {
-      this.createPanel();
-    } else {
-      this.panel.reveal(vscode.ViewColumn.Two);
-    }
-
     // 准备错误消息
     const message = {
       command: "showMessage",
@@ -67,70 +125,28 @@ export class ResultWebviewProvider {
     };
 
     // 如果 webview 已就绪，立即发送；否则加入队列
-    if (this.isWebviewReady) {
-      this.panel?.webview.postMessage(message);
+    if (this.webviewView && this.isWebviewReady) {
+      this.webviewView.webview.postMessage(message);
+      // 显示面板
+      this.revealView();
     } else {
       this.pendingMessages.push(message);
+      // 尝试显示面板（会触发 resolveWebviewView）
+      this.revealView();
     }
   }
 
   /**
-   * 创建 Webview Panel
+   * 显示 webview 面板
    */
-  private createPanel(): void {
-    this.isWebviewReady = false;
-    this.pendingMessages = [];
-
-    this.panel = vscode.window.createWebviewPanel(
-      "sqlResult",
-      "查询结果",
-      vscode.ViewColumn.Two,
-      {
-        enableScripts: true,
-        retainContextWhenHidden: true,
-        localResourceRoots: [
-          vscode.Uri.file(
-            path.join(this.context.extensionPath, "resources", "panels")
-          ),
-          vscode.Uri.file(
-            path.join(this.context.extensionPath, "node_modules")
-          ),
-        ],
-      }
-    );
-
-    this.panel.iconPath = vscode.Uri.file(
-      path.join(
-        this.context.extensionPath,
-        "resources",
-        "panels",
-        "favicon.ico"
-      )
-    );
-
-    // 设置 HTML 内容
-    this.panel.webview.html = this.getHtmlContent(this.panel.webview);
-
-    // 监听来自 webview 的消息
-    this.panel.webview.onDidReceiveMessage((message) => {
-      if (message.command === 'ready') {
-        console.log('Webview 已就绪');
-        this.isWebviewReady = true;
-        
-        // 发送所有待处理的消息
-        this.pendingMessages.forEach(msg => {
-          this.panel?.webview.postMessage(msg);
-        });
-        this.pendingMessages = [];
-      }
-    });
-
-    // 监听面板关闭事件
-    this.panel.onDidDispose(() => {
-      this.panel = undefined;
-      this.isWebviewReady = false;
-      this.pendingMessages = [];
-    });
+  private revealView(): void {
+    // 显示底部面板（如果已创建）
+    if (this.webviewView) {
+      this.webviewView.show?.(true); // true 表示保留焦点在编辑器
+    } else {
+      // 如果 webview 尚未创建，通过命令显示面板
+      vscode.commands.executeCommand('query.focus');
+    }
   }
 
   /**
