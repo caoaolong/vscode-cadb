@@ -34,6 +34,8 @@ layui.use(['tabs', 'layer', 'dropdown'], function () {
 
     // 初始化右键菜单配置
     initDropdownConfig();
+    
+    console.log('Tabs 初始化完成');
   }
 
   /**
@@ -190,6 +192,8 @@ layui.use(['tabs', 'layer', 'dropdown'], function () {
     const { id, title, content, icon, closable = true, pinned = false } = options;
     const tabId = id || `tab-${Date.now()}`;
 
+    console.log('添加标签:', tabId, title);
+
     // 使用 Layui 标准 API 添加标签
     tabs.add(TABS_ID, {
       id: tabId,
@@ -197,6 +201,8 @@ layui.use(['tabs', 'layer', 'dropdown'], function () {
       content: content,
       closable: closable && !pinned,
       done: function(data) {
+        console.log('标签添加完成:', data);
+        
         // 标签添加完成后的回调
         const $headerItem = data.headerItem;
         
@@ -212,6 +218,7 @@ layui.use(['tabs', 'layer', 'dropdown'], function () {
         
         // 显示 tabs 容器
         $(`#${TABS_ID}`).removeClass('layui-hide-v');
+        console.log('容器已显示');
       }
     });
   }
@@ -390,12 +397,12 @@ layui.use(['tabs', 'layer', 'dropdown'], function () {
     });
   }
 
-  // 示例：添加默认标签（可删除）
-  // addResultTab({
-  //   id: 'welcome',
-  //   title: '欢迎',
-  //   content: createMessageContent('执行 SQL 查询以查看结果', 'info'),
-  //   icon: '&#xe68e;',
-  //   closable: true
-  // });
+  // 示例：添加默认欢迎标签
+  addResultTab({
+    id: 'welcome',
+    title: '欢迎',
+    content: createMessageContent('执行 SQL 查询以查看结果', 'info'),
+    icon: '&#xe68e;',
+    closable: true
+  });
 });
