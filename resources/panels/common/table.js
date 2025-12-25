@@ -29,7 +29,7 @@ class DatabaseTableData {
    * 初始化 Tabulator
    */
   _initDataTable() {
-    console.log('初始化表格数据:', this.tableData);
+    console.log("初始化表格数据:", this.tableData);
     this.table = new Tabulator(this.tableSelector, {
       height: "100%",
       layout: "fitColumns",
@@ -52,7 +52,7 @@ class DatabaseTableData {
       // 响应式列
       responsiveLayout: false,
     });
-    
+
     // 异步加载数据
     requestAnimationFrame(() => this.table.setData(this.tableData));
   }
@@ -96,15 +96,15 @@ class DatabaseTableData {
    */
   addRow = () => {
     if (!this.table) {
-			return;
-		}
-    
+      return;
+    }
+
     this.table.addData([this.newRow], false).then((rows) => {
-      console.log('添加新行:', rows);
+      console.log("添加新行:", rows);
       if (rows && rows.length > 0) {
-        layui.use('layer', function() {
+        layui.use("layer", function () {
           const layer = layui.layer;
-          layer.msg('新行已添加', { icon: 1, time: 1500 });
+          layer.msg("新行已添加", { icon: 1, time: 1500 });
         });
       }
     });
@@ -115,15 +115,15 @@ class DatabaseTableData {
    */
   refreshTable = () => {
     if (!this.table) {
-			return;
-		}
-    
+      return;
+    }
+
     this.table.replaceData(this.tableData);
     this.changedRows.clear();
-    
-    layui.use('layer', function() {
+
+    layui.use("layer", function () {
       const layer = layui.layer;
-      layer.msg('表格已刷新', { icon: 1, time: 1500 });
+      layer.msg("表格已刷新", { icon: 1, time: 1500 });
     });
   };
 
@@ -132,30 +132,34 @@ class DatabaseTableData {
    */
   deleteRow = () => {
     if (!this.table) {
-			return;
-		}
-    
+      return;
+    }
+
     const selectedRows = this.table.getSelectedData();
     if (selectedRows.length === 0) {
-      layui.use('layer', function() {
+      layui.use("layer", function () {
         const layer = layui.layer;
-        layer.msg('请先选择要删除的行', { icon: 0, time: 2000 });
+        layer.msg("请先选择要删除的行", { icon: 0, time: 2000 });
       });
       return;
     }
 
     const self = this;
-    layui.use('layer', function() {
+    layui.use("layer", function () {
       const layer = layui.layer;
-      layer.confirm('确定要删除选中的 ' + selectedRows.length + ' 行吗？', {
-        icon: 3,
-        title: '确认删除'
-      }, function(index) {
-        // 用户确认删除
-        self.table.getSelectedRows().forEach(row => row.delete());
-        layer.close(index);
-        layer.msg('删除成功', { icon: 1, time: 1500 });
-      });
+      layer.confirm(
+        "确定要删除选中的 " + selectedRows.length + " 行吗？",
+        {
+          icon: 3,
+          title: "确认删除",
+        },
+        function (index) {
+          // 用户确认删除
+          self.table.getSelectedRows().forEach((row) => row.delete());
+          layer.close(index);
+          layer.msg("删除成功", { icon: 1, time: 1500 });
+        }
+      );
     });
   };
 
@@ -164,8 +168,8 @@ class DatabaseTableData {
    */
   exportCSV = () => {
     if (!this.table) {
-			return;
-		}
+      return;
+    }
     this.table.download("csv", "data.csv");
   };
 
@@ -174,8 +178,8 @@ class DatabaseTableData {
    */
   exportJSON = () => {
     if (!this.table) {
-			return;
-		}
+      return;
+    }
     this.table.download("json", "data.json");
   };
 
@@ -183,9 +187,9 @@ class DatabaseTableData {
    * 导出为 SQL
    */
   exportSQL = () => {
-    layui.use('layer', function() {
+    layui.use("layer", function () {
       const layer = layui.layer;
-      layer.msg('SQL 导出功能开发中...', { icon: 0, time: 2000 });
+      layer.msg("SQL 导出功能开发中...", { icon: 0, time: 2000 });
     });
   };
 
@@ -194,7 +198,7 @@ class DatabaseTableData {
    */
   getChangedRows() {
     const rows = [];
-    this.changedRows.forEach(row => {
+    this.changedRows.forEach((row) => {
       rows.push(row.getData());
     });
     return rows;

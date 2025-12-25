@@ -3,7 +3,7 @@
 import * as vscode from "vscode";
 import { DataSourceProvider } from "./provider/database_provider";
 import {
-	registerCodeLensCommands,
+  registerCodeLensCommands,
   registerDatasourceCommands,
   registerDatasourceItemCommands,
   registerEditorCommands,
@@ -34,12 +34,12 @@ export function activate(context: vscode.ExtensionContext) {
   });
   // 数据项命令
   registerDatasourceItemCommands(provider);
-  
+
   // CodeLens
   const sqlCodeLens = new SQLCodeLensProvider();
   vscode.languages.registerCodeLensProvider("sql", sqlCodeLens);
-	registerCodeLensCommands(sqlCodeLens);
-  
+  registerCodeLensCommands(sqlCodeLens);
+
   // SQL 编辑器（带数据库选择器）
   const editor = new CaEditor(provider);
   provider.setEditor(editor);
@@ -55,8 +55,8 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider("query", resultProvider, {
       webviewOptions: {
-        retainContextWhenHidden: true
-      }
+        retainContextWhenHidden: true,
+      },
     })
   );
   registerResultCommands(resultProvider);
@@ -66,10 +66,10 @@ export function activate(context: vscode.ExtensionContext) {
   completionProvider.setEditor(editor);
   context.subscriptions.push(
     vscode.languages.registerCompletionItemProvider(
-      'sql',
+      "sql",
       completionProvider,
-      '.', // 触发字符：点号用于 table.column
-      ' '  // 触发字符：空格用于关键字后
+      ".", // 触发字符：点号用于 table.column
+      " " // 触发字符：空格用于关键字后
     )
   );
 }

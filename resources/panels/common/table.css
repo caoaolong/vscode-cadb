@@ -73,7 +73,11 @@ body {
 }
 
 /* 表头排序图标 */
-.tabulator .tabulator-header .tabulator-col .tabulator-col-content .tabulator-arrow {
+.tabulator
+  .tabulator-header
+  .tabulator-col
+  .tabulator-col-content
+  .tabulator-arrow {
   border-bottom-color: var(--vscode-fg);
   border-top-color: var(--vscode-fg);
 }
@@ -112,19 +116,31 @@ body {
 .tabulator .tabulator-row:hover,
 .tabulator .tabulator-row.tabulator-row-odd:hover,
 .tabulator .tabulator-row.tabulator-row-even:hover {
-  background: var(--vscode-list-hoverBackground, var(--vscode-hover)) !important;
+  background: var(
+    --vscode-list-hoverBackground,
+    var(--vscode-hover)
+  ) !important;
 }
 
 /* 选中的行 - 优先级高于隔行变色 */
 .tabulator .tabulator-row.tabulator-selected,
 .tabulator .tabulator-row.tabulator-row-odd.tabulator-selected,
 .tabulator .tabulator-row.tabulator-row-even.tabulator-selected {
-  background: var(--vscode-list-activeSelectionBackground, var(--vscode-select-bg)) !important;
-  color: var(--vscode-list-activeSelectionForeground, var(--vscode-select-fg)) !important;
+  background: var(
+    --vscode-list-activeSelectionBackground,
+    var(--vscode-select-bg)
+  ) !important;
+  color: var(
+    --vscode-list-activeSelectionForeground,
+    var(--vscode-select-fg)
+  ) !important;
 }
 
 .tabulator .tabulator-row.tabulator-selected:hover {
-  background: var(--vscode-list-activeSelectionBackground, var(--vscode-select-bg)) !important;
+  background: var(
+    --vscode-list-activeSelectionBackground,
+    var(--vscode-select-bg)
+  ) !important;
   opacity: 0.9;
 }
 
@@ -151,8 +167,12 @@ body {
 }
 
 /* 确保奇偶行的编辑单元格样式一致 */
-.tabulator .tabulator-row.tabulator-row-odd .tabulator-cell.tabulator-cell-edited,
-.tabulator .tabulator-row.tabulator-row-even .tabulator-cell.tabulator-cell-edited {
+.tabulator
+  .tabulator-row.tabulator-row-odd
+  .tabulator-cell.tabulator-cell-edited,
+.tabulator
+  .tabulator-row.tabulator-row-even
+  .tabulator-cell.tabulator-cell-edited {
   background: var(
     --vscode-inputValidation-infoBackground,
     var(--vscode-select-bg)

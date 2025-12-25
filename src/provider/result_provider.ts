@@ -47,9 +47,7 @@ export class ResultWebviewProvider implements vscode.WebviewViewProvider {
         vscode.Uri.file(
           path.join(this.context.extensionPath, "resources", "panels")
         ),
-        vscode.Uri.file(
-          path.join(this.context.extensionPath, "node_modules")
-        ),
+        vscode.Uri.file(path.join(this.context.extensionPath, "node_modules")),
       ],
     };
 
@@ -58,12 +56,12 @@ export class ResultWebviewProvider implements vscode.WebviewViewProvider {
 
     // 监听来自 webview 的消息
     webviewView.webview.onDidReceiveMessage((message) => {
-      if (message.command === 'ready') {
-        console.log('Webview 已就绪');
+      if (message.command === "ready") {
+        console.log("Webview 已就绪");
         this.isWebviewReady = true;
-        
+
         // 发送所有待处理的消息
-        this.pendingMessages.forEach(msg => {
+        this.pendingMessages.forEach((msg) => {
           this.webviewView?.webview.postMessage(msg);
         });
         this.pendingMessages = [];
@@ -75,7 +73,7 @@ export class ResultWebviewProvider implements vscode.WebviewViewProvider {
       if (webviewView.visible && this.pendingMessages.length > 0) {
         // 如果 webview 变为可见且有待处理的消息，尝试发送
         if (this.isWebviewReady) {
-          this.pendingMessages.forEach(msg => {
+          this.pendingMessages.forEach((msg) => {
             this.webviewView?.webview.postMessage(msg);
           });
           this.pendingMessages = [];
@@ -97,7 +95,7 @@ export class ResultWebviewProvider implements vscode.WebviewViewProvider {
   public showResult(result: any, sql: string): void {
     // 准备结果消息
     const message = this.prepareResultMessage(result, sql);
-    
+
     // 如果 webview 已就绪，立即发送；否则加入队列
     if (this.webviewView && this.isWebviewReady) {
       this.webviewView.webview.postMessage(message);
@@ -121,7 +119,7 @@ export class ResultWebviewProvider implements vscode.WebviewViewProvider {
       text: error,
       type: "error",
       id: `error-${Date.now()}`,
-      pinned: false
+      pinned: false,
     };
 
     // 如果 webview 已就绪，立即发送；否则加入队列
@@ -145,7 +143,7 @@ export class ResultWebviewProvider implements vscode.WebviewViewProvider {
       this.webviewView.show?.(true); // true 表示保留焦点在编辑器
     } else {
       // 如果 webview 尚未创建，通过命令显示面板
-      vscode.commands.executeCommand('query.focus');
+      vscode.commands.executeCommand("query.focus");
     }
   }
 
@@ -154,10 +152,11 @@ export class ResultWebviewProvider implements vscode.WebviewViewProvider {
    */
   private prepareResultMessage(result: any, sql: string): any {
     // 提取列定义
-    const columns = result.fields?.map((field: any) => ({
-      field: field.name,
-      type: field.type
-    })) || [];
+    const columns =
+      result.fields?.map((field: any) => ({
+        field: field.name,
+        type: field.type,
+      })) || [];
 
     // 提取数据
     const data = Array.isArray(result.results) ? result.results : [];
@@ -172,7 +171,7 @@ export class ResultWebviewProvider implements vscode.WebviewViewProvider {
       columns: columns,
       data: data,
       id: `result-${Date.now()}`,
-      pinned: false
+      pinned: false,
     };
   }
 
@@ -204,4 +203,3 @@ export class ResultWebviewProvider implements vscode.WebviewViewProvider {
       .replace(/{{resource-nonce}}/g, nonce);
   }
 }
-

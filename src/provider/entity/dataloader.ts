@@ -27,10 +27,10 @@ export interface Dataloader {
   connect(): Promise<void>;
   getConnection(): any; // 返回数据库连接对象
 
-	listFiles(ds: Datasource, path: vscode.Uri): Promise<Datasource[]>;
+  listFiles(ds: Datasource, path: vscode.Uri): Promise<Datasource[]>;
 
   listUsers(ds: Datasource): Promise<Datasource[]>;
-	listAllUsers(ds: Datasource): Promise<Datasource[]>;
+  listAllUsers(ds: Datasource): Promise<Datasource[]>;
   listDatabases(ds: Datasource): Promise<Datasource[]>;
 
   listObjects(ds: Datasource, type: string): Promise<Datasource[]>;
@@ -48,5 +48,5 @@ export interface Dataloader {
   descColumn(ds: Datasource): Promise<FormResult | undefined>;
   descIndex(ds: Datasource): Promise<FormResult | undefined>;
 
-	descStructure(): string[];
+  descStructure(): string[];
 }

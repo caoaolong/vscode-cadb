@@ -1,5 +1,5 @@
 // 页面初始化
-$(function() {
+$(function () {
   // 获取 VSCode API
   let vscode = null;
   if (window.vscode) {
@@ -11,7 +11,7 @@ $(function() {
   // 初始化数据表格
   const dbTable = new DatabaseTableData({
     tableSelector: "#grid",
-    vscode: vscode
+    vscode: vscode,
   });
 
   // 绑定按钮事件
@@ -26,17 +26,17 @@ $(function() {
   $("#btn-save").on("click", () => {
     const changedRows = dbTable.getChangedRows();
     if (changedRows.length === 0) {
-      layui.use('layer', function() {
+      layui.use("layer", function () {
         const layer = layui.layer;
-        layer.msg('没有需要保存的修改', { icon: 0, time: 2000 });
+        layer.msg("没有需要保存的修改", { icon: 0, time: 2000 });
       });
       return;
     }
 
     if (vscode) {
-      vscode.postMessage({ 
-        command: "save", 
-        data: changedRows 
+      vscode.postMessage({
+        command: "save",
+        data: changedRows,
       });
     }
   });
@@ -48,10 +48,10 @@ $(function() {
     if (command === "load") {
       dbTable.init(data.columnDefs, data.rowData);
     } else if (command === "status") {
-      layui.use('layer', function() {
+      layui.use("layer", function () {
         const layer = layui.layer;
         const icon = data.success ? 1 : 2;
-        layer.msg(data.message || '操作完成', { icon: icon, time: 2000 });
+        layer.msg(data.message || "操作完成", { icon: icon, time: 2000 });
       });
     }
   });
@@ -59,4 +59,3 @@ $(function() {
   // 暴露到全局
   window.dbTable = dbTable;
 });
-

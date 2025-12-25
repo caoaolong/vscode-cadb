@@ -3,7 +3,7 @@
  * 用于创建、编辑和管理数据库用户
  */
 
-layui.use(['form', 'layer'], function() {
+layui.use(["form", "layer"], function () {
   const form = layui.form;
   const layer = layui.layer;
 
@@ -16,19 +16,19 @@ layui.use(['form', 'layer'], function() {
   }
 
   // 获取表单元素
-  const $sslType = $('#sslType');
-  const $sslConfig = $('#sslConfig');
-  const $saveBtn = $('#saveBtn');
-  const $cancelBtn = $('#cancelBtn');
-  const $status = $('#status');
+  const $sslType = $("#sslType");
+  const $sslConfig = $("#sslConfig");
+  const $saveBtn = $("#saveBtn");
+  const $cancelBtn = $("#cancelBtn");
+  const $status = $("#status");
 
   /**
    * SSL 类型改变时的处理
    */
   function onSslTypeChange() {
     const type = $sslType.val();
-    
-    if (type === 'NONE' || type === 'ANY') {
+
+    if (type === "NONE" || type === "ANY") {
       $sslConfig.hide();
     } else {
       $sslConfig.show();
@@ -40,20 +40,20 @@ layui.use(['form', 'layer'], function() {
    */
   function getFormData() {
     const data = {
-      type: 'user',
-      name: $('#name').val().trim(),
-      host: $('#host').val().trim(),
-      canLogin: $('input[name="canLogin"]').prop('checked'),
-      plugin: $('#plugin').val(),
-      password: $('#password').val(),
-      maxConnections: parseInt($('#maxConnections').val() || '0', 10),
-      maxQuestions: parseInt($('#maxQuestions').val() || '0', 10),
-      maxUpdates: parseInt($('#maxUpdates').val() || '0', 10),
-      maxUserConnections: parseInt($('#maxUserConnections').val() || '0', 10),
+      type: "user",
+      name: $("#name").val().trim(),
+      host: $("#host").val().trim(),
+      canLogin: $('input[name="canLogin"]').prop("checked"),
+      plugin: $("#plugin").val(),
+      password: $("#password").val(),
+      maxConnections: parseInt($("#maxConnections").val() || "0", 10),
+      maxQuestions: parseInt($("#maxQuestions").val() || "0", 10),
+      maxUpdates: parseInt($("#maxUpdates").val() || "0", 10),
+      maxUserConnections: parseInt($("#maxUserConnections").val() || "0", 10),
       sslType: $sslType.val(),
-      sslCipher: $('#sslCipher').val().trim(),
-      x509Issuer: $('#x509Issuer').val().trim(),
-      x509Subject: $('#x509Subject').val().trim()
+      sslCipher: $("#sslCipher").val().trim(),
+      x509Issuer: $("#x509Issuer").val().trim(),
+      x509Subject: $("#x509Subject").val().trim(),
     };
 
     return data;
@@ -66,12 +66,12 @@ layui.use(['form', 'layer'], function() {
     const data = getFormData();
 
     if (!data.name) {
-      showStatus('请输入用户名', 'error');
+      showStatus("请输入用户名", "error");
       return false;
     }
 
     if (!data.host) {
-      showStatus('请输入主机地址', 'error');
+      showStatus("请输入主机地址", "error");
       return false;
     }
 
@@ -87,16 +87,16 @@ layui.use(['form', 'layer'], function() {
     }
 
     if (!vscode) {
-      showStatus('未在 VS Code Webview 中运行', 'error');
+      showStatus("未在 VS Code Webview 中运行", "error");
       return;
     }
 
     setButtonsDisabled(true);
-    showStatus('正在保存用户信息...', 'info');
+    showStatus("正在保存用户信息...", "info");
 
     vscode.postMessage({
-      command: 'save',
-      payload: getFormData()
+      command: "save",
+      payload: getFormData(),
     });
   }
 
@@ -105,28 +105,28 @@ layui.use(['form', 'layer'], function() {
    */
   function cancelEdit() {
     if (!vscode) {
-      showStatus('未在 VS Code Webview 中运行', 'error');
+      showStatus("未在 VS Code Webview 中运行", "error");
       return;
     }
 
     vscode.postMessage({
-      command: 'cancel'
+      command: "cancel",
     });
   }
 
   /**
    * 显示状态消息
    */
-  function showStatus(message, type = 'info') {
+  function showStatus(message, type = "info") {
     $status
       .text(message)
-      .removeClass('info success error')
+      .removeClass("info success error")
       .addClass(`show ${type}`);
 
     // 自动隐藏（除了错误消息）
-    if (type !== 'error') {
+    if (type !== "error") {
       setTimeout(() => {
-        $status.removeClass('show');
+        $status.removeClass("show");
       }, 3000);
     }
   }
@@ -136,11 +136,11 @@ layui.use(['form', 'layer'], function() {
    */
   function setButtonsDisabled(disabled) {
     if (disabled) {
-      $saveBtn.addClass('layui-btn-disabled').prop('disabled', true);
-      $cancelBtn.addClass('layui-btn-disabled').prop('disabled', true);
+      $saveBtn.addClass("layui-btn-disabled").prop("disabled", true);
+      $cancelBtn.addClass("layui-btn-disabled").prop("disabled", true);
     } else {
-      $saveBtn.removeClass('layui-btn-disabled').prop('disabled', false);
-      $cancelBtn.removeClass('layui-btn-disabled').prop('disabled', false);
+      $saveBtn.removeClass("layui-btn-disabled").prop("disabled", false);
+      $cancelBtn.removeClass("layui-btn-disabled").prop("disabled", false);
     }
   }
 
@@ -148,69 +148,85 @@ layui.use(['form', 'layer'], function() {
    * 加载用户数据
    */
   function loadUserData(userData) {
-    if (userData.name) $('#name').val(userData.name);
-    if (userData.host) $('#host').val(userData.host);
-    
-    $('input[name="canLogin"]').prop('checked', userData.canLogin !== false);
-    
-    if (userData.plugin) $('#plugin').val(userData.plugin);
-    if (userData.password) $('#password').val(userData.password);
-    
-    $('#maxConnections').val(userData.maxConnections || 0);
-    $('#maxQuestions').val(userData.maxQuestions || 0);
-    $('#maxUpdates').val(userData.maxUpdates || 0);
-    $('#maxUserConnections').val(userData.maxUserConnections || 0);
-    
-    if (userData.sslType) $sslType.val(userData.sslType);
-    if (userData.sslCipher) $('#sslCipher').val(userData.sslCipher);
-    if (userData.x509Issuer) $('#x509Issuer').val(userData.x509Issuer);
-    if (userData.x509Subject) $('#x509Subject').val(userData.x509Subject);
-    
+    if (userData.name) {
+      $("#name").val(userData.name);
+    }
+    if (userData.host) {
+      $("#host").val(userData.host);
+    }
+
+    $('input[name="canLogin"]').prop("checked", userData.canLogin !== false);
+
+    if (userData.plugin) {
+      $("#plugin").val(userData.plugin);
+    }
+    if (userData.password) {
+      $("#password").val(userData.password);
+    }
+
+    $("#maxConnections").val(userData.maxConnections || 0);
+    $("#maxQuestions").val(userData.maxQuestions || 0);
+    $("#maxUpdates").val(userData.maxUpdates || 0);
+    $("#maxUserConnections").val(userData.maxUserConnections || 0);
+
+    if (userData.sslType) {
+      $sslType.val(userData.sslType);
+    }
+    if (userData.sslCipher) {
+      $("#sslCipher").val(userData.sslCipher);
+    }
+    if (userData.x509Issuer) {
+      $("#x509Issuer").val(userData.x509Issuer);
+    }
+    if (userData.x509Subject) {
+      $("#x509Subject").val(userData.x509Subject);
+    }
+
     // 重新渲染表单
     form.render();
     onSslTypeChange();
   }
 
   // 监听 SSL 类型变化
-  form.on('select(sslType)', function(data) {
+  form.on("select(sslType)", function (data) {
     onSslTypeChange();
   });
 
   // 保存按钮
-  $saveBtn.on('click', function(e) {
+  $saveBtn.on("click", function (e) {
     e.preventDefault();
     saveUser();
   });
 
   // 取消按钮
-  $cancelBtn.on('click', function(e) {
+  $cancelBtn.on("click", function (e) {
     e.preventDefault();
     cancelEdit();
   });
 
   // 监听来自 VSCode 的消息
-  window.addEventListener('message', (event) => {
+  window.addEventListener("message", (event) => {
     const message = event.data;
-    
+
     if (!message || !message.command) {
       return;
     }
 
     switch (message.command) {
-      case 'status': {
+      case "status": {
         const isSuccess = message.success !== false;
         showStatus(
-          message.message || '操作完成',
-          isSuccess ? 'success' : 'error'
+          message.message || "操作完成",
+          isSuccess ? "success" : "error"
         );
         setButtonsDisabled(false);
         break;
       }
-      case 'loadUser': {
+      case "loadUser": {
         loadUserData(message.data || {});
         break;
       }
-      case 'setValues': {
+      case "setValues": {
         loadUserData(message.values || {});
         break;
       }
@@ -223,8 +239,7 @@ layui.use(['form', 'layer'], function() {
   // 通知 VSCode 页面已准备好
   if (vscode) {
     vscode.postMessage({
-      command: 'ready'
+      command: "ready",
     });
   }
 });
-

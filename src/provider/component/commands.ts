@@ -201,7 +201,7 @@ export function registerDatasourceItemCommands(provider: DataSourceProvider) {
     const dsPath = vscode.Uri.joinPath(
       provider.context.globalStorageUri,
       fileItem.parent.label.toString(),
-      fileItem.label?.toString() || ''
+      fileItem.label?.toString() || ""
     );
 
     try {
@@ -233,12 +233,12 @@ export function registerCodeLensCommands(provider: SQLCodeLensProvider) {
 export function registerEditorCommands(editor: CaEditor) {
   // 创建数据库选择器
   const databaseSelector = new DatabaseSelector(editor);
-  
+
   // 设置数据库变化回调
   editor.setOnDatabaseChangedCallback(() => {
     databaseSelector.updateStatusBar();
   });
-  
+
   // 注册数据库选择命令
   vscode.commands.registerCommand("cadb.sql.selectDatabase", () =>
     editor.selectDatabase()
@@ -250,12 +250,14 @@ export function registerEditorCommands(editor: CaEditor) {
 
 export function registerResultCommands(resultProvider: ResultWebviewProvider) {
   // 注册显示结果命令
-  vscode.commands.registerCommand("cadb.result.show", (result: any, sql: string) =>
-    resultProvider.showResult(result, sql)
+  vscode.commands.registerCommand(
+    "cadb.result.show",
+    (result: any, sql: string) => resultProvider.showResult(result, sql)
   );
 
   // 注册显示错误命令
-  vscode.commands.registerCommand("cadb.result.showError", (error: string, sql: string) =>
-    resultProvider.showError(error, sql)
+  vscode.commands.registerCommand(
+    "cadb.result.showError",
+    (error: string, sql: string) => resultProvider.showError(error, sql)
   );
 }

@@ -9,7 +9,7 @@ export class DataSourceProvider implements vscode.TreeDataProvider<Datasource> {
   public context: vscode.ExtensionContext;
   public panels: Record<string, string>;
   public editor?: CaEditor;
-  
+
   constructor(context: vscode.ExtensionContext) {
     this.model = [];
     this.context = context;
@@ -32,7 +32,7 @@ export class DataSourceProvider implements vscode.TreeDataProvider<Datasource> {
         ),
         "utf-8"
       ),
-			tableEdit: readFileSync(
+      tableEdit: readFileSync(
         path.join(
           this.context.extensionPath,
           "resources",
@@ -41,7 +41,7 @@ export class DataSourceProvider implements vscode.TreeDataProvider<Datasource> {
         ),
         "utf-8"
       ),
-			userEdit: readFileSync(
+      userEdit: readFileSync(
         path.join(
           this.context.extensionPath,
           "resources",
@@ -49,7 +49,7 @@ export class DataSourceProvider implements vscode.TreeDataProvider<Datasource> {
           "user.html"
         ),
         "utf-8"
-      )
+      ),
     };
   }
 

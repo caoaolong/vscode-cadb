@@ -25,7 +25,9 @@ export class CaCompletionItemProvider implements vscode.CompletionItemProvider {
     position: vscode.Position,
     token: vscode.CancellationToken,
     context: vscode.CompletionContext
-  ): Promise<vscode.CompletionItem[] | vscode.CompletionList<vscode.CompletionItem>> {
+  ): Promise<
+    vscode.CompletionItem[] | vscode.CompletionList<vscode.CompletionItem>
+  > {
     if (!this.editor) {
       return [];
     }
@@ -40,49 +42,59 @@ export class CaCompletionItemProvider implements vscode.CompletionItemProvider {
     // 获取当前输入的文本
     const lineText = document.lineAt(position.line).text;
     const textBeforeCursor = lineText.substring(0, position.character);
-    
+
     // 分析上下文，确定补全类型
     const completionType = this.getCompletionType(textBeforeCursor);
-    
+
     const completions: vscode.CompletionItem[] = [];
 
     try {
       switch (completionType) {
-        case 'database':
+        case "database":
           // 补全数据库名
-          completions.push(...await this.getDatabaseCompletions(currentConnection));
+          completions.push(
+            ...(await this.getDatabaseCompletions(currentConnection))
+          );
           break;
-        
-        case 'table':
+
+        case "table":
           // 补全表名
           if (currentDatabase) {
-            completions.push(...await this.getTableCompletions(currentDatabase));
+            completions.push(
+              ...(await this.getTableCompletions(currentDatabase))
+            );
           }
           break;
-        
-        case 'column':
+
+        case "column":
           // 补全字段名
           if (currentDatabase) {
             const tableName = this.extractTableName(textBeforeCursor);
             if (tableName) {
-              completions.push(...await this.getColumnCompletions(currentDatabase, tableName));
+              completions.push(
+                ...(await this.getColumnCompletions(currentDatabase, tableName))
+              );
             } else {
               // 如果无法确定表名，显示所有表的字段
-              completions.push(...await this.getAllColumnsCompletions(currentDatabase));
+              completions.push(
+                ...(await this.getAllColumnsCompletions(currentDatabase))
+              );
             }
           }
           break;
-        
+
         default:
           // 默认：显示 SQL 关键字、数据库和表名
           completions.push(...this.getSQLKeywords());
           if (currentDatabase) {
-            completions.push(...await this.getTableCompletions(currentDatabase));
+            completions.push(
+              ...(await this.getTableCompletions(currentDatabase))
+            );
           }
           break;
       }
     } catch (error) {
-      console.error('补全提供失败:', error);
+      console.error("补全提供失败:", error);
     }
 
     return completions;
@@ -101,30 +113,34 @@ export class CaCompletionItemProvider implements vscode.CompletionItemProvider {
   /**
    * 确定补全类型
    */
-  private getCompletionType(text: string): 'database' | 'table' | 'column' | 'default' {
+  private getCompletionType(
+    text: string
+  ): "database" | "table" | "column" | "default" {
     const upperText = text.toUpperCase().trim();
-    
+
     // 检查是否在 USE 语句后（补全数据库）
     if (/USE\s+$/i.test(text)) {
-      return 'database';
+      return "database";
     }
-    
+
     // 检查是否在 FROM、JOIN、INTO、UPDATE 后（补全表名）
     if (/(FROM|JOIN|INTO|UPDATE)\s+[a-zA-Z0-9_]*$/i.test(text)) {
-      return 'table';
+      return "table";
     }
-    
+
     // 检查是否在表名后的点号后（补全字段）
     if (/[a-zA-Z0-9_]+\.[a-zA-Z0-9_]*$/i.test(text)) {
-      return 'column';
+      return "column";
     }
-    
+
     // 检查是否在 SELECT、WHERE、SET、ON 后（可能是字段）
-    if (/(SELECT|WHERE|SET|ON|ORDER BY|GROUP BY)\s+[a-zA-Z0-9_,\s]*$/i.test(text)) {
-      return 'column';
+    if (
+      /(SELECT|WHERE|SET|ON|ORDER BY|GROUP BY)\s+[a-zA-Z0-9_,\s]*$/i.test(text)
+    ) {
+      return "column";
     }
-    
-    return 'default';
+
+    return "default";
   }
 
   /**
@@ -136,20 +152,22 @@ export class CaCompletionItemProvider implements vscode.CompletionItemProvider {
     if (match) {
       return match[1];
     }
-    
+
     // 尝试从 FROM table 中提取
     const fromMatch = text.match(/FROM\s+([a-zA-Z0-9_]+)/i);
     if (fromMatch) {
       return fromMatch[1];
     }
-    
+
     return null;
   }
 
   /**
    * 获取数据库名补全
    */
-  private async getDatabaseCompletions(connection: Datasource): Promise<vscode.CompletionItem[]> {
+  private async getDatabaseCompletions(
+    connection: Datasource
+  ): Promise<vscode.CompletionItem[]> {
     const cacheKey = `databases:${connection.label}`;
     const cached = this.getCached(cacheKey);
     if (cached) {
@@ -159,27 +177,31 @@ export class CaCompletionItemProvider implements vscode.CompletionItemProvider {
     try {
       // 获取连接下的对象（包含 datasourceType, userType, fileType）
       const objects = await connection.expand(this.editor!.provider.context);
-      
+
       // 找到 datasourceType 节点
-      const datasourceTypeNode = objects.find(obj => obj.type === 'datasourceType');
+      const datasourceTypeNode = objects.find(
+        (obj) => obj.type === "datasourceType"
+      );
       if (!datasourceTypeNode) {
         return [];
       }
 
       // 展开获取所有数据库
-      const databases = await datasourceTypeNode.expand(this.editor!.provider.context);
-      const completions = databases.map(db => {
+      const databases = await datasourceTypeNode.expand(
+        this.editor!.provider.context
+      );
+      const completions = databases.map((db) => {
         const item = new vscode.CompletionItem(
-          db.label?.toString() || '',
+          db.label?.toString() || "",
           vscode.CompletionItemKind.Module
         );
-        item.detail = '数据库';
+        item.detail = "数据库";
         item.documentation = new vscode.MarkdownString(
-          db.tooltip?.toString() || ''
+          db.tooltip?.toString() || ""
         );
         return item;
       });
-      
+
       this.setCached(cacheKey, completions);
       return completions;
     } catch (error) {
@@ -190,7 +212,9 @@ export class CaCompletionItemProvider implements vscode.CompletionItemProvider {
   /**
    * 获取表名补全
    */
-  private async getTableCompletions(database: Datasource): Promise<vscode.CompletionItem[]> {
+  private async getTableCompletions(
+    database: Datasource
+  ): Promise<vscode.CompletionItem[]> {
     const cacheKey = `tables:${database.label}`;
     const cached = this.getCached(cacheKey);
     if (cached) {
@@ -200,26 +224,28 @@ export class CaCompletionItemProvider implements vscode.CompletionItemProvider {
     try {
       // 获取数据库节点下的对象（collectionType, userType 等）
       const objects = await database.expand(this.editor!.provider.context);
-      const tableTypeNode = objects.find(obj => obj.type === 'collectionType');
-      
+      const tableTypeNode = objects.find(
+        (obj) => obj.type === "collectionType"
+      );
+
       if (!tableTypeNode) {
         return [];
       }
 
       // 获取所有表
       const tables = await tableTypeNode.expand(this.editor!.provider.context);
-      const completions = tables.map(table => {
+      const completions = tables.map((table) => {
         const item = new vscode.CompletionItem(
-          table.label?.toString() || '',
+          table.label?.toString() || "",
           vscode.CompletionItemKind.Class
         );
-        item.detail = '表';
+        item.detail = "表";
         item.documentation = new vscode.MarkdownString(
-          `${table.description || ''}`
+          `${table.description || ""}`
         );
         return item;
       });
-      
+
       this.setCached(cacheKey, completions);
       return completions;
     } catch (error) {
@@ -249,27 +275,28 @@ export class CaCompletionItemProvider implements vscode.CompletionItemProvider {
 
       // 获取表的对象（字段、索引等）
       const objects = await table.expand(this.editor!.provider.context);
-      const fieldTypeNode = objects.find(obj => obj.type === 'fieldType');
-      
+      const fieldTypeNode = objects.find((obj) => obj.type === "fieldType");
+
       if (!fieldTypeNode) {
         return [];
       }
 
       // 获取所有字段
       const fields = await fieldTypeNode.expand(this.editor!.provider.context);
-      const completions = fields.map(field => {
+      const completions = fields.map((field) => {
         const item = new vscode.CompletionItem(
-          field.label?.toString() || '',
+          field.label?.toString() || "",
           vscode.CompletionItemKind.Field
         );
-        const descStr = typeof field.description === 'string' ? field.description : '字段';
+        const descStr =
+          typeof field.description === "string" ? field.description : "字段";
         item.detail = descStr;
         item.documentation = new vscode.MarkdownString(
           `表: ${tableName}\n类型: ${descStr}`
         );
         return item;
       });
-      
+
       this.setCached(cacheKey, completions);
       return completions;
     } catch (error) {
@@ -280,12 +307,16 @@ export class CaCompletionItemProvider implements vscode.CompletionItemProvider {
   /**
    * 获取所有表的字段补全
    */
-  private async getAllColumnsCompletions(database: Datasource): Promise<vscode.CompletionItem[]> {
+  private async getAllColumnsCompletions(
+    database: Datasource
+  ): Promise<vscode.CompletionItem[]> {
     try {
       // 获取所有表
       const objects = await database.expand(this.editor!.provider.context);
-      const tableTypeNode = objects.find(obj => obj.type === 'collectionType');
-      
+      const tableTypeNode = objects.find(
+        (obj) => obj.type === "collectionType"
+      );
+
       if (!tableTypeNode) {
         return [];
       }
@@ -298,7 +329,7 @@ export class CaCompletionItemProvider implements vscode.CompletionItemProvider {
       for (const table of tablesToFetch) {
         const columns = await this.getColumnCompletions(
           database,
-          table.label?.toString() || ''
+          table.label?.toString() || ""
         );
         allCompletions.push(...columns);
       }
@@ -312,19 +343,27 @@ export class CaCompletionItemProvider implements vscode.CompletionItemProvider {
   /**
    * 查找表
    */
-  private async findTable(database: Datasource, tableName: string): Promise<Datasource | null> {
+  private async findTable(
+    database: Datasource,
+    tableName: string
+  ): Promise<Datasource | null> {
     try {
       const objects = await database.expand(this.editor!.provider.context);
-      const tableTypeNode = objects.find(obj => obj.type === 'collectionType');
-      
+      const tableTypeNode = objects.find(
+        (obj) => obj.type === "collectionType"
+      );
+
       if (!tableTypeNode) {
         return null;
       }
 
       const tables = await tableTypeNode.expand(this.editor!.provider.context);
-      return tables.find(
-        table => table.label?.toString().toLowerCase() === tableName.toLowerCase()
-      ) || null;
+      return (
+        tables.find(
+          (table) =>
+            table.label?.toString().toLowerCase() === tableName.toLowerCase()
+        ) || null
+      );
     } catch (error) {
       return null;
     }
@@ -336,32 +375,84 @@ export class CaCompletionItemProvider implements vscode.CompletionItemProvider {
   private getSQLKeywords(): vscode.CompletionItem[] {
     const keywords = [
       // DML
-      'SELECT', 'INSERT', 'UPDATE', 'DELETE',
-      'FROM', 'WHERE', 'JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'INNER JOIN',
-      'ON', 'AND', 'OR', 'NOT', 'IN', 'LIKE', 'BETWEEN',
-      'ORDER BY', 'GROUP BY', 'HAVING', 'LIMIT', 'OFFSET',
-      'AS', 'DISTINCT', 'ALL',
+      "SELECT",
+      "INSERT",
+      "UPDATE",
+      "DELETE",
+      "FROM",
+      "WHERE",
+      "JOIN",
+      "LEFT JOIN",
+      "RIGHT JOIN",
+      "INNER JOIN",
+      "ON",
+      "AND",
+      "OR",
+      "NOT",
+      "IN",
+      "LIKE",
+      "BETWEEN",
+      "ORDER BY",
+      "GROUP BY",
+      "HAVING",
+      "LIMIT",
+      "OFFSET",
+      "AS",
+      "DISTINCT",
+      "ALL",
       // DDL
-      'CREATE', 'ALTER', 'DROP', 'TRUNCATE',
-      'TABLE', 'DATABASE', 'INDEX', 'VIEW',
+      "CREATE",
+      "ALTER",
+      "DROP",
+      "TRUNCATE",
+      "TABLE",
+      "DATABASE",
+      "INDEX",
+      "VIEW",
       // 数据类型
-      'INT', 'VARCHAR', 'TEXT', 'DATE', 'DATETIME', 'TIMESTAMP',
-      'FLOAT', 'DOUBLE', 'DECIMAL', 'BOOLEAN',
+      "INT",
+      "VARCHAR",
+      "TEXT",
+      "DATE",
+      "DATETIME",
+      "TIMESTAMP",
+      "FLOAT",
+      "DOUBLE",
+      "DECIMAL",
+      "BOOLEAN",
       // 约束
-      'PRIMARY KEY', 'FOREIGN KEY', 'UNIQUE', 'NOT NULL', 'DEFAULT',
-      'AUTO_INCREMENT', 'CHECK',
+      "PRIMARY KEY",
+      "FOREIGN KEY",
+      "UNIQUE",
+      "NOT NULL",
+      "DEFAULT",
+      "AUTO_INCREMENT",
+      "CHECK",
       // 其他
-      'USE', 'SHOW', 'DESCRIBE', 'EXPLAIN',
-      'COUNT', 'SUM', 'AVG', 'MAX', 'MIN',
-      'UNION', 'EXISTS', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END'
+      "USE",
+      "SHOW",
+      "DESCRIBE",
+      "EXPLAIN",
+      "COUNT",
+      "SUM",
+      "AVG",
+      "MAX",
+      "MIN",
+      "UNION",
+      "EXISTS",
+      "CASE",
+      "WHEN",
+      "THEN",
+      "ELSE",
+      "END",
     ];
 
-    return keywords.map(keyword => {
+    return keywords.map((keyword) => {
       const item = new vscode.CompletionItem(
         keyword,
         vscode.CompletionItemKind.Keyword
       );
-      item.detail = 'SQL 关键字';
+      item.detail = "SQL 关键字";
       return item;
     });
   }
@@ -383,7 +474,7 @@ export class CaCompletionItemProvider implements vscode.CompletionItemProvider {
   private setCached(key: string, items: vscode.CompletionItem[]): void {
     this.cachedCompletions.set(key, {
       items,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
   }
 
