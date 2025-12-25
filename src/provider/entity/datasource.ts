@@ -7,7 +7,7 @@ import {
   TableResult,
 } from "./dataloader";
 import { MySQLDataloader } from "./mysql_dataloader";
-import { CaEditor } from "../component/editor";
+import type { CaEditor } from "../component/editor";
 
 const iconDir: string[] = ["..", "..", "resources", "icons"];
 
@@ -76,7 +76,10 @@ export class Datasource extends vscode.TreeItem {
     }
   };
 
-  public create = async (context: vscode.ExtensionContext): Promise<void> => {
+  public create = async (
+    context: vscode.ExtensionContext,
+    editor?: CaEditor
+  ): Promise<void> => {
     switch (this.type) {
       case "fileType":
         if (!this.parent || !this.parent.label) {
@@ -86,7 +89,23 @@ export class Datasource extends vscode.TreeItem {
           context.globalStorageUri,
           this.parent.label.toString()
         );
-        await new CaEditor().open(dsPath);
+        if (editor) {
+          await editor.open(dsPath);
+        } else {
+          // 如果没有传入 editor，创建临时文件
+          const dayjs = require("dayjs");
+          const filename = dayjs().format("YYYYMMDDHHmmss") + ".sql";
+          const fileUri = vscode.Uri.joinPath(dsPath, filename);
+          await vscode.workspace.fs.writeFile(
+            fileUri,
+            Buffer.from(`-- ${filename}\n`)
+          );
+          const doc = await vscode.workspace.openTextDocument(fileUri);
+          await vscode.window.showTextDocument(doc, {
+            preview: false,
+            viewColumn: vscode.ViewColumn.Active,
+          });
+        }
         this.dataloder?.listFiles(this, dsPath);
         break;
     }

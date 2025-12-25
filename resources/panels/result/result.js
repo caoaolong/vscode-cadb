@@ -354,12 +354,13 @@ layui.use(['tabs', 'layer'], function () {
   }
 
   /**
-   * 创建表格内容
+   * 创建表格内容（使用 Tabulator）
    * @param {Array} columns - 列定义
    * @param {Array} data - 数据
+   * @param {string} tabId - 标签ID
    * @returns {string} HTML内容
    */
-  function createTableContent(columns, data) {
+  function createTableContent(columns, data, tabId) {
     if (!data || data.length === 0) {
       return `
         <div class="empty-state">
@@ -369,32 +370,62 @@ layui.use(['tabs', 'layer'], function () {
       `;
     }
 
-    // 创建简单表格
-    let html = '<div class="layui-card-body" style="padding: 0;"><table class="layui-table" lay-skin="line">';
+    // 创建 Tabulator 容器
+    const containerId = `tabulator-${tabId}`;
+    const html = `<div id="${containerId}" class="tabulator-container"></div>`;
     
-    // 表头
-    html += '<thead><tr>';
-    columns.forEach(col => {
-      html += `<th>${col.field}</th>`;
-    });
-    html += '</tr></thead>';
-
-    // 表体
-    html += '<tbody>';
-    data.forEach(row => {
-      html += '<tr>';
-      columns.forEach(col => {
-        const value = row[col.field] !== null && row[col.field] !== undefined 
-          ? row[col.field] 
-          : '<span style="color: #888;">NULL</span>';
-        html += `<td>${value}</td>`;
-      });
-      html += '</tr>';
-    });
-    html += '</tbody>';
-
-    html += '</table></div>';
+    // 延迟初始化 Tabulator（等待 DOM 渲染）
+    setTimeout(() => {
+      initTabulator(containerId, columns, data);
+    }, 100);
+    
     return html;
+  }
+
+  /**
+   * 初始化 Tabulator 表格
+   */
+  function initTabulator(containerId, columns, data) {
+    const container = document.getElementById(containerId);
+    if (!container) {
+      console.error('容器不存在:', containerId);
+      return;
+    }
+
+    // 转换列定义为 Tabulator 格式
+    const tabulatorColumns = columns.map(col => ({
+      title: col.field.toUpperCase(),
+      field: col.field,
+      headerSort: true,
+      resizable: true,
+      minWidth: 100
+    }));
+
+    // 创建 Tabulator 实例
+    new Tabulator(`#${containerId}`, {
+      height: "100%",
+      layout: "fitColumns",
+      pagination: true,
+      paginationSize: 50,
+      paginationSizeSelector: [25, 50, 100, 200],
+      paginationCounter: "rows",
+      columns: tabulatorColumns,
+      data: data,
+      selectable: true,
+      headerSort: true,
+      resizableColumns: true,
+      placeholder: "暂无数据",
+      virtualDom: true,
+      movableColumns: true,
+      tooltips: true,
+      clipboard: true,
+      clipboardCopyStyled: false,
+      clipboardCopyConfig: {
+        columnHeaders: true,
+        rowGroups: false,
+        columnCalcs: false
+      }
+    });
   }
 
   /**
@@ -438,9 +469,10 @@ layui.use(['tabs', 'layer'], function () {
       case 'showResult': {
         // 显示查询结果
         const { title, columns, data, id, pinned } = message;
-        const content = createTableContent(columns, data);
+        const tabId = id || `result-${Date.now()}`;
+        const content = createTableContent(columns, data, tabId);
         addResultTab({
-          id: id || `result-${Date.now()}`,
+          id: tabId,
           title: title || '查询结果',
           content: content,
           icon: '&#xe65b;',

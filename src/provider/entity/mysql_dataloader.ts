@@ -79,6 +79,10 @@ export class MySQLDataloader implements Dataloader {
     });
   }
 
+  getConnection(): Connection {
+    return this.conn;
+  }
+
   test(): Promise<PromiseResult> {
     return new Promise<PromiseResult>((resolve) => {
       this.conn?.connect((err) => {

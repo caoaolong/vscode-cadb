@@ -2,11 +2,14 @@ import path from "path";
 import { readFileSync } from "fs";
 import * as vscode from "vscode";
 import { Datasource, DatasourceInputData } from "./entity/datasource";
+import type { CaEditor } from "./component/editor";
 
 export class DataSourceProvider implements vscode.TreeDataProvider<Datasource> {
   public model: DatasourceInputData[];
   public context: vscode.ExtensionContext;
   public panels: Record<string, string>;
+  public editor?: CaEditor;
+  
   constructor(context: vscode.ExtensionContext) {
     this.model = [];
     this.context = context;
@@ -115,4 +118,8 @@ export class DataSourceProvider implements vscode.TreeDataProvider<Datasource> {
     parent.children.push(...children);
     this._onDidChangeTreeData.fire(parent);
   };
+
+  public setEditor(editor: CaEditor): void {
+    this.editor = editor;
+  }
 }

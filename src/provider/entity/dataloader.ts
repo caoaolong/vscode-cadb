@@ -25,6 +25,7 @@ export interface FormResult {
 export interface Dataloader {
   test(): Promise<PromiseResult>;
   connect(): Promise<void>;
+  getConnection(): any; // 返回数据库连接对象
 
 	listFiles(ds: Datasource, path: vscode.Uri): Promise<Datasource[]>;
 

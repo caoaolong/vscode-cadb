@@ -5,6 +5,8 @@ import path from "path";
 import { FormResult } from "../entity/dataloader";
 import { SQLCodeLensProvider } from "../sql_provider";
 import { generateNonce } from "../utils";
+import { CaEditor } from "./editor";
+import { ResultWebviewProvider } from "../result_provider";
 
 function createWebview(
   provider: DataSourceProvider,
@@ -96,7 +98,7 @@ async function editEntry(provider: DataSourceProvider, item: Datasource) {
 
 async function addEntry(item: any, provider: DataSourceProvider) {
   if (item) {
-    await (item as Datasource).create(provider.context);
+    await (item as Datasource).create(provider.context, provider.editor);
     provider.refresh();
   } else {
     const panel = createWebview(provider, "datasourceConfig", "数据库连接配置");
@@ -188,10 +190,38 @@ export function registerDatasourceItemCommands(provider: DataSourceProvider) {
 }
 
 export function registerCodeLensCommands(provider: SQLCodeLensProvider) {
-  vscode.commands.registerCommand("sql.explainSql", (args) =>
-    provider.explainSql(args)
+  vscode.commands.registerCommand(
+    "sql.explainSql",
+    (sql: string, startLine: number, endLine: number) =>
+      provider.explainSql(sql, startLine, endLine)
   );
-  vscode.commands.registerCommand("sql.runSql", (args) =>
-    provider.runSql(args)
+  vscode.commands.registerCommand(
+    "sql.runSql",
+    (sql: string, startLine: number, endLine: number) =>
+      provider.runSql(sql, startLine, endLine)
+  );
+}
+
+export function registerEditorCommands(editor: CaEditor) {
+  // 注册数据库选择命令
+  vscode.commands.registerCommand("sql.selectDatabase", () =>
+    editor.selectDatabase()
+  );
+
+  // 监听活动编辑器变化，更新状态栏显示
+  vscode.window.onDidChangeActiveTextEditor(() => {
+    editor.onActiveEditorChanged();
+  });
+}
+
+export function registerResultCommands(resultProvider: ResultWebviewProvider) {
+  // 注册显示结果命令
+  vscode.commands.registerCommand("sql.showResult", (result: any, sql: string) =>
+    resultProvider.showResult(result, sql)
+  );
+
+  // 注册显示错误命令
+  vscode.commands.registerCommand("sql.showError", (error: string, sql: string) =>
+    resultProvider.showError(error, sql)
   );
 }
