@@ -61,7 +61,7 @@ export class CaEditor {
     }
 
     this.currentConnection = selectedConnection.datasource;
-    this.notifyDatabaseChanged(); // 通知连接已变化
+    // 不在这里通知，等选择完数据库后再通知
 
     // 步骤 2: 获取并选择数据库
     vscode.window.withProgress(
@@ -115,17 +115,23 @@ export class CaEditor {
 
           if (selectedDatabase) {
             this.currentDatabase = selectedDatabase.datasource;
-            this.notifyDatabaseChanged(); // 通知数据库已变化
+            // 选择完数据库后通知更新
+            this.notifyDatabaseChanged();
             if (this.currentConnection && this.currentDatabase) {
               vscode.window.showInformationMessage(
                 `已选择数据库: ${this.currentConnection.label} / ${this.currentDatabase.label}`
               );
             }
+          } else {
+            // 用户取消选择数据库，也需要通知更新（显示警告状态）
+            this.notifyDatabaseChanged();
           }
         } catch (error) {
           vscode.window.showErrorMessage(
             `获取数据库列表失败: ${error instanceof Error ? error.message : String(error)}`
           );
+          // 发生错误时也通知更新
+          this.notifyDatabaseChanged();
         }
       }
     );
