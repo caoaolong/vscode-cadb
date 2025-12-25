@@ -4,42 +4,28 @@ import { DataSourceProvider } from "../database_provider";
 import { Datasource } from "../entity/datasource";
 
 export class CaEditor {
-  private statusBarItem: vscode.StatusBarItem;
   private currentDatabase: Datasource | null = null;
   private currentConnection: Datasource | null = null;
   public provider: DataSourceProvider;
+  private onDatabaseChangedCallback?: () => void;
 
   constructor(provider: DataSourceProvider) {
     this.provider = provider;
-    
-    // 创建状态栏项
-    this.statusBarItem = vscode.window.createStatusBarItem(
-      vscode.StatusBarAlignment.Right,
-      100
-    );
-    this.statusBarItem.command = "cadb.sql.selectDatabase";
-    this.statusBarItem.tooltip = "点击选择数据库";
-    this.updateStatusBar();
   }
 
   /**
-   * 更新状态栏显示
+   * 设置数据库变化回调
    */
-  private updateStatusBar() {
-    if (this.currentConnection && this.currentDatabase) {
-      this.statusBarItem.text = `$(database) ${this.currentConnection.label} / ${this.currentDatabase.label}`;
-    } else if (this.currentConnection) {
-      this.statusBarItem.text = `$(database) ${this.currentConnection.label} (未选择数据库)`;
-    } else {
-      this.statusBarItem.text = `$(database) 选择数据库`;
-    }
-    
-    // 仅在 SQL 文件中显示
-    const activeEditor = vscode.window.activeTextEditor;
-    if (activeEditor && activeEditor.document.languageId === "sql") {
-      this.statusBarItem.show();
-    } else {
-      this.statusBarItem.hide();
+  public setOnDatabaseChangedCallback(callback: () => void): void {
+    this.onDatabaseChangedCallback = callback;
+  }
+
+  /**
+   * 通知数据库选择已变化
+   */
+  private notifyDatabaseChanged(): void {
+    if (this.onDatabaseChangedCallback) {
+      this.onDatabaseChangedCallback();
     }
   }
 
@@ -75,6 +61,7 @@ export class CaEditor {
     }
 
     this.currentConnection = selectedConnection.datasource;
+    this.notifyDatabaseChanged(); // 通知连接已变化
 
     // 步骤 2: 获取并选择数据库
     vscode.window.withProgress(
@@ -128,7 +115,7 @@ export class CaEditor {
 
           if (selectedDatabase) {
             this.currentDatabase = selectedDatabase.datasource;
-            this.updateStatusBar();
+            this.notifyDatabaseChanged(); // 通知数据库已变化
             if (this.currentConnection && this.currentDatabase) {
               vscode.window.showInformationMessage(
                 `已选择数据库: ${this.currentConnection.label} / ${this.currentDatabase.label}`
@@ -173,23 +160,13 @@ export class CaEditor {
       preview: false,
       viewColumn: vscode.ViewColumn.Active,
     });
-    
-    // 显示状态栏
-    this.updateStatusBar();
-  }
-
-  /**
-   * 监听活动编辑器变化
-   */
-  public onActiveEditorChanged() {
-    this.updateStatusBar();
   }
 
   /**
    * 清理资源
    */
   public dispose() {
-    this.statusBarItem.dispose();
+    // 保留用于后续扩展
   }
 
   public close() {

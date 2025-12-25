@@ -7,6 +7,7 @@ import { SQLCodeLensProvider } from "../sql_provider";
 import { generateNonce } from "../utils";
 import { CaEditor } from "./editor";
 import { ResultWebviewProvider } from "../result_provider";
+import { DatabaseSelector } from "./database_selector";
 
 function createWebview(
   provider: DataSourceProvider,
@@ -230,15 +231,21 @@ export function registerCodeLensCommands(provider: SQLCodeLensProvider) {
 }
 
 export function registerEditorCommands(editor: CaEditor) {
+  // 创建数据库选择器
+  const databaseSelector = new DatabaseSelector(editor);
+  
+  // 设置数据库变化回调
+  editor.setOnDatabaseChangedCallback(() => {
+    databaseSelector.updateStatusBar();
+  });
+  
   // 注册数据库选择命令
   vscode.commands.registerCommand("cadb.sql.selectDatabase", () =>
     editor.selectDatabase()
   );
 
-  // 监听活动编辑器变化，更新状态栏显示
-  vscode.window.onDidChangeActiveTextEditor(() => {
-    editor.onActiveEditorChanged();
-  });
+  // 返回 selector 以便在 extension.ts 中注册到 subscriptions
+  return databaseSelector;
 }
 
 export function registerResultCommands(resultProvider: ResultWebviewProvider) {

@@ -7,6 +7,8 @@ export class ResultWebviewProvider {
   private panel?: vscode.WebviewPanel;
   private context: vscode.ExtensionContext;
   private htmlTemplate: string;
+  private isWebviewReady: boolean = false;
+  private pendingMessages: any[] = [];
 
   constructor(context: vscode.ExtensionContext) {
     this.context = context;
@@ -27,57 +29,114 @@ export class ResultWebviewProvider {
   public showResult(result: any, sql: string): void {
     // 如果面板不存在，创建它
     if (!this.panel) {
-      this.panel = vscode.window.createWebviewPanel(
-        "sqlResult",
-        "查询结果",
-        vscode.ViewColumn.Two,
-        {
-          enableScripts: true,
-          retainContextWhenHidden: true,
-          localResourceRoots: [
-            vscode.Uri.file(
-              path.join(this.context.extensionPath, "resources", "panels")
-            ),
-            vscode.Uri.file(
-              path.join(this.context.extensionPath, "node_modules")
-            ),
-          ],
-        }
-      );
-
-      this.panel.iconPath = vscode.Uri.file(
-        path.join(
-          this.context.extensionPath,
-          "resources",
-          "panels",
-          "favicon.ico"
-        )
-      );
-
-      // 设置 HTML 内容
-      this.panel.webview.html = this.getHtmlContent(this.panel.webview);
-
-      // 监听面板关闭事件
-      this.panel.onDidDispose(() => {
-        this.panel = undefined;
-      });
+      this.createPanel();
     } else {
       // 如果面板已存在，显示它
       this.panel.reveal(vscode.ViewColumn.Two);
     }
 
-    // 发送结果到 webview
-    this.sendResult(result, sql);
+    // 准备结果消息
+    const message = this.prepareResultMessage(result, sql);
+    
+    // 如果 webview 已就绪，立即发送；否则加入队列
+    if (this.isWebviewReady) {
+      this.panel?.webview.postMessage(message);
+    } else {
+      this.pendingMessages.push(message);
+    }
   }
 
   /**
-   * 发送结果到 webview
+   * 显示错误消息
    */
-  private sendResult(result: any, sql: string): void {
+  public showError(error: string, sql: string): void {
     if (!this.panel) {
-      return;
+      this.createPanel();
+    } else {
+      this.panel.reveal(vscode.ViewColumn.Two);
     }
 
+    // 准备错误消息
+    const message = {
+      command: "showMessage",
+      title: "执行失败",
+      text: error,
+      type: "error",
+      id: `error-${Date.now()}`,
+      pinned: false
+    };
+
+    // 如果 webview 已就绪，立即发送；否则加入队列
+    if (this.isWebviewReady) {
+      this.panel?.webview.postMessage(message);
+    } else {
+      this.pendingMessages.push(message);
+    }
+  }
+
+  /**
+   * 创建 Webview Panel
+   */
+  private createPanel(): void {
+    this.isWebviewReady = false;
+    this.pendingMessages = [];
+
+    this.panel = vscode.window.createWebviewPanel(
+      "sqlResult",
+      "查询结果",
+      vscode.ViewColumn.Two,
+      {
+        enableScripts: true,
+        retainContextWhenHidden: true,
+        localResourceRoots: [
+          vscode.Uri.file(
+            path.join(this.context.extensionPath, "resources", "panels")
+          ),
+          vscode.Uri.file(
+            path.join(this.context.extensionPath, "node_modules")
+          ),
+        ],
+      }
+    );
+
+    this.panel.iconPath = vscode.Uri.file(
+      path.join(
+        this.context.extensionPath,
+        "resources",
+        "panels",
+        "favicon.ico"
+      )
+    );
+
+    // 设置 HTML 内容
+    this.panel.webview.html = this.getHtmlContent(this.panel.webview);
+
+    // 监听来自 webview 的消息
+    this.panel.webview.onDidReceiveMessage((message) => {
+      if (message.command === 'ready') {
+        console.log('Webview 已就绪');
+        this.isWebviewReady = true;
+        
+        // 发送所有待处理的消息
+        this.pendingMessages.forEach(msg => {
+          this.panel?.webview.postMessage(msg);
+        });
+        this.pendingMessages = [];
+      }
+    });
+
+    // 监听面板关闭事件
+    this.panel.onDidDispose(() => {
+      this.panel = undefined;
+      this.isWebviewReady = false;
+      this.pendingMessages = [];
+    });
+  }
+
+  /**
+   * 准备结果消息
+   */
+  private prepareResultMessage(result: any, sql: string): any {
     // 提取列定义
     const columns = result.fields?.map((field: any) => ({
       field: field.name,
@@ -91,58 +150,14 @@ export class ResultWebviewProvider {
     const sqlPreview = sql.length > 50 ? sql.substring(0, 50) + "..." : sql;
     const title = `查询结果 (${data.length}行)`;
 
-    // 发送消息到 webview
-    this.panel.webview.postMessage({
+    return {
       command: "showResult",
       title: title,
       columns: columns,
       data: data,
       id: `result-${Date.now()}`,
       pinned: false
-    });
-  }
-
-  /**
-   * 显示错误消息
-   */
-  public showError(error: string, sql: string): void {
-    if (!this.panel) {
-      this.panel = vscode.window.createWebviewPanel(
-        "sqlResult",
-        "查询结果",
-        vscode.ViewColumn.Two,
-        {
-          enableScripts: true,
-          retainContextWhenHidden: true,
-          localResourceRoots: [
-            vscode.Uri.file(
-              path.join(this.context.extensionPath, "resources", "panels")
-            ),
-            vscode.Uri.file(
-              path.join(this.context.extensionPath, "node_modules")
-            ),
-          ],
-        }
-      );
-
-      this.panel.webview.html = this.getHtmlContent(this.panel.webview);
-
-      this.panel.onDidDispose(() => {
-        this.panel = undefined;
-      });
-    } else {
-      this.panel.reveal(vscode.ViewColumn.Two);
-    }
-
-    // 发送错误消息
-    this.panel.webview.postMessage({
-      command: "showMessage",
-      title: "执行失败",
-      text: error,
-      type: "error",
-      id: `error-${Date.now()}`,
-      pinned: false
-    });
+    };
   }
 
   /**
