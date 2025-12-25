@@ -54,8 +54,8 @@ body {
   flex-wrap: nowrap;
   overflow-x: auto;
   overflow-y: hidden;
-  height: 36px;
-  min-height: 36px;
+  height: 30px;
+  min-height: 30px;
 }
 
 /* Tab 标题滚动条 */
@@ -81,20 +81,21 @@ body {
   color: var(--vscode-fg) !important;
   border: none !important;
   border-right: 1px solid var(--vscode-border) !important;
-  padding: 0 16px !important;
-  height: 35px !important;
-  line-height: 35px !important;
-  font-size: 13px !important;
+  padding: 0 12px !important;
+  height: 29px !important;
+  line-height: 29px !important;
+  font-size: 12px !important;
   font-weight: normal !important;
   position: relative;
   cursor: pointer;
   transition: background 0.2s, color 0.2s;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   white-space: nowrap;
-  min-width: 100px;
-  max-width: 200px;
+  min-width: 80px;
+  max-width: 180px;
+  user-select: none;
 }
 
 /* Tab 悬停效果 */
@@ -126,7 +127,7 @@ body {
 
 /* Tab 图标 */
 .layui-tab-title li .layui-icon {
-  font-size: 14px;
+  font-size: 12px;
   color: var(--vscode-fg);
   opacity: 0.7;
   flex-shrink: 0;
@@ -136,19 +137,34 @@ body {
   opacity: 1;
 }
 
+/* 固定图标 */
+.layui-tab-title li .layui-icon-pin {
+  font-size: 11px;
+  margin-left: -2px;
+}
+
+/* 固定的标签 */
+.layui-tab-title li.tab-pinned {
+  border-bottom: 2px solid var(--vscode-focus) !important;
+}
+
+.layui-tab-title li.tab-pinned .layui-tab-close {
+  display: none !important;
+}
+
 /* Tab 关闭按钮 */
 .layui-tab-close {
   display: inline-flex !important;
   align-items: center;
   justify-content: center;
-  width: 18px !important;
-  height: 18px !important;
-  border-radius: 3px;
+  width: 16px !important;
+  height: 16px !important;
+  border-radius: 2px;
   background: transparent !important;
   color: var(--vscode-fg) !important;
   opacity: 0.6;
-  font-size: 12px !important;
-  margin-left: 4px;
+  font-size: 10px !important;
+  margin-left: 2px;
   flex-shrink: 0;
   transition: opacity 0.2s, background 0.2s;
 }
@@ -161,7 +177,7 @@ body {
 .layui-tab-close::before {
   content: "×";
   font-weight: bold;
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1;
 }
 
@@ -341,12 +357,64 @@ body {
   }
 }
 
+/* 右键菜单 */
+.tab-context-menu {
+  position: fixed;
+  background: var(--vscode-input-bg);
+  border: 1px solid var(--vscode-border);
+  border-radius: 3px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  padding: 4px 0;
+  min-width: 160px;
+  z-index: 99999;
+  display: none;
+}
+
+.tab-context-menu.show {
+  display: block;
+}
+
+.tab-context-menu-item {
+  padding: 6px 16px;
+  color: var(--vscode-input-fg);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.2s;
+}
+
+.tab-context-menu-item:hover {
+  background: var(--vscode-hover);
+}
+
+.tab-context-menu-item.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.tab-context-menu-item.disabled:hover {
+  background: transparent;
+}
+
+.tab-context-menu-item .layui-icon {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.tab-context-menu-separator {
+  height: 1px;
+  background: var(--vscode-border);
+  margin: 4px 0;
+}
+
 /* 响应式 */
 @media (max-width: 768px) {
   .layui-tab-title li {
-    min-width: 80px;
-    max-width: 150px;
-    padding: 0 12px !important;
+    min-width: 70px;
+    max-width: 140px;
+    padding: 0 10px !important;
   }
 }
 

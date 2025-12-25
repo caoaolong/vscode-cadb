@@ -15,6 +15,9 @@ layui.use(['tabs', 'layer'], function () {
     vscode = typeof acquireVsCodeApi === "function" ? acquireVsCodeApi() : null;
   }
 
+  // 当前右键菜单的标签ID
+  let contextMenuTabId = null;
+
   /**
    * 初始化 Tabs
    */
@@ -24,6 +27,209 @@ layui.use(['tabs', 'layer'], function () {
       elem: '#results',
       data: []
     });
+
+    // 初始化右键菜单
+    initContextMenu();
+  }
+
+  /**
+   * 初始化右键菜单
+   */
+  function initContextMenu() {
+    const $body = $('body');
+    
+    // 创建右键菜单HTML
+    const contextMenuHtml = `
+      <div class="tab-context-menu" id="tabContextMenu">
+        <div class="tab-context-menu-item" data-action="pin">
+          <i class="layui-icon layui-icon-rate"></i>
+          <span class="menu-text">固定</span>
+        </div>
+        <div class="tab-context-menu-separator"></div>
+        <div class="tab-context-menu-item" data-action="close">
+          <i class="layui-icon layui-icon-close"></i>
+          <span>关闭当前结果</span>
+        </div>
+        <div class="tab-context-menu-item" data-action="close-left">
+          <i class="layui-icon layui-icon-left"></i>
+          <span>关闭左侧结果</span>
+        </div>
+        <div class="tab-context-menu-item" data-action="close-right">
+          <i class="layui-icon layui-icon-right"></i>
+          <span>关闭右侧结果</span>
+        </div>
+        <div class="tab-context-menu-separator"></div>
+        <div class="tab-context-menu-item" data-action="close-all">
+          <i class="layui-icon layui-icon-close-fill"></i>
+          <span>关闭全部结果</span>
+        </div>
+      </div>
+    `;
+    
+    $body.append(contextMenuHtml);
+    
+    const $menu = $('#tabContextMenu');
+    
+    // 点击菜单项
+    $menu.on('click', '.tab-context-menu-item:not(.disabled)', function(e) {
+      e.stopPropagation();
+      const action = $(this).data('action');
+      handleContextMenuAction(action, contextMenuTabId);
+      hideContextMenu();
+    });
+    
+    // 点击页面其他地方隐藏菜单
+    $(document).on('click', function() {
+      hideContextMenu();
+    });
+    
+    // 阻止菜单自身的右键
+    $menu.on('contextmenu', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+  }
+
+  /**
+   * 显示右键菜单
+   */
+  function showContextMenu(tabId, x, y) {
+    contextMenuTabId = tabId;
+    const $menu = $('#tabContextMenu');
+    const $tab = $(`.layui-tab-title li[lay-id="${tabId}"]`);
+    const isPinned = $tab.hasClass('tab-pinned');
+    
+    // 更新固定按钮文本
+    const $pinItem = $menu.find('[data-action="pin"]');
+    if (isPinned) {
+      $pinItem.find('.menu-text').text('取消固定');
+      $pinItem.find('.layui-icon').removeClass('layui-icon-rate').addClass('layui-icon-rate-solid');
+    } else {
+      $pinItem.find('.menu-text').text('固定');
+      $pinItem.find('.layui-icon').removeClass('layui-icon-rate-solid').addClass('layui-icon-rate');
+    }
+    
+    // 检查是否可以关闭
+    const canClose = !isPinned;
+    $menu.find('[data-action="close"]').toggleClass('disabled', !canClose);
+    
+    // 检查是否有左侧/右侧标签
+    const $allTabs = $('.layui-tab-title li');
+    const currentIndex = $allTabs.index($tab);
+    const hasLeft = currentIndex > 0;
+    const hasRight = currentIndex < $allTabs.length - 1;
+    
+    $menu.find('[data-action="close-left"]').toggleClass('disabled', !hasLeft);
+    $menu.find('[data-action="close-right"]').toggleClass('disabled', !hasRight);
+    
+    // 检查是否有可关闭的标签
+    const hasClosable = $('.layui-tab-title li:not(.tab-pinned)').length > 0;
+    $menu.find('[data-action="close-all"]').toggleClass('disabled', !hasClosable);
+    
+    // 定位菜单
+    $menu.css({
+      left: x + 'px',
+      top: y + 'px'
+    }).addClass('show');
+    
+    // 确保菜单不超出屏幕
+    const menuWidth = $menu.outerWidth();
+    const menuHeight = $menu.outerHeight();
+    const windowWidth = $(window).width();
+    const windowHeight = $(window).height();
+    
+    if (x + menuWidth > windowWidth) {
+      $menu.css('left', (windowWidth - menuWidth - 5) + 'px');
+    }
+    if (y + menuHeight > windowHeight) {
+      $menu.css('top', (windowHeight - menuHeight - 5) + 'px');
+    }
+  }
+
+  /**
+   * 隐藏右键菜单
+   */
+  function hideContextMenu() {
+    $('#tabContextMenu').removeClass('show');
+    contextMenuTabId = null;
+  }
+
+  /**
+   * 处理右键菜单操作
+   */
+  function handleContextMenuAction(action, tabId) {
+    switch (action) {
+      case 'pin':
+        togglePinTab(tabId);
+        break;
+      case 'close':
+        closeTab(tabId);
+        break;
+      case 'close-left':
+        closeLeftTabs(tabId);
+        break;
+      case 'close-right':
+        closeRightTabs(tabId);
+        break;
+      case 'close-all':
+        closeAllTabs();
+        break;
+    }
+  }
+
+  /**
+   * 切换固定状态
+   */
+  function togglePinTab(tabId) {
+    const $tab = $(`.layui-tab-title li[lay-id="${tabId}"]`);
+    $tab.toggleClass('tab-pinned');
+    
+    const isPinned = $tab.hasClass('tab-pinned');
+    layer.msg(isPinned ? '已固定' : '已取消固定', { icon: 1, time: 1000 });
+  }
+
+  /**
+   * 关闭左侧标签
+   */
+  function closeLeftTabs(tabId) {
+    const $tab = $(`.layui-tab-title li[lay-id="${tabId}"]`);
+    const $allTabs = $('.layui-tab-title li');
+    const currentIndex = $allTabs.index($tab);
+    
+    let closedCount = 0;
+    $allTabs.each(function(index) {
+      if (index < currentIndex && !$(this).hasClass('tab-pinned')) {
+        const id = $(this).attr('lay-id');
+        closeTab(id, true);
+        closedCount++;
+      }
+    });
+    
+    if (closedCount > 0) {
+      layer.msg(`已关闭 ${closedCount} 个标签`, { icon: 1, time: 1500 });
+    }
+  }
+
+  /**
+   * 关闭右侧标签
+   */
+  function closeRightTabs(tabId) {
+    const $tab = $(`.layui-tab-title li[lay-id="${tabId}"]`);
+    const $allTabs = $('.layui-tab-title li');
+    const currentIndex = $allTabs.index($tab);
+    
+    let closedCount = 0;
+    $allTabs.each(function(index) {
+      if (index > currentIndex && !$(this).hasClass('tab-pinned')) {
+        const id = $(this).attr('lay-id');
+        closeTab(id, true);
+        closedCount++;
+      }
+    });
+    
+    if (closedCount > 0) {
+      layer.msg(`已关闭 ${closedCount} 个标签`, { icon: 1, time: 1500 });
+    }
   }
 
   /**
@@ -34,9 +240,10 @@ layui.use(['tabs', 'layer'], function () {
    * @param {string} options.content - 标签页内容
    * @param {string} options.icon - 图标（可选）
    * @param {boolean} options.closable - 是否可关闭（默认true）
+   * @param {boolean} options.pinned - 是否固定（默认false）
    */
   function addResultTab(options) {
-    const { id, title, content, icon = '&#xe65b;', closable = true } = options;
+    const { id, title, content, icon = '&#xe65b;', closable = true, pinned = false } = options;
 
     // 创建标签页HTML
     const tabId = id || `tab-${Date.now()}`;
@@ -61,10 +268,10 @@ layui.use(['tabs', 'layer'], function () {
 
     // 添加新标签
     const $newTab = $(`
-      <li class="layui-this" lay-id="${tabId}">
+      <li class="layui-this ${pinned ? 'tab-pinned' : ''}" lay-id="${tabId}">
         <i class="layui-icon">${icon}</i>
         ${tabTitle}
-        ${closable ? '<i class="layui-icon layui-icon-close layui-tab-close"></i>' : ''}
+        ${closable && !pinned ? '<i class="layui-icon layui-icon-close layui-tab-close"></i>' : ''}
       </li>
     `);
 
@@ -81,18 +288,24 @@ layui.use(['tabs', 'layer'], function () {
     $tabs.removeClass('layui-hide-v');
 
     // 绑定关闭事件
-    if (closable) {
+    if (closable && !pinned) {
       $newTab.find('.layui-tab-close').on('click', function(e) {
         e.stopPropagation();
         closeTab(tabId);
       });
     }
 
-    // 绑定标签切换事件
+    // 绑定标签点击事件
     $newTab.on('click', function() {
       if (!$(this).hasClass('layui-this')) {
         switchTab(tabId);
       }
+    });
+
+    // 绑定右键菜单事件
+    $newTab.on('contextmenu', function(e) {
+      e.preventDefault();
+      showContextMenu(tabId, e.clientX, e.clientY);
     });
   }
 
@@ -115,11 +328,20 @@ layui.use(['tabs', 'layer'], function () {
   /**
    * 关闭标签页
    * @param {string} tabId - 标签页ID
+   * @param {boolean} silent - 是否静默关闭（不显示消息）
    */
-  function closeTab(tabId) {
+  function closeTab(tabId, silent = false) {
     const $tabs = $('#results');
     const $tab = $tabs.find(`.layui-tab-title li[lay-id="${tabId}"]`);
     const $content = $tabs.find(`.layui-tab-content .layui-tab-item[lay-id="${tabId}"]`);
+    
+    // 检查是否固定
+    if ($tab.hasClass('tab-pinned')) {
+      if (!silent) {
+        layer.msg('固定的标签无法关闭', { icon: 2, time: 1500 });
+      }
+      return;
+    }
     
     const isActive = $tab.hasClass('layui-this');
     
@@ -145,9 +367,29 @@ layui.use(['tabs', 'layer'], function () {
    */
   function closeAllTabs() {
     const $tabs = $('#results');
-    $tabs.find('.layui-tab-title').empty();
-    $tabs.find('.layui-tab-content').empty();
-    $tabs.addClass('layui-hide-v');
+    const $allTabs = $tabs.find('.layui-tab-title li');
+    
+    let closedCount = 0;
+    $allTabs.each(function() {
+      if (!$(this).hasClass('tab-pinned')) {
+        const id = $(this).attr('lay-id');
+        closeTab(id, true);
+        closedCount++;
+      }
+    });
+    
+    if (closedCount > 0) {
+      layer.msg(`已关闭 ${closedCount} 个标签`, { icon: 1, time: 1500 });
+    } else {
+      layer.msg('没有可关闭的标签', { icon: 0, time: 1500 });
+    }
+    
+    // 如果还有固定标签，激活第一个
+    const $firstTab = $tabs.find('.layui-tab-title li').first();
+    if ($firstTab.length > 0) {
+      const firstTabId = $firstTab.attr('lay-id');
+      switchTab(firstTabId);
+    }
   }
 
   /**
