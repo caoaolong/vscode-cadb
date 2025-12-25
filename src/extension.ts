@@ -6,7 +6,7 @@ import {
 	registerCodeLensCommands,
   registerDatasourceCommands,
   registerDatasourceItemCommands,
-} from "./provider/commands";
+} from "./provider/component/commands";
 import { QueryWebview } from "./provider/query_provider";
 import { SQLCodeLensProvider } from "./provider/sql_provider";
 

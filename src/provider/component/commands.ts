@@ -1,10 +1,10 @@
 import * as vscode from "vscode";
-import { DataSourceProvider } from "./database_provider";
-import { Datasource } from "./entity/datasource";
+import { DataSourceProvider } from "../database_provider";
+import { Datasource } from "../entity/datasource";
 import path from "path";
-import { FormResult } from "./entity/dataloader";
-import { CaEditor } from "./editor";
-import { SQLCodeLensProvider } from "./sql_provider";
+import { FormResult } from "../entity/dataloader";
+import { SQLCodeLensProvider } from "../sql_provider";
+import { generateNonce } from "../utils";
 
 function createWebview(
   provider: DataSourceProvider,
@@ -59,16 +59,6 @@ function createWebview(
     )
   );
   return panel;
-}
-
-function generateNonce() {
-  let text = "";
-  const possible =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  for (let i = 0; i < 32; i++) {
-    text += possible.charAt(Math.floor(Math.random() * possible.length));
-  }
-  return text;
 }
 
 async function editEntry(provider: DataSourceProvider, item: Datasource) {

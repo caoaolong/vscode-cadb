@@ -1,69 +1,103 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>数据表格编辑器</title>
+    <meta http-equiv="Content-Security-Policy" content="{{csp}}" />
+    <script
+      nonce="{{resource-nonce}}"
+      src="{{node-resources-uri}}/jquery/dist/jquery.min.js"
+    ></script>
+    <script
+      nonce="{{resource-nonce}}"
+      src="{{node-resources-uri}}/layui/dist/layui.js"
+    ></script>
+    <link
+      rel="stylesheet"
+      href="{{node-resources-uri}}/layui/dist/css/layui.css"
+    />
+    <script
+      nonce="{{resource-nonce}}"
+      src="{{node-resources-uri}}/tabulator-tables/dist/js/tabulator.min.js"
+    ></script>
+    <link
+      rel="stylesheet"
+      href="{{node-resources-uri}}/tabulator-tables/dist/css/tabulator.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="{{node-resources-uri}}/@vscode/codicons/dist/codicon.css"
+    />
+    <link rel="stylesheet" href="{{resources-uri}}/common/table.css" />
+    <link rel="stylesheet" href="{{resources-uri}}/grid/grid.css" />
+  </head>
 
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>数据表格编辑器</title>
-  <meta http-equiv="Content-Security-Policy" content="{{csp}}" />
-  <script nonce="{{resource-nonce}}" src="{{node-resources-uri}}/jquery/dist/jquery.min.js"></script>
-  <script nonce="{{resource-nonce}}" src="{{node-resources-uri}}/layui/dist/layui.js"></script>
-  <link rel="stylesheet" href="{{node-resources-uri}}/layui/dist/css/layui.css" />
-  <script nonce="{{resource-nonce}}" src="{{node-resources-uri}}/tabulator-tables/dist/js/tabulator.min.js"></script>
-  <link rel="stylesheet" href="{{node-resources-uri}}/tabulator-tables/dist/css/tabulator.min.css" />
-  <link rel="stylesheet" href="{{node-resources-uri}}/@vscode/codicons/dist/codicon.css" />
-  <link rel="stylesheet" href="{{resources-uri}}/grid/grid.css" />
-</head>
-
-<body>
-  <div class="toolbar">
-    <button id="btn-save" title="保存修改到数据库">
-      <i class="codicon codicon-save" aria-hidden="true"></i>
-      <span class="sr-only">保存</span>
-    </button>
-    <button id="btn-refresh" title="刷新表格数据">
-      <i class="codicon codicon-refresh" aria-hidden="true"></i>
-      <span class="sr-only">刷新</span>
-    </button>
-    <button id="btn-add" title="添加新行">
-      <i class="codicon codicon-add" aria-hidden="true"></i>
-      <span class="sr-only">新增</span>
-    </button>
-    <button id="btn-delete" title="删除选中行">
-      <i class="codicon codicon-trash" aria-hidden="true"></i>
-      <span class="sr-only">删除</span>
-    </button>
-    <div style="flex: 1"></div>
-    <button id="btn-export-csv" title="导出为 CSV 文件">
-      <i class="codicon codicon-archive" aria-hidden="true"></i>
-      <span class="sr-only">CSV</span>
-    </button>
-    <button id="btn-export-json" title="导出为 JSON 文件">
-      <i class="codicon codicon-file" aria-hidden="true"></i>
-      <span class="sr-only">JSON</span>
-    </button>
-    <button id="btn-export-sql" title="导出为 SQL 语句">
-      <i class="codicon codicon-database" aria-hidden="true"></i>
-      <span class="sr-only">SQL</span>
-    </button>
-  </div>
-
-  <div class="filter-row">
-    <div class="filter-group">
-      <label for="input-where" class="filter-label">WHERE</label>
-      <input type="text" id="input-where" class="filter-input" placeholder="条件 (例如: status = 'Active')" />
+  <body>
+    <div class="toolbar">
+      <button id="btn-save" title="保存修改到数据库">
+        <i class="codicon codicon-save" aria-hidden="true"></i>
+        <span class="sr-only">保存</span>
+      </button>
+      <button id="btn-refresh" title="刷新表格数据">
+        <i class="codicon codicon-refresh" aria-hidden="true"></i>
+        <span class="sr-only">刷新</span>
+      </button>
+      <button id="btn-add" title="添加新行">
+        <i class="codicon codicon-add" aria-hidden="true"></i>
+        <span class="sr-only">新增</span>
+      </button>
+      <button id="btn-delete" title="删除选中行">
+        <i class="codicon codicon-trash" aria-hidden="true"></i>
+        <span class="sr-only">删除</span>
+      </button>
+      <div style="flex: 1"></div>
+      <button id="btn-export-csv" title="导出为 CSV 文件">
+        <i class="codicon codicon-archive" aria-hidden="true"></i>
+        <span class="sr-only">CSV</span>
+      </button>
+      <button id="btn-export-json" title="导出为 JSON 文件">
+        <i class="codicon codicon-file" aria-hidden="true"></i>
+        <span class="sr-only">JSON</span>
+      </button>
+      <button id="btn-export-sql" title="导出为 SQL 语句">
+        <i class="codicon codicon-database" aria-hidden="true"></i>
+        <span class="sr-only">SQL</span>
+      </button>
     </div>
-    <div class="filter-group">
-      <label for="input-orderby" class="filter-label">ORDER BY</label>
-      <input type="text" id="input-orderby" class="filter-input" placeholder="排序字段 (例如: id ASC, name DESC)" />
+
+    <div class="filter-row">
+      <div class="filter-group">
+        <label for="input-where" class="filter-label">WHERE</label>
+        <input
+          type="text"
+          id="input-where"
+          class="filter-input"
+          placeholder="条件 (例如: status = 'Active')"
+        />
+      </div>
+      <div class="filter-group">
+        <label for="input-orderby" class="filter-label">ORDER BY</label>
+        <input
+          type="text"
+          id="input-orderby"
+          class="filter-input"
+          placeholder="排序字段 (例如: id ASC, name DESC)"
+        />
+      </div>
     </div>
-  </div>
 
-  <div class="table-wrapper">
-    <div id="grid"></div>
-  </div>
+    <div class="table-wrapper">
+      <div id="grid"></div>
+    </div>
 
-  <script nonce="{{resource-nonce}}" src="{{resources-uri}}/grid/grid.js"></script>
-</body>
-
+    <script
+      nonce="{{resource-nonce}}"
+      src="{{resources-uri}}/common/table.js"
+    ></script>
+    <script
+      nonce="{{resource-nonce}}"
+      src="{{resources-uri}}/grid/grid.js"
+    ></script>
+  </body>
 </html>

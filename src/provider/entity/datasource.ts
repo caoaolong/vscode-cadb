@@ -7,7 +7,7 @@ import {
   TableResult,
 } from "./dataloader";
 import { MySQLDataloader } from "./mysql_dataloader";
-import { CaEditor } from "../editor";
+import { CaEditor } from "../component/editor";
 
 const iconDir: string[] = ["..", "..", "resources", "icons"];
 
