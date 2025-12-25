@@ -1,11 +1,13 @@
 /**
  * Result 页面 - SQL查询结果展示
- * 使用 Layui Tabs 组件展示多个查询结果
+ * 使用 Layui Tabs 标准 API 展示多个查询结果
  */
 
-layui.use(['tabs', 'layer'], function () {
+layui.use(['tabs', 'layer', 'dropdown'], function () {
   const tabs = layui.tabs;
   const layer = layui.layer;
+  const dropdown = layui.dropdown;
+  const $ = layui.$;
 
   // 获取 VSCode API
   let vscode = null;
@@ -15,192 +17,127 @@ layui.use(['tabs', 'layer'], function () {
     vscode = typeof acquireVsCodeApi === "function" ? acquireVsCodeApi() : null;
   }
 
-  // 当前右键菜单的标签ID
-  let contextMenuTabId = null;
+  // Tabs 实例 ID
+  const TABS_ID = 'results';
+  
+  // Dropdown 实例配置
+  let dropdownConfig = null;
 
   /**
    * 初始化 Tabs
    */
   function initTabs() {
-    // 使用 layui tabs 的新 API
+    // 初始化 tabs 容器
     tabs.set({
-      elem: '#results',
-      data: []
+      elem: '#' + TABS_ID
     });
 
-    // 初始化右键菜单
-    initContextMenu();
+    // 初始化右键菜单配置
+    initDropdownConfig();
   }
 
   /**
-   * 初始化右键菜单
+   * 初始化右键菜单配置
    */
-  function initContextMenu() {
-    const $body = $('body');
-    
-    // 创建右键菜单HTML
-    const contextMenuHtml = `
-      <div class="tab-context-menu" id="tabContextMenu">
-        <div class="tab-context-menu-item" data-action="pin">
-          <i class="layui-icon layui-icon-rate"></i>
-          <span class="menu-text">固定</span>
-        </div>
-        <div class="tab-context-menu-separator"></div>
-        <div class="tab-context-menu-item" data-action="close">
-          <i class="layui-icon layui-icon-close"></i>
-          <span>关闭当前结果</span>
-        </div>
-        <div class="tab-context-menu-item" data-action="close-left">
-          <i class="layui-icon layui-icon-left"></i>
-          <span>关闭左侧结果</span>
-        </div>
-        <div class="tab-context-menu-item" data-action="close-right">
-          <i class="layui-icon layui-icon-right"></i>
-          <span>关闭右侧结果</span>
-        </div>
-        <div class="tab-context-menu-separator"></div>
-        <div class="tab-context-menu-item" data-action="close-all">
-          <i class="layui-icon layui-icon-close-fill"></i>
-          <span>关闭全部结果</span>
-        </div>
-      </div>
-    `;
-    
-    $body.append(contextMenuHtml);
-    
-    const $menu = $('#tabContextMenu');
-    
-    // 点击菜单项
-    $menu.on('click', '.tab-context-menu-item:not(.disabled)', function(e) {
-      e.stopPropagation();
-      const action = $(this).data('action');
-      handleContextMenuAction(action, contextMenuTabId);
-      hideContextMenu();
-    });
-    
-    // 点击页面其他地方隐藏菜单
-    $(document).on('click', function() {
-      hideContextMenu();
-    });
-    
-    // 阻止菜单自身的右键
-    $menu.on('contextmenu', function(e) {
-      e.preventDefault();
-      e.stopPropagation();
-    });
-  }
-
-  /**
-   * 显示右键菜单
-   */
-  function showContextMenu(tabId, x, y) {
-    contextMenuTabId = tabId;
-    const $menu = $('#tabContextMenu');
-    const $tab = $(`.layui-tab-title li[lay-id="${tabId}"]`);
-    const isPinned = $tab.hasClass('tab-pinned');
-    
-    // 更新固定按钮文本
-    const $pinItem = $menu.find('[data-action="pin"]');
-    if (isPinned) {
-      $pinItem.find('.menu-text').text('取消固定');
-      $pinItem.find('.layui-icon').removeClass('layui-icon-rate').addClass('layui-icon-rate-solid');
-    } else {
-      $pinItem.find('.menu-text').text('固定');
-      $pinItem.find('.layui-icon').removeClass('layui-icon-rate-solid').addClass('layui-icon-rate');
-    }
-    
-    // 检查是否可以关闭
-    const canClose = !isPinned;
-    $menu.find('[data-action="close"]').toggleClass('disabled', !canClose);
-    
-    // 检查是否有左侧/右侧标签
-    const $allTabs = $('.layui-tab-title li');
-    const currentIndex = $allTabs.index($tab);
-    const hasLeft = currentIndex > 0;
-    const hasRight = currentIndex < $allTabs.length - 1;
-    
-    $menu.find('[data-action="close-left"]').toggleClass('disabled', !hasLeft);
-    $menu.find('[data-action="close-right"]').toggleClass('disabled', !hasRight);
-    
-    // 检查是否有可关闭的标签
-    const hasClosable = $('.layui-tab-title li:not(.tab-pinned)').length > 0;
-    $menu.find('[data-action="close-all"]').toggleClass('disabled', !hasClosable);
-    
-    // 定位菜单
-    $menu.css({
-      left: x + 'px',
-      top: y + 'px'
-    }).addClass('show');
-    
-    // 确保菜单不超出屏幕
-    const menuWidth = $menu.outerWidth();
-    const menuHeight = $menu.outerHeight();
-    const windowWidth = $(window).width();
-    const windowHeight = $(window).height();
-    
-    if (x + menuWidth > windowWidth) {
-      $menu.css('left', (windowWidth - menuWidth - 5) + 'px');
-    }
-    if (y + menuHeight > windowHeight) {
-      $menu.css('top', (windowHeight - menuHeight - 5) + 'px');
-    }
-  }
-
-  /**
-   * 隐藏右键菜单
-   */
-  function hideContextMenu() {
-    $('#tabContextMenu').removeClass('show');
-    contextMenuTabId = null;
+  function initDropdownConfig() {
+    dropdownConfig = {
+      trigger: 'contextmenu',
+      data: [
+        {
+          title: '固定',
+          id: 'pin',
+          templet: '<span><i class="layui-icon layui-icon-rate"></i> <span class="pin-text">固定</span></span>'
+        },
+        { type: '-' },
+        {
+          title: '关闭当前结果',
+          id: 'close'
+        },
+        {
+          title: '关闭左侧结果',
+          id: 'close-left'
+        },
+        {
+          title: '关闭右侧结果',
+          id: 'close-right'
+        },
+        { type: '-' },
+        {
+          title: '关闭全部结果',
+          id: 'close-all'
+        }
+      ],
+      click: function(data, othis, event) {
+        const $headerItem = this.elem;
+        const index = $headerItem.index();
+        const layId = $headerItem.attr('lay-id');
+        
+        handleDropdownAction(data.id, layId, index);
+      }
+    };
   }
 
   /**
    * 处理右键菜单操作
    */
-  function handleContextMenuAction(action, tabId) {
+  function handleDropdownAction(action, tabId, index) {
+    const $tab = $(`#${TABS_ID} .layui-tabs-header>li[lay-id="${tabId}"]`);
+    const isPinned = $tab.hasClass('tab-pinned');
+    
     switch (action) {
       case 'pin':
-        togglePinTab(tabId);
+        // 切换固定状态
+        $tab.toggleClass('tab-pinned');
+        const newPinned = $tab.hasClass('tab-pinned');
+        
+        // 更新关闭按钮显示
+        if (newPinned) {
+          $tab.find('.layui-tabs-close').hide();
+        } else {
+          $tab.find('.layui-tabs-close').show();
+        }
+        
+        layer.msg(newPinned ? '已固定' : '已取消固定', { icon: 1, time: 1000 });
         break;
+        
       case 'close':
-        closeTab(tabId);
+        if (!isPinned) {
+          tabs.close(TABS_ID, tabId);
+        } else {
+          layer.msg('固定的标签无法关闭', { icon: 2, time: 1500 });
+        }
         break;
+        
       case 'close-left':
-        closeLeftTabs(tabId);
+        closeTabsByDirection('left', index);
         break;
+        
       case 'close-right':
-        closeRightTabs(tabId);
+        closeTabsByDirection('right', index);
         break;
+        
       case 'close-all':
-        closeAllTabs();
+        closeAllUnpinnedTabs();
         break;
     }
   }
 
   /**
-   * 切换固定状态
+   * 根据方向关闭标签
    */
-  function togglePinTab(tabId) {
-    const $tab = $(`.layui-tab-title li[lay-id="${tabId}"]`);
-    $tab.toggleClass('tab-pinned');
-    
-    const isPinned = $tab.hasClass('tab-pinned');
-    layer.msg(isPinned ? '已固定' : '已取消固定', { icon: 1, time: 1000 });
-  }
-
-  /**
-   * 关闭左侧标签
-   */
-  function closeLeftTabs(tabId) {
-    const $tab = $(`.layui-tab-title li[lay-id="${tabId}"]`);
-    const $allTabs = $('.layui-tab-title li');
-    const currentIndex = $allTabs.index($tab);
-    
+  function closeTabsByDirection(direction, currentIndex) {
+    const $allTabs = $(`#${TABS_ID} .layui-tabs-header>li`);
     let closedCount = 0;
+    
     $allTabs.each(function(index) {
-      if (index < currentIndex && !$(this).hasClass('tab-pinned')) {
-        const id = $(this).attr('lay-id');
-        closeTab(id, true);
+      const $tab = $(this);
+      const shouldClose = direction === 'left' 
+        ? index < currentIndex 
+        : index > currentIndex;
+      
+      if (shouldClose && !$tab.hasClass('tab-pinned')) {
+        const tabId = $tab.attr('lay-id');
+        tabs.close(TABS_ID, tabId);
         closedCount++;
       }
     });
@@ -211,24 +148,31 @@ layui.use(['tabs', 'layer'], function () {
   }
 
   /**
-   * 关闭右侧标签
+   * 关闭所有未固定的标签
    */
-  function closeRightTabs(tabId) {
-    const $tab = $(`.layui-tab-title li[lay-id="${tabId}"]`);
-    const $allTabs = $('.layui-tab-title li');
-    const currentIndex = $allTabs.index($tab);
-    
+  function closeAllUnpinnedTabs() {
+    const $allTabs = $(`#${TABS_ID} .layui-tabs-header>li`);
     let closedCount = 0;
-    $allTabs.each(function(index) {
-      if (index > currentIndex && !$(this).hasClass('tab-pinned')) {
-        const id = $(this).attr('lay-id');
-        closeTab(id, true);
-        closedCount++;
+    
+    // 收集要关闭的标签ID
+    const toClose = [];
+    $allTabs.each(function() {
+      const $tab = $(this);
+      if (!$tab.hasClass('tab-pinned')) {
+        toClose.push($tab.attr('lay-id'));
       }
+    });
+    
+    // 关闭收集的标签
+    toClose.forEach(function(tabId) {
+      tabs.close(TABS_ID, tabId);
+      closedCount++;
     });
     
     if (closedCount > 0) {
       layer.msg(`已关闭 ${closedCount} 个标签`, { icon: 1, time: 1500 });
+    } else {
+      layer.msg('没有可关闭的标签', { icon: 0, time: 1500 });
     }
   }
 
@@ -243,69 +187,32 @@ layui.use(['tabs', 'layer'], function () {
    * @param {boolean} options.pinned - 是否固定（默认false）
    */
   function addResultTab(options) {
-    const { id, title, content, icon = '&#xe65b;', closable = true, pinned = false } = options;
-
-    // 创建标签页HTML
+    const { id, title, content, icon, closable = true, pinned = false } = options;
     const tabId = id || `tab-${Date.now()}`;
-    const tabTitle = `
-      <span class="layui-tab-title-text">${title}</span>
-    `;
 
-    // 使用 jQuery 直接操作DOM（因为 layui tabs API 可能不够灵活）
-    const $tabs = $('#results');
-    const $tabTitle = $tabs.find('.layui-tab-title');
-    const $tabContent = $tabs.find('.layui-tab-content');
-
-    // 如果标签栏不存在，创建它
-    if ($tabTitle.length === 0) {
-      $tabs.append('<ul class="layui-tab-title"></ul>');
-      $tabs.append('<div class="layui-tab-content"></div>');
-    }
-
-    // 移除其他标签的激活状态
-    $tabs.find('.layui-tab-title li').removeClass('layui-this');
-    $tabs.find('.layui-tab-content .layui-tab-item').removeClass('layui-show');
-
-    // 添加新标签
-    const $newTab = $(`
-      <li class="layui-this ${pinned ? 'tab-pinned' : ''}" lay-id="${tabId}">
-        <i class="layui-icon">${icon}</i>
-        ${tabTitle}
-        ${closable && !pinned ? '<i class="layui-icon layui-icon-close layui-tab-close"></i>' : ''}
-      </li>
-    `);
-
-    const $newContent = $(`
-      <div class="layui-tab-item layui-show" lay-id="${tabId}">
-        ${content}
-      </div>
-    `);
-
-    $tabs.find('.layui-tab-title').append($newTab);
-    $tabs.find('.layui-tab-content').append($newContent);
-
-    // 显示 tabs 容器
-    $tabs.removeClass('layui-hide-v');
-
-    // 绑定关闭事件
-    if (closable && !pinned) {
-      $newTab.find('.layui-tab-close').on('click', function(e) {
-        e.stopPropagation();
-        closeTab(tabId);
-      });
-    }
-
-    // 绑定标签点击事件
-    $newTab.on('click', function() {
-      if (!$(this).hasClass('layui-this')) {
-        switchTab(tabId);
+    // 使用 Layui 标准 API 添加标签
+    tabs.add(TABS_ID, {
+      id: tabId,
+      title: icon ? `<i class="layui-icon">${icon}</i> ${title}` : title,
+      content: content,
+      closable: closable && !pinned,
+      done: function(data) {
+        // 标签添加完成后的回调
+        const $headerItem = data.headerItem;
+        
+        // 如果是固定标签，添加固定样式
+        if (pinned) {
+          $headerItem.addClass('tab-pinned');
+        }
+        
+        // 为新标签添加右键菜单
+        dropdown.render($.extend({}, dropdownConfig, {
+          elem: $headerItem
+        }));
+        
+        // 显示 tabs 容器
+        $(`#${TABS_ID}`).removeClass('layui-hide-v');
       }
-    });
-
-    // 绑定右键菜单事件
-    $newTab.on('contextmenu', function(e) {
-      e.preventDefault();
-      showContextMenu(tabId, e.clientX, e.clientY);
     });
   }
 
@@ -314,51 +221,29 @@ layui.use(['tabs', 'layer'], function () {
    * @param {string} tabId - 标签页ID
    */
   function switchTab(tabId) {
-    const $tabs = $('#results');
-    
-    // 移除所有激活状态
-    $tabs.find('.layui-tab-title li').removeClass('layui-this');
-    $tabs.find('.layui-tab-content .layui-tab-item').removeClass('layui-show');
-
-    // 激活指定标签
-    $tabs.find(`.layui-tab-title li[lay-id="${tabId}"]`).addClass('layui-this');
-    $tabs.find(`.layui-tab-content .layui-tab-item[lay-id="${tabId}"]`).addClass('layui-show');
+    tabs.change(TABS_ID, tabId);
   }
 
   /**
    * 关闭标签页
    * @param {string} tabId - 标签页ID
-   * @param {boolean} silent - 是否静默关闭（不显示消息）
    */
-  function closeTab(tabId, silent = false) {
-    const $tabs = $('#results');
-    const $tab = $tabs.find(`.layui-tab-title li[lay-id="${tabId}"]`);
-    const $content = $tabs.find(`.layui-tab-content .layui-tab-item[lay-id="${tabId}"]`);
+  function closeTab(tabId) {
+    const $tab = $(`#${TABS_ID} .layui-tabs-header>li[lay-id="${tabId}"]`);
     
     // 检查是否固定
     if ($tab.hasClass('tab-pinned')) {
-      if (!silent) {
-        layer.msg('固定的标签无法关闭', { icon: 2, time: 1500 });
-      }
+      layer.msg('固定的标签无法关闭', { icon: 2, time: 1500 });
       return;
     }
     
-    const isActive = $tab.hasClass('layui-this');
+    // 使用 Layui 标准 API 关闭标签
+    tabs.close(TABS_ID, tabId);
     
-    // 移除标签和内容
-    $tab.remove();
-    $content.remove();
-
-    // 如果关闭的是激活标签，激活最后一个标签
-    if (isActive) {
-      const $lastTab = $tabs.find('.layui-tab-title li').last();
-      if ($lastTab.length > 0) {
-        const lastTabId = $lastTab.attr('lay-id');
-        switchTab(lastTabId);
-      } else {
-        // 如果没有标签了，隐藏容器
-        $tabs.addClass('layui-hide-v');
-      }
+    // 如果没有标签了，隐藏容器
+    const $allTabs = $(`#${TABS_ID} .layui-tabs-header>li`);
+    if ($allTabs.length === 0) {
+      $(`#${TABS_ID}`).addClass('layui-hide-v');
     }
   }
 
@@ -366,30 +251,7 @@ layui.use(['tabs', 'layer'], function () {
    * 关闭所有标签页
    */
   function closeAllTabs() {
-    const $tabs = $('#results');
-    const $allTabs = $tabs.find('.layui-tab-title li');
-    
-    let closedCount = 0;
-    $allTabs.each(function() {
-      if (!$(this).hasClass('tab-pinned')) {
-        const id = $(this).attr('lay-id');
-        closeTab(id, true);
-        closedCount++;
-      }
-    });
-    
-    if (closedCount > 0) {
-      layer.msg(`已关闭 ${closedCount} 个标签`, { icon: 1, time: 1500 });
-    } else {
-      layer.msg('没有可关闭的标签', { icon: 0, time: 1500 });
-    }
-    
-    // 如果还有固定标签，激活第一个
-    const $firstTab = $tabs.find('.layui-tab-title li').first();
-    if ($firstTab.length > 0) {
-      const firstTabId = $firstTab.attr('lay-id');
-      switchTab(firstTabId);
-    }
+    closeAllUnpinnedTabs();
   }
 
   /**
@@ -476,25 +338,27 @@ layui.use(['tabs', 'layer'], function () {
     switch (message.command) {
       case 'showResult': {
         // 显示查询结果
-        const { title, columns, data, id } = message;
+        const { title, columns, data, id, pinned } = message;
         const content = createTableContent(columns, data);
         addResultTab({
           id: id || `result-${Date.now()}`,
           title: title || '查询结果',
           content: content,
-          icon: '&#xe65b;'
+          icon: '&#xe65b;',
+          pinned: pinned || false
         });
         break;
       }
       case 'showMessage': {
         // 显示消息
-        const { title, text, type, id } = message;
+        const { title, text, type, id, pinned } = message;
         const content = createMessageContent(text, type || 'info');
         addResultTab({
           id: id || `message-${Date.now()}`,
           title: title || '消息',
           content: content,
-          icon: type === 'error' ? '&#xe69c;' : '&#xe65b;'
+          icon: type === 'error' ? '&#xe69c;' : '&#xe65b;',
+          pinned: pinned || false
         });
         break;
       }

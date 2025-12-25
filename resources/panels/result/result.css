@@ -44,8 +44,9 @@ body {
   margin: 0 !important;
 }
 
-/* Tab 标题栏 */
-.layui-tab-title {
+/* Tab 标题栏 - 兼容新旧类名 */
+.layui-tab-title,
+.layui-tabs-header {
   background: var(--vscode-tab-inactive) !important;
   border-bottom: 1px solid var(--vscode-border) !important;
   margin: 0 !important;
@@ -59,24 +60,29 @@ body {
 }
 
 /* Tab 标题滚动条 */
-.layui-tab-title::-webkit-scrollbar {
+.layui-tab-title::-webkit-scrollbar,
+.layui-tabs-header::-webkit-scrollbar {
   height: 2px;
 }
 
-.layui-tab-title::-webkit-scrollbar-track {
+.layui-tab-title::-webkit-scrollbar-track,
+.layui-tabs-header::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.layui-tab-title::-webkit-scrollbar-thumb {
+.layui-tab-title::-webkit-scrollbar-thumb,
+.layui-tabs-header::-webkit-scrollbar-thumb {
   background: rgba(121, 121, 121, 0.4);
 }
 
-.layui-tab-title::-webkit-scrollbar-thumb:hover {
+.layui-tab-title::-webkit-scrollbar-thumb:hover,
+.layui-tabs-header::-webkit-scrollbar-thumb:hover {
   background: rgba(100, 100, 100, 0.7);
 }
 
-/* Tab 项 */
-.layui-tab-title li {
+/* Tab 项 - 兼容新旧类名 */
+.layui-tab-title li,
+.layui-tabs-header>li {
   background: var(--vscode-tab-inactive) !important;
   color: var(--vscode-fg) !important;
   border: none !important;
@@ -99,13 +105,15 @@ body {
 }
 
 /* Tab 悬停效果 */
-.layui-tab-title li:hover {
+.layui-tab-title li:hover,
+.layui-tabs-header>li:hover {
   background: var(--vscode-tab-hover) !important;
   color: var(--vscode-fg) !important;
 }
 
 /* 激活的 Tab */
-.layui-tab-title li.layui-this {
+.layui-tab-title li.layui-this,
+.layui-tabs-header>li.layui-this {
   background: var(--vscode-tab-active) !important;
   color: var(--vscode-fg) !important;
   font-weight: 500 !important;
@@ -113,12 +121,14 @@ body {
 }
 
 /* 移除默认的下划线动画 */
-.layui-tab-title .layui-this::after {
+.layui-tab-title .layui-this::after,
+.layui-tabs-header .layui-this::after {
   display: none !important;
 }
 
 /* Tab 标题文本 */
-.layui-tab-title li .layui-tab-title-text {
+.layui-tab-title li .layui-tab-title-text,
+.layui-tabs-header>li .layui-tab-title-text {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -126,34 +136,42 @@ body {
 }
 
 /* Tab 图标 */
-.layui-tab-title li .layui-icon {
+.layui-tab-title li .layui-icon,
+.layui-tabs-header>li .layui-icon {
   font-size: 12px;
   color: var(--vscode-fg);
   opacity: 0.7;
   flex-shrink: 0;
 }
 
-.layui-tab-title li.layui-this .layui-icon {
+.layui-tab-title li.layui-this .layui-icon,
+.layui-tabs-header>li.layui-this .layui-icon {
   opacity: 1;
 }
 
 /* 固定图标 */
-.layui-tab-title li .layui-icon-pin {
+.layui-tab-title li .layui-icon-pin,
+.layui-tabs-header>li .layui-icon-pin {
   font-size: 11px;
   margin-left: -2px;
 }
 
 /* 固定的标签 */
-.layui-tab-title li.tab-pinned {
+.layui-tab-title li.tab-pinned,
+.layui-tabs-header>li.tab-pinned {
   border-bottom: 2px solid var(--vscode-focus) !important;
 }
 
-.layui-tab-title li.tab-pinned .layui-tab-close {
+.layui-tab-title li.tab-pinned .layui-tab-close,
+.layui-tab-title li.tab-pinned .layui-tabs-close,
+.layui-tabs-header>li.tab-pinned .layui-tab-close,
+.layui-tabs-header>li.tab-pinned .layui-tabs-close {
   display: none !important;
 }
 
-/* Tab 关闭按钮 */
-.layui-tab-close {
+/* Tab 关闭按钮 - 兼容新旧类名 */
+.layui-tab-close,
+.layui-tabs-close {
   display: inline-flex !important;
   align-items: center;
   justify-content: center;
@@ -169,20 +187,23 @@ body {
   transition: opacity 0.2s, background 0.2s;
 }
 
-.layui-tab-close:hover {
+.layui-tab-close:hover,
+.layui-tabs-close:hover {
   background: var(--vscode-hover) !important;
   opacity: 1;
 }
 
-.layui-tab-close::before {
+.layui-tab-close::before,
+.layui-tabs-close::before {
   content: "×";
   font-weight: bold;
   font-size: 14px;
   line-height: 1;
 }
 
-/* Tab 内容区域 */
-.layui-tab-content {
+/* Tab 内容区域 - 兼容新旧类名 */
+.layui-tab-content,
+.layui-tabs-body {
   flex: 1;
   background: var(--vscode-bg) !important;
   padding: 0 !important;
@@ -191,8 +212,9 @@ body {
   flex-direction: column;
 }
 
-/* Tab 内容项 */
-.layui-tab-item {
+/* Tab 内容项 - 兼容新旧类名 */
+.layui-tab-item,
+.layui-tabs-item {
   background: var(--vscode-bg) !important;
   color: var(--vscode-fg) !important;
   height: 100%;
@@ -201,7 +223,8 @@ body {
   padding: 0;
 }
 
-.layui-tab-item.layui-show {
+.layui-tab-item.layui-show,
+.layui-tabs-item.layui-show {
   display: flex !important;
   flex-direction: column;
 }
@@ -357,64 +380,14 @@ body {
   }
 }
 
-/* 右键菜单 */
-.tab-context-menu {
-  position: fixed;
-  background: var(--vscode-input-bg);
-  border: 1px solid var(--vscode-border);
-  border-radius: 3px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-  padding: 4px 0;
-  min-width: 160px;
-  z-index: 99999;
-  display: none;
-}
-
-.tab-context-menu.show {
-  display: block;
-}
-
-.tab-context-menu-item {
-  padding: 6px 16px;
-  color: var(--vscode-input-fg);
-  font-size: 12px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: background 0.2s;
-}
-
-.tab-context-menu-item:hover {
-  background: var(--vscode-hover);
-}
-
-.tab-context-menu-item.disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.tab-context-menu-item.disabled:hover {
-  background: transparent;
-}
-
-.tab-context-menu-item .layui-icon {
-  font-size: 12px;
-  opacity: 0.8;
-}
-
-.tab-context-menu-separator {
-  height: 1px;
-  background: var(--vscode-border);
-  margin: 4px 0;
-}
-
 /* 响应式 */
 @media (max-width: 768px) {
-  .layui-tab-title li {
+  .layui-tab-title li,
+  .layui-tabs-header>li {
     min-width: 70px;
     max-width: 140px;
     padding: 0 10px !important;
   }
 }
+
 
