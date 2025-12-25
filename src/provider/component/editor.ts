@@ -17,7 +17,7 @@ export class CaEditor {
       vscode.StatusBarAlignment.Right,
       100
     );
-    this.statusBarItem.command = "sql.selectDatabase";
+    this.statusBarItem.command = "cadb.sql.selectDatabase";
     this.statusBarItem.tooltip = "点击选择数据库";
     this.updateStatusBar();
   }
@@ -89,10 +89,20 @@ export class CaEditor {
             return;
           }
 
-          // 获取数据库列表
-          const databases = await this.currentConnection.expand(
+          // 获取连接下的对象（包含 datasourceType, userType, fileType）
+          const objects = await this.currentConnection.expand(
             this.provider.context
           );
+
+          // 找到 datasourceType 节点
+          const datasourceTypeNode = objects.find(obj => obj.type === 'datasourceType');
+          if (!datasourceTypeNode) {
+            vscode.window.showWarningMessage("无法找到数据库列表节点");
+            return;
+          }
+
+          // 展开 datasourceType 节点获取所有数据库
+          const databases = await datasourceTypeNode.expand(this.provider.context);
 
           if (databases.length === 0) {
             vscode.window.showWarningMessage("该连接没有可用的数据库");
@@ -105,7 +115,7 @@ export class CaEditor {
 
           const databaseItems: DatabaseQuickPickItem[] = databases.map((db: Datasource) => ({
             label: `$(database) ${db.label}`,
-            description: typeof db.tooltip === 'string' ? db.tooltip : '',
+            description: typeof db.description === 'string' ? db.description : '',
             datasource: db
           }));
 

@@ -157,7 +157,17 @@ export class CaCompletionItemProvider implements vscode.CompletionItemProvider {
     }
 
     try {
-      const databases = await connection.expand(this.editor!.provider.context);
+      // 获取连接下的对象（包含 datasourceType, userType, fileType）
+      const objects = await connection.expand(this.editor!.provider.context);
+      
+      // 找到 datasourceType 节点
+      const datasourceTypeNode = objects.find(obj => obj.type === 'datasourceType');
+      if (!datasourceTypeNode) {
+        return [];
+      }
+
+      // 展开获取所有数据库
+      const databases = await datasourceTypeNode.expand(this.editor!.provider.context);
       const completions = databases.map(db => {
         const item = new vscode.CompletionItem(
           db.label?.toString() || '',
@@ -188,9 +198,9 @@ export class CaCompletionItemProvider implements vscode.CompletionItemProvider {
     }
 
     try {
-      // 获取表类型节点
+      // 获取数据库节点下的对象（collectionType, userType 等）
       const objects = await database.expand(this.editor!.provider.context);
-      const tableTypeNode = objects.find(obj => obj.type === 'documentType');
+      const tableTypeNode = objects.find(obj => obj.type === 'collectionType');
       
       if (!tableTypeNode) {
         return [];
@@ -274,7 +284,7 @@ export class CaCompletionItemProvider implements vscode.CompletionItemProvider {
     try {
       // 获取所有表
       const objects = await database.expand(this.editor!.provider.context);
-      const tableTypeNode = objects.find(obj => obj.type === 'documentType');
+      const tableTypeNode = objects.find(obj => obj.type === 'collectionType');
       
       if (!tableTypeNode) {
         return [];
@@ -305,7 +315,7 @@ export class CaCompletionItemProvider implements vscode.CompletionItemProvider {
   private async findTable(database: Datasource, tableName: string): Promise<Datasource | null> {
     try {
       const objects = await database.expand(this.editor!.provider.context);
-      const tableTypeNode = objects.find(obj => obj.type === 'documentType');
+      const tableTypeNode = objects.find(obj => obj.type === 'collectionType');
       
       if (!tableTypeNode) {
         return null;
