@@ -24,6 +24,10 @@ export class CaEditor {
    * 通知数据库选择已变化
    */
   private notifyDatabaseChanged(): void {
+    console.log('[CaEditor] 通知数据库变化:', {
+      connection: this.currentConnection?.label,
+      database: this.currentDatabase?.label
+    });
     if (this.onDatabaseChangedCallback) {
       this.onDatabaseChangedCallback();
     }
@@ -33,12 +37,58 @@ export class CaEditor {
    * 显示数据库选择器
    */
   public async selectDatabase(): Promise<void> {
-    // 步骤 1: 选择连接
+    try {
+      // 步骤 1: 选择连接
+      const selectedConnection = await this.selectConnection();
+      if (!selectedConnection) {
+        // 用户取消，不改变状态
+        return;
+      }
+
+      // 保存连接
+      this.currentConnection = selectedConnection;
+      console.log('[CaEditor] 已选择连接:', this.currentConnection.label);
+
+      // 步骤 2: 选择数据库
+      const selectedDatabase = await this.selectDatabaseFromConnection(selectedConnection);
+      if (!selectedDatabase) {
+        // 用户取消选择数据库，保持连接但清除数据库
+        this.currentDatabase = null;
+        console.log('[CaEditor] 用户取消选择数据库');
+        this.notifyDatabaseChanged();
+        return;
+      }
+
+      // 保存数据库
+      this.currentDatabase = selectedDatabase;
+      console.log('[CaEditor] 已选择数据库:', this.currentDatabase.label);
+
+      // 通知更新
+      this.notifyDatabaseChanged();
+
+      // 显示成功消息
+      vscode.window.showInformationMessage(
+        `已选择数据库: ${this.currentConnection.label} / ${this.currentDatabase.label}`
+      );
+    } catch (error) {
+      console.error('[CaEditor] 选择数据库时出错:', error);
+      vscode.window.showErrorMessage(
+        `选择数据库失败: ${error instanceof Error ? error.message : String(error)}`
+      );
+      // 出错时也通知更新
+      this.notifyDatabaseChanged();
+    }
+  }
+
+  /**
+   * 选择连接
+   */
+  private async selectConnection(): Promise<Datasource | undefined> {
     const connections = this.provider.model.map(conn => new Datasource(conn));
     
     if (connections.length === 0) {
       vscode.window.showWarningMessage("请先添加数据库连接");
-      return;
+      return undefined;
     }
 
     interface ConnectionQuickPickItem extends vscode.QuickPickItem {
@@ -51,88 +101,59 @@ export class CaEditor {
       datasource: conn
     }));
 
-    const selectedConnection = await vscode.window.showQuickPick(connectionItems, {
+    const selected = await vscode.window.showQuickPick(connectionItems, {
       placeHolder: "选择数据库连接",
       matchOnDescription: true
     });
 
-    if (!selectedConnection) {
-      return;
-    }
+    return selected?.datasource;
+  }
 
-    this.currentConnection = selectedConnection.datasource;
-    // 不在这里通知，等选择完数据库后再通知
-
-    // 步骤 2: 获取并选择数据库
-    vscode.window.withProgress(
+  /**
+   * 从指定连接中选择数据库
+   */
+  private async selectDatabaseFromConnection(connection: Datasource): Promise<Datasource | undefined> {
+    return await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
         title: "正在获取数据库列表...",
         cancellable: false
       },
       async () => {
-        try {
-          if (!this.currentConnection) {
-            return;
-          }
+        // 获取连接下的对象（包含 datasourceType, userType, fileType）
+        const objects = await connection.expand(this.provider.context);
 
-          // 获取连接下的对象（包含 datasourceType, userType, fileType）
-          const objects = await this.currentConnection.expand(
-            this.provider.context
-          );
-
-          // 找到 datasourceType 节点
-          const datasourceTypeNode = objects.find(obj => obj.type === 'datasourceType');
-          if (!datasourceTypeNode) {
-            vscode.window.showWarningMessage("无法找到数据库列表节点");
-            return;
-          }
-
-          // 展开 datasourceType 节点获取所有数据库
-          const databases = await datasourceTypeNode.expand(this.provider.context);
-
-          if (databases.length === 0) {
-            vscode.window.showWarningMessage("该连接没有可用的数据库");
-            return;
-          }
-
-          interface DatabaseQuickPickItem extends vscode.QuickPickItem {
-            datasource: Datasource;
-          }
-
-          const databaseItems: DatabaseQuickPickItem[] = databases.map((db: Datasource) => ({
-            label: `$(database) ${db.label}`,
-            description: typeof db.description === 'string' ? db.description : '',
-            datasource: db
-          }));
-
-          const selectedDatabase = await vscode.window.showQuickPick(databaseItems, {
-            placeHolder: this.currentConnection 
-              ? `选择 ${this.currentConnection.label} 中的数据库`
-              : '选择数据库',
-            matchOnDescription: true
-          });
-
-          if (selectedDatabase) {
-            this.currentDatabase = selectedDatabase.datasource;
-            // 选择完数据库后通知更新
-            this.notifyDatabaseChanged();
-            if (this.currentConnection && this.currentDatabase) {
-              vscode.window.showInformationMessage(
-                `已选择数据库: ${this.currentConnection.label} / ${this.currentDatabase.label}`
-              );
-            }
-          } else {
-            // 用户取消选择数据库，也需要通知更新（显示警告状态）
-            this.notifyDatabaseChanged();
-          }
-        } catch (error) {
-          vscode.window.showErrorMessage(
-            `获取数据库列表失败: ${error instanceof Error ? error.message : String(error)}`
-          );
-          // 发生错误时也通知更新
-          this.notifyDatabaseChanged();
+        // 找到 datasourceType 节点
+        const datasourceTypeNode = objects.find(obj => obj.type === 'datasourceType');
+        if (!datasourceTypeNode) {
+          vscode.window.showWarningMessage("无法找到数据库列表节点");
+          return undefined;
         }
+
+        // 展开 datasourceType 节点获取所有数据库
+        const databases = await datasourceTypeNode.expand(this.provider.context);
+
+        if (databases.length === 0) {
+          vscode.window.showWarningMessage("该连接没有可用的数据库");
+          return undefined;
+        }
+
+        interface DatabaseQuickPickItem extends vscode.QuickPickItem {
+          datasource: Datasource;
+        }
+
+        const databaseItems: DatabaseQuickPickItem[] = databases.map((db: Datasource) => ({
+          label: `$(database) ${db.label}`,
+          description: typeof db.description === 'string' ? db.description : '',
+          datasource: db
+        }));
+
+        const selected = await vscode.window.showQuickPick(databaseItems, {
+          placeHolder: `选择 ${connection.label} 中的数据库`,
+          matchOnDescription: true
+        });
+
+        return selected?.datasource;
       }
     );
   }
