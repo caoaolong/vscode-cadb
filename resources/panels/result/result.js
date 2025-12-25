@@ -521,12 +521,5 @@ layui.use(['tabs', 'layer'], function () {
     });
   }
 
-  // 示例：添加默认欢迎标签
-  addResultTab({
-    id: 'welcome',
-    title: '欢迎',
-    content: createMessageContent('执行 SQL 查询以查看结果', 'info'),
-    icon: '&#xe68e;',
-    closable: true
-  });
+  console.log('查询结果页面已准备就绪');
 });

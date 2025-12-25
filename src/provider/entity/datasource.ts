@@ -208,6 +208,12 @@ export class Datasource extends vscode.TreeItem {
   private initFileType(input: DatasourceInputData): void {
     if (input.type === "file") {
       this.description = input.extra;
+      // 为文件类型添加点击命令，打开 SQL 编辑器
+      this.command = {
+        title: "打开 SQL 文件",
+        command: "cadb.file.open",
+        arguments: [this],
+      };
     }
     this.iconPath = {
       light: vscode.Uri.file(
@@ -257,7 +263,7 @@ export class Datasource extends vscode.TreeItem {
     };
     this.command = {
       title: "查看数据",
-      command: "dsItem.showData",
+      command: "cadb.item.showData",
       arguments: [this],
     };
   }

@@ -48,7 +48,7 @@ export class SQLCodeLensProvider implements vscode.CodeLensProvider {
             new vscode.CodeLens(range, {
               title: "▷ Run",
               tooltip: "运行 SQL 查询",
-              command: "sql.runSql",
+              command: "cadb.sql.run",
               arguments: [sql, startLine, endLine],
             })
           );
@@ -56,7 +56,7 @@ export class SQLCodeLensProvider implements vscode.CodeLensProvider {
             new vscode.CodeLens(range, {
               title: "▷ Explain",
               tooltip: "解释 SQL 执行计划",
-              command: "sql.explainSql",
+              command: "cadb.sql.explain",
               arguments: [sql, startLine, endLine],
             })
           );
@@ -66,7 +66,7 @@ export class SQLCodeLensProvider implements vscode.CodeLensProvider {
             new vscode.CodeLens(range, {
               title: "▷ Run",
               tooltip: `运行 ${sqlType} 语句`,
-              command: "sql.runSql",
+              command: "cadb.sql.run",
               arguments: [sql, startLine, endLine],
             })
           );
@@ -236,7 +236,7 @@ export class SQLCodeLensProvider implements vscode.CodeLensProvider {
 
   private sendResultToWebview(result: any, sql: string): void {
     // 通过事件发送结果
-    vscode.commands.executeCommand('sql.showResult', result, sql);
+    vscode.commands.executeCommand('cadb.result.show', result, sql);
   }
 
   public async explainSql(sql: string, startLine: number, endLine: number): Promise<void> {

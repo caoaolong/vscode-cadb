@@ -152,14 +152,14 @@ export function registerDatasourceCommands(
   provider: DataSourceProvider,
   treeView: vscode.TreeView<Datasource>
 ) {
-  vscode.commands.registerCommand("datasource.refreshEntry", provider.refresh);
-  vscode.commands.registerCommand("datasource.addEntry", (item) =>
+  vscode.commands.registerCommand("cadb.datasource.refresh", provider.refresh);
+  vscode.commands.registerCommand("cadb.datasource.add", (item) =>
     addEntry(item, provider)
   );
-  vscode.commands.registerCommand("datasource.editEntry", (item) =>
+  vscode.commands.registerCommand("cadb.datasource.edit", (item) =>
     editEntry(provider, item)
   );
-  vscode.commands.registerCommand("datasource.expandEntry", async (item) => {
+  vscode.commands.registerCommand("cadb.datasource.expand", async (item) => {
     const children = await (item as Datasource).expand(provider.context);
     provider.createChildren(item as Datasource, children);
     treeView.reveal(item as Datasource, { expand: true });
@@ -167,7 +167,7 @@ export function registerDatasourceCommands(
 }
 
 export function registerDatasourceItemCommands(provider: DataSourceProvider) {
-  vscode.commands.registerCommand("dsItem.showData", async (args) => {
+  vscode.commands.registerCommand("cadb.item.showData", async (args) => {
     const datasource = args as Datasource;
     const data = await datasource.listData();
     const panel = createWebview(
@@ -187,16 +187,43 @@ export function registerDatasourceItemCommands(provider: DataSourceProvider) {
       }
     });
   });
+
+  // 注册打开 SQL 文件命令
+  vscode.commands.registerCommand("cadb.file.open", async (args) => {
+    const fileItem = args as Datasource;
+    if (!fileItem || !fileItem.parent || !fileItem.parent.label) {
+      vscode.window.showErrorMessage("无法打开文件：缺少必要信息");
+      return;
+    }
+
+    // 构建文件路径
+    const dsPath = vscode.Uri.joinPath(
+      provider.context.globalStorageUri,
+      fileItem.parent.label.toString(),
+      fileItem.label?.toString() || ''
+    );
+
+    try {
+      // 打开文件
+      const doc = await vscode.workspace.openTextDocument(dsPath);
+      await vscode.window.showTextDocument(doc, {
+        preview: false,
+        viewColumn: vscode.ViewColumn.Active,
+      });
+    } catch (error) {
+      vscode.window.showErrorMessage(`打开文件失败: ${error}`);
+    }
+  });
 }
 
 export function registerCodeLensCommands(provider: SQLCodeLensProvider) {
   vscode.commands.registerCommand(
-    "sql.explainSql",
+    "cadb.sql.explain",
     (sql: string, startLine: number, endLine: number) =>
       provider.explainSql(sql, startLine, endLine)
   );
   vscode.commands.registerCommand(
-    "sql.runSql",
+    "cadb.sql.run",
     (sql: string, startLine: number, endLine: number) =>
       provider.runSql(sql, startLine, endLine)
   );
@@ -204,7 +231,7 @@ export function registerCodeLensCommands(provider: SQLCodeLensProvider) {
 
 export function registerEditorCommands(editor: CaEditor) {
   // 注册数据库选择命令
-  vscode.commands.registerCommand("sql.selectDatabase", () =>
+  vscode.commands.registerCommand("cadb.sql.selectDatabase", () =>
     editor.selectDatabase()
   );
 
@@ -216,12 +243,12 @@ export function registerEditorCommands(editor: CaEditor) {
 
 export function registerResultCommands(resultProvider: ResultWebviewProvider) {
   // 注册显示结果命令
-  vscode.commands.registerCommand("sql.showResult", (result: any, sql: string) =>
+  vscode.commands.registerCommand("cadb.result.show", (result: any, sql: string) =>
     resultProvider.showResult(result, sql)
   );
 
   // 注册显示错误命令
-  vscode.commands.registerCommand("sql.showError", (error: string, sql: string) =>
+  vscode.commands.registerCommand("cadb.result.showError", (error: string, sql: string) =>
     resultProvider.showError(error, sql)
   );
 }
