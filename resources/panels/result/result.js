@@ -33,8 +33,6 @@ layui.use(["tabs", "layer"], function () {
 
     // 初始化自定义右键菜单
     initContextMenu();
-
-    console.log("Tabs 初始化完成");
   }
 
   /**
@@ -250,25 +248,16 @@ layui.use(["tabs", "layer"], function () {
   function closeAllUnpinnedTabs(showMessage = false) {
     const $allTabs = $(`#${TABS_ID} .layui-tabs-header>li`);
     let closedCount = 0;
-
-    console.log('[Result] closeAllUnpinnedTabs - 当前标签数:', $allTabs.length);
-
     // 收集要关闭的标签ID
     const toClose = [];
     $allTabs.each(function () {
       const $tab = $(this);
       const tabId = $tab.attr("lay-id");
       const isPinned = $tab.hasClass("tab-pinned");
-      
-      console.log('[Result] 检查标签:', tabId, '固定:', isPinned);
-      
       if (!isPinned) {
         toClose.push(tabId);
       }
     });
-
-    console.log('[Result] 需要关闭的标签:', toClose);
-
     // 关闭收集的标签
     toClose.forEach(function (tabId) {
       tabs.close(TABS_ID, tabId);
@@ -296,9 +285,6 @@ layui.use(["tabs", "layer"], function () {
       pinned = false,
     } = options;
     const tabId = id || `tab-${Date.now()}`;
-
-    console.log("添加标签:", tabId, title);
-
     // 使用 Layui 标准 API 添加标签
     tabs.add(TABS_ID, {
       id: tabId,
@@ -306,8 +292,6 @@ layui.use(["tabs", "layer"], function () {
       content: content,
       closable: closable && !pinned,
       done: function (data) {
-        console.log("标签添加完成:", data);
-
         // 标签添加完成后的回调
         const $headerItem = data.headerItem;
 
@@ -326,7 +310,6 @@ layui.use(["tabs", "layer"], function () {
 
         // 显示 tabs 容器
         $(`#${TABS_ID}`).removeClass("layui-hide-v");
-        console.log("容器已显示");
       },
     });
   }
@@ -482,9 +465,6 @@ layui.use(["tabs", "layer"], function () {
 
     switch (message.command) {
       case "showResult": {
-        // 显示查询结果
-        console.log('[Result] 收到查询结果，先清理未固定标签');
-        
         // 1. 先删除所有未固定的标签
         closeAllUnpinnedTabs();
 
@@ -492,9 +472,7 @@ layui.use(["tabs", "layer"], function () {
         const { title, columns, data, id, pinned } = message;
         const tabId = id || `result-${Date.now()}`;
         const content = createTableContent(columns, data, tabId);
-        
-        console.log('[Result] 添加新查询结果标签:', tabId, title);
-        
+
         addResultTab({
           id: tabId,
           title: title || "查询结果",
@@ -506,18 +484,13 @@ layui.use(["tabs", "layer"], function () {
         break;
       }
       case "showMessage": {
-        // 显示消息
-        console.log('[Result] 收到消息，先清理未固定标签');
-        
         // 1. 先删除所有未固定的标签
         closeAllUnpinnedTabs();
 
         // 2. 然后添加新的消息标签
         const { title, text, type, id, pinned } = message;
         const content = createMessageContent(text, type || "info");
-        
-        console.log('[Result] 添加新消息标签:', id || 'auto', title);
-        
+
         addResultTab({
           id: id || `message-${Date.now()}`,
           title: title || "消息",
@@ -555,6 +528,4 @@ layui.use(["tabs", "layer"], function () {
       command: "ready",
     });
   }
-
-  console.log("查询结果页面已准备就绪");
 });

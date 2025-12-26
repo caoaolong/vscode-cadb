@@ -161,9 +161,6 @@ export class SQLCodeLensProvider implements vscode.CodeLensProvider {
     startLine: number,
     endLine: number
   ): Promise<void> {
-    console.log("运行 SQL:", sql);
-    console.log("行范围:", startLine, "-", endLine);
-
     if (!this.editor) {
       vscode.window.showErrorMessage("SQL 编辑器未初始化");
       return;
@@ -261,9 +258,6 @@ export class SQLCodeLensProvider implements vscode.CodeLensProvider {
     startLine: number,
     endLine: number
   ): Promise<void> {
-    console.log("解释 SQL:", sql);
-    console.log("行范围:", startLine, "-", endLine);
-
     // EXPLAIN 就是在 SQL 前加 EXPLAIN
     const explainSql = `EXPLAIN ${sql}`;
     await this.runSql(explainSql, startLine, endLine);

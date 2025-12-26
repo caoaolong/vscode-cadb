@@ -386,15 +386,12 @@ layui.use(["element", "form", "layer"], function () {
 
   // 保存字段表单
   form.on("submit(save-field)", function (data) {
-    console.log("保存字段:", data.field);
 
     // 更新字段数据
     if (currentEditItem) {
       Object.assign(currentEditItem, data.field);
       renderFieldList();
     }
-
-    layer.msg("字段保存成功！", { icon: 1, time: 1500 });
 
     // 通知 VSCode
     if (vscode) {
@@ -409,8 +406,6 @@ layui.use(["element", "form", "layer"], function () {
 
   // 保存索引表单
   form.on("submit(save-index)", function (data) {
-    console.log("保存索引:", data.field);
-
     // 处理字段列表
     const fieldsStr = data.field.fields || "";
     data.field.fields = fieldsStr

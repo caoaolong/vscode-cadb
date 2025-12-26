@@ -57,7 +57,6 @@ export class ResultWebviewProvider implements vscode.WebviewViewProvider {
     // 监听来自 webview 的消息
     webviewView.webview.onDidReceiveMessage((message) => {
       if (message.command === "ready") {
-        console.log("Webview 已就绪");
         this.isWebviewReady = true;
 
         // 发送所有待处理的消息

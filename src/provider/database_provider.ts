@@ -172,7 +172,6 @@ export class DataSourceProvider implements vscode.TreeDataProvider<Datasource> {
    */
   private saveTreeState(): void {
     this.context.globalState.update('cadb.treeState', this.treeState);
-    console.log('[TreeState] 已保存树状态:', this.treeState);
   }
 
   /**
@@ -184,7 +183,6 @@ export class DataSourceProvider implements vscode.TreeDataProvider<Datasource> {
     }
     this.treeState.selectedDatabases[connectionName] = databases;
     this.saveTreeState();
-    console.log(`[TreeState] 已设置 ${connectionName} 的选中数据库:`, databases);
   }
 
   /**

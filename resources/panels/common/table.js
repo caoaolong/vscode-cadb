@@ -29,7 +29,6 @@ class DatabaseTableData {
    * 初始化 Tabulator
    */
   _initDataTable() {
-    console.log("初始化表格数据:", this.tableData);
     this.table = new Tabulator(this.tableSelector, {
       height: "100%",
       layout: "fitColumns",
@@ -100,11 +99,9 @@ class DatabaseTableData {
     }
 
     this.table.addData([this.newRow], false).then((rows) => {
-      console.log("添加新行:", rows);
       if (rows && rows.length > 0) {
         layui.use("layer", function () {
           const layer = layui.layer;
-          layer.msg("新行已添加", { icon: 1, time: 1500 });
         });
       }
     });

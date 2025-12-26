@@ -169,8 +169,6 @@ export function registerDatasourceCommands(
   // 注册选择数据库命令
   vscode.commands.registerCommand("cadb.datasource.selectDatabases", async (item: Datasource) => {
     try {
-      console.log('[SelectDatabases] 开始选择数据库:', item.label);
-      
       // 确保 item 是 datasourceType 节点
       if (item.type !== 'datasourceType') {
         vscode.window.showWarningMessage('请在数据库列表节点上执行此操作');
@@ -185,8 +183,6 @@ export function registerDatasourceCommands(
       }
       
       const connectionName = connectionNode.label.toString();
-      console.log('[SelectDatabases] 连接名称:', connectionName);
-      
       // 显示加载提示
       await vscode.window.withProgress(
         {
@@ -202,13 +198,8 @@ export function registerDatasourceCommands(
             vscode.window.showWarningMessage('该连接没有可用的数据库');
             return;
           }
-          
-          console.log('[SelectDatabases] 数据库总数:', allDatabases.length);
-          
           // 获取当前已选择的数据库
           const currentSelected = provider.getSelectedDatabases(connectionName);
-          console.log('[SelectDatabases] 当前已选择:', currentSelected);
-          
           // 创建 QuickPick 项
           interface DatabaseQuickPickItem extends vscode.QuickPickItem {
             database: string;
@@ -216,7 +207,7 @@ export function registerDatasourceCommands(
           
           const quickPickItems: DatabaseQuickPickItem[] = allDatabases.map(db => ({
             label: db.label?.toString() || '',
-            description: db.description || '',
+            description: db.description ? (typeof db.description === 'string' ? db.description : db.description.toString()) : undefined,
             database: db.label?.toString() || '',
             picked: currentSelected.includes(db.label?.toString() || '')
           }));
@@ -230,8 +221,6 @@ export function registerDatasourceCommands(
           
           if (selected) {
             const selectedDbs = selected.map(item => item.database);
-            console.log('[SelectDatabases] 用户选择:', selectedDbs);
-            
             // 保存选择
             provider.setSelectedDatabases(connectionName, selectedDbs);
             
@@ -258,8 +247,6 @@ export function registerDatasourceCommands(
   // 注册使用数据库命令（从 TreeView collection 节点）
   vscode.commands.registerCommand("cadb.collection.useDatabase", (item: Datasource) => {
     try {
-      console.log('[UseDatabase] 使用数据库:', item.label);
-      
       // 确保 item 是 collection 节点
       if (item.type !== 'collection') {
         vscode.window.showWarningMessage('请在数据库节点上执行此操作');

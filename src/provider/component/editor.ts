@@ -24,10 +24,6 @@ export class CaEditor {
    * 通知数据库选择已变化
    */
   private notifyDatabaseChanged(): void {
-    console.log("[CaEditor] 通知数据库变化:", {
-      connection: this.currentConnection?.label,
-      database: this.currentDatabase?.label,
-    });
     if (this.onDatabaseChangedCallback) {
       this.onDatabaseChangedCallback();
     }
@@ -47,8 +43,6 @@ export class CaEditor {
 
       // 保存连接
       this.currentConnection = selectedConnection;
-      console.log("[CaEditor] 已选择连接:", this.currentConnection.label);
-
       // 步骤 2: 选择数据库
       const selectedDatabase = await this.selectDatabaseFromConnection(
         selectedConnection
@@ -56,15 +50,12 @@ export class CaEditor {
       if (!selectedDatabase) {
         // 用户取消选择数据库，保持连接但清除数据库
         this.currentDatabase = null;
-        console.log("[CaEditor] 用户取消选择数据库");
         this.notifyDatabaseChanged();
         return;
       }
 
       // 保存数据库
       this.currentDatabase = selectedDatabase;
-      console.log("[CaEditor] 已选择数据库:", this.currentDatabase.label);
-
       // 通知更新
       this.notifyDatabaseChanged();
 
@@ -192,16 +183,16 @@ export class CaEditor {
    * @param database - 数据库 Datasource 对象（type: collection）
    */
   public setCurrentDatabase(database: Datasource): void {
+		console.log(database);
     // 查找数据库的连接节点
     // 结构: datasource -> datasourceType -> collection
     let connectionNode: Datasource | undefined = undefined;
     
-    if (database.parent?.type === 'datasourceType' && database.parent?.parent?.type === 'datasource') {
-      connectionNode = database.parent.parent;
+    if (database.type === 'collection' && database.parent?.type === 'datasource') {
+      connectionNode = database.parent;
     }
     
     if (!connectionNode) {
-      console.error('[CaEditor] 无法找到连接节点');
       vscode.window.showErrorMessage('无法确定数据库所属的连接');
       return;
     }
@@ -209,11 +200,6 @@ export class CaEditor {
     // 设置连接和数据库
     this.currentConnection = connectionNode;
     this.currentDatabase = database;
-    
-    console.log('[CaEditor] 直接设置数据库:', {
-      connection: this.currentConnection.label,
-      database: this.currentDatabase.label
-    });
     
     // 通知更新
     this.notifyDatabaseChanged();
