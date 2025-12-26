@@ -113,7 +113,7 @@ body {
 
 .layui-form-label {
   float: left;
-  width: 120px;
+  width: 100px; /* 统一label宽度 */
   padding: 9px 15px 9px 0;
   text-align: right;
   color: var(--vscode-foreground);
@@ -123,7 +123,7 @@ body {
 }
 
 .layui-input-block {
-  margin-left: 130px;
+  margin-left: 115px; /* 100px(label) + 15px(padding-right) */
   overflow: hidden; /* 创建BFC，避免被浮动元素覆盖 */
 }
 
@@ -234,11 +234,11 @@ body {
 
 /* 在网格布局中，保持label和输入框在同一行 */
 .field-group .layui-form-item .layui-form-label {
-  width: 80px; /* 在网格中使用较小的宽度 */
+  width: 100px; /* 统一使用100px宽度，保证所有label对齐 */
 }
 
 .field-group .layui-form-item .layui-input-block {
-  margin-left: 90px; /* 对应label宽度 + 10px间距 */
+  margin-left: 115px; /* 100px(label) + 15px(padding-right) */
 }
 
 /* 单列布局时不使用 grid */
@@ -308,7 +308,7 @@ body {
 .form-hint {
   color: var(--vscode-descriptionForeground);
   font-size: 12px;
-  margin: -10px 0 15px 130px;
+  margin: -10px 0 15px 115px; /* 100px(label) + 15px(padding-right) */
   line-height: 1.4;
   clear: both;
 }
@@ -417,11 +417,11 @@ body {
   }
 
   .layui-input-block {
-    margin-left: 110px;
+    margin-left: 115px; /* 100px(label) + 15px(padding-right) */
   }
 
   .form-hint {
-    margin-left: 110px;
+    margin-left: 115px;
   }
 }
 
