@@ -58,87 +58,12 @@ let currentEditItem = null;
 let currentEditType = null; // 'field' 或 'index'
 let dynamicForm = null;
 
-// 字段表单映射配置
-const fieldMapping = {
-  name: {
-    type: "text",
-    label: "字段名",
-    category: "base",
-    required: true,
-    placeholder: "字段名",
-  },
-  type: {
-    type: "select",
-    label: "数据类型",
-    category: "base",
-    required: true,
-    options: [
-      { value: "varchar", label: "VARCHAR" },
-      { value: "int", label: "INT" },
-      { value: "bigint", label: "BIGINT" },
-      { value: "text", label: "TEXT" },
-      { value: "datetime", label: "DATETIME" },
-      { value: "date", label: "DATE" },
-      { value: "decimal", label: "DECIMAL" },
-    ],
-  },
-  length: {
-    type: "number",
-    label: "长度",
-    category: "base",
-    placeholder: "字段长度（可选）",
-    hint: "部分类型需要指定长度，如 VARCHAR(255)",
-  },
-  defaultValue: {
-    type: "text",
-    label: "默认值",
-    category: "base",
-    placeholder: "默认值（可选）",
-  },
-  nullable: {
-    type: "switch",
-    label: "允许为空",
-    category: "base",
-    text: "是|否",
-  },
-};
+// ==================== 从全局配置获取字段映射 ====================
 
-// 索引表单映射配置
-const indexMapping = {
-  name: {
-    type: "text",
-    label: "索引名",
-    category: "base",
-    required: true,
-    placeholder: "索引名",
-  },
-  type: {
-    type: "select",
-    label: "索引类型",
-    category: "base",
-    required: true,
-    options: [
-      { value: "primary", label: "主键索引" },
-      { value: "unique", label: "唯一索引" },
-      { value: "normal", label: "普通索引" },
-      { value: "fulltext", label: "全文索引" },
-    ],
-  },
-  fields: {
-    type: "text",
-    label: "涉及字段",
-    category: "base",
-    required: true,
-    placeholder: "字段名，多个用逗号分隔",
-    hint: "例如: id, name 或单个字段 email",
-  },
-  unique: {
-    type: "switch",
-    label: "唯一约束",
-    category: "base",
-    text: "是|否",
-  },
-};
+// 获取全局字段配置
+const FieldConfig = window.FieldConfig;
+const fieldMapping = FieldConfig.tableField;
+const indexMapping = FieldConfig.index;
 
 // Layui 初始化
 layui.use(["element", "form", "layer"], function () {
