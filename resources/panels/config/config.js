@@ -69,17 +69,17 @@ layui.use(["form", "layer"], function () {
     const data = {
       type: "datasource",
       dbType: type,
-      name: $("#name").val().trim(),
-      host: $("#host").val().trim(),
-      port: $port.val()
-        ? parseInt($port.val(), 10)
+      name: $('[name="name"]').val().trim(),
+      host: $('[name="host"]').val().trim(),
+      port: $('[name="port"]').val()
+        ? parseInt($('[name="port"]').val(), 10)
         : defaultPorts[type] || null,
-      username: $("#user").val().trim(),
-      password: $("#password").val(),
+      username: $('[name="username"]').val().trim(),
+      password: $('[name="password"]').val(),
       database:
         type === "sqlite"
-          ? $("#sqlitePath").val().trim()
-          : $("#database").val().trim(),
+          ? $('[name="database"]').val().trim()
+          : $('[name="database"]').val().trim(),
     };
 
     return data;
@@ -238,6 +238,15 @@ layui.use(["form", "layer"], function () {
           isSuccess ? "success" : "error"
         );
         setButtonsDisabled(false);
+        break;
+      }
+      case "load": {
+        // 编辑模式：加载现有数据
+        if (message.data && message.data.rowData && message.data.rowData.length > 0) {
+          const rowData = message.data.rowData[0];
+          loadValues(rowData);
+          showStatus("数据加载成功", "success");
+        }
         break;
       }
       case "setValues": {

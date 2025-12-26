@@ -222,6 +222,15 @@ layui.use(["form", "layer"], function () {
         setButtonsDisabled(false);
         break;
       }
+      case "load": {
+        // 编辑模式：加载现有数据
+        if (message.data && message.data.rowData && message.data.rowData.length > 0) {
+          const rowData = message.data.rowData[0];
+          loadUserData(rowData);
+          showStatus("用户数据加载成功", "success");
+        }
+        break;
+      }
       case "loadUser": {
         loadUserData(message.data || {});
         break;
