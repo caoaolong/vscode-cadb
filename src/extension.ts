@@ -41,16 +41,11 @@ export function activate(context: vscode.ExtensionContext) {
   registerCodeLensCommands(sqlCodeLens);
 
   // SQL 编辑器（带数据库选择器）
-  const editor = new CaEditor(provider, context);
+  const editor = new CaEditor(provider);
   provider.setEditor(editor);
   const databaseSelector = registerEditorCommands(editor);
   context.subscriptions.push(editor);
   context.subscriptions.push(databaseSelector); // 注册数据库选择器
-  
-  // 恢复上次选择的数据库
-  editor.restoreLastSelection().catch((error) => {
-    console.error('[Extension] 恢复数据库选择失败:', error);
-  });
 
   // SQL 执行器需要 editor 引用
   sqlCodeLens.setEditor(editor);

@@ -8,11 +8,9 @@ export class CaEditor {
   private currentConnection: Datasource | null = null;
   public provider: DataSourceProvider;
   private onDatabaseChangedCallback?: () => void;
-  private context: vscode.ExtensionContext;
 
-  constructor(provider: DataSourceProvider, context: vscode.ExtensionContext) {
+  constructor(provider: DataSourceProvider) {
     this.provider = provider;
-    this.context = context;
   }
 
   /**
@@ -28,108 +26,6 @@ export class CaEditor {
   private notifyDatabaseChanged(): void {
     if (this.onDatabaseChangedCallback) {
       this.onDatabaseChangedCallback();
-    }
-    
-    // 持久化保存当前选择
-    this.saveCurrentSelection();
-  }
-
-  /**
-   * 持久化保存当前选择的连接和数据库
-   */
-  private async saveCurrentSelection(): Promise<void> {
-    try {
-      if (this.currentConnection && this.currentDatabase) {
-        await this.context.globalState.update('cadb.selectedDatabase', {
-          connectionLabel: this.currentConnection.label?.toString() || '',
-          databaseLabel: this.currentDatabase.label?.toString() || '',
-          timestamp: Date.now()
-        });
-        console.log('[CaEditor] 已保存数据库选择:', {
-          connection: this.currentConnection.label,
-          database: this.currentDatabase.label
-        });
-      } else {
-        // 清除保存的选择
-        await this.context.globalState.update('cadb.selectedDatabase', undefined);
-        console.log('[CaEditor] 已清除保存的数据库选择');
-      }
-    } catch (error) {
-      console.error('[CaEditor] 保存数据库选择失败:', error);
-    }
-  }
-
-  /**
-   * 恢复上次选择的数据库
-   */
-  public async restoreLastSelection(): Promise<boolean> {
-    try {
-      const saved = this.context.globalState.get<{
-        connectionLabel: string;
-        databaseLabel: string;
-        timestamp: number;
-      }>('cadb.selectedDatabase');
-
-      if (!saved) {
-        console.log('[CaEditor] 没有保存的数据库选择');
-        return false;
-      }
-
-      console.log('[CaEditor] 尝试恢复上次的数据库选择:', saved);
-
-      // 查找连接
-      const connection = this.provider.model.find(
-        (conn) => conn.name === saved.connectionLabel
-      );
-
-      if (!connection) {
-        console.warn('[CaEditor] 未找到保存的连接:', saved.connectionLabel);
-        await this.context.globalState.update('cadb.selectedDatabase', undefined);
-        return false;
-      }
-
-      const connectionNode = new Datasource(connection);
-      this.currentConnection = connectionNode;
-
-      // 获取数据库列表
-      const objects = await connectionNode.expand(this.provider.context);
-      const datasourceTypeNode = objects.find(
-        (obj) => obj.type === "datasourceType"
-      );
-
-      if (!datasourceTypeNode) {
-        console.warn('[CaEditor] 未找到数据库列表节点');
-        return false;
-      }
-
-      const databases = await datasourceTypeNode.expand(this.provider.context);
-      const database = databases.find(
-        (db) => db.label?.toString() === saved.databaseLabel
-      );
-
-      if (!database) {
-        console.warn('[CaEditor] 未找到保存的数据库:', saved.databaseLabel);
-        await this.context.globalState.update('cadb.selectedDatabase', undefined);
-        return false;
-      }
-
-      this.currentDatabase = database;
-      this.notifyDatabaseChanged();
-
-      console.log('[CaEditor] 成功恢复数据库选择:', {
-        connection: this.currentConnection.label,
-        database: this.currentDatabase.label
-      });
-
-      vscode.window.showInformationMessage(
-        `已恢复上次的数据库: ${this.currentConnection.label} / ${this.currentDatabase.label}`
-      );
-
-      return true;
-    } catch (error) {
-      console.error('[CaEditor] 恢复数据库选择失败:', error);
-      await this.context.globalState.update('cadb.selectedDatabase', undefined);
-      return false;
     }
   }
 

@@ -204,13 +204,10 @@ layui.use(["tabs", "layer"], function () {
           $tab.attr('lay-closable', 'false');
           $tab.find(".layui-tabs-close, .layui-tab-close").remove();
         } else {
-          // 取消固定：移除属性
+          // 取消固定：移除属性并添加关闭按钮
           $tab.removeAttr('lay-closable');
-          // 手动添加关闭按钮（如果不存在）
-          if ($tab.find(".layui-tabs-close").length === 0) {
-            const $close = $('<i class="layui-tabs-close layui-icon layui-icon-close"></i>');
-            $tab.append($close);
-          }
+          // 使用统一的方法添加关闭按钮并绑定事件
+          addCloseButton($tab, tabId);
         }
         break;
 
@@ -324,6 +321,9 @@ layui.use(["tabs", "layer"], function () {
           // 移除关闭按钮
           $headerItem.find(".layui-tabs-close, .layui-tab-close").remove();
           console.log('已设置标签为不可关闭');
+        } else {
+          // 可关闭标签：手动添加关闭按钮并绑定事件
+          addCloseButton($headerItem, tabId);
         }
 
         // 如果是固定标签，添加固定样式
@@ -342,6 +342,33 @@ layui.use(["tabs", "layer"], function () {
         $(`#${TABS_ID}`).removeClass("layui-hide-v");
       },
     });
+  }
+
+  /**
+   * 为标签添加关闭按钮并绑定点击事件
+   * @param {jQuery} $headerItem - 标签头部元素
+   * @param {string} tabId - 标签ID
+   */
+  function addCloseButton($headerItem, tabId) {
+    // 检查是否已存在关闭按钮
+    if ($headerItem.find(".layui-tabs-close").length > 0) {
+      console.log('关闭按钮已存在:', tabId);
+      return;
+    }
+
+    // 创建关闭按钮
+    const $close = $('<i class="layui-tabs-close layui-icon layui-icon-close"></i>');
+    
+    // 绑定点击事件
+    $close.on('click', function(e) {
+      e.stopPropagation(); // 阻止事件冒泡
+      console.log('点击关闭按钮:', tabId);
+      tabs.close(TABS_ID, tabId);
+    });
+
+    // 添加到标签头部
+    $headerItem.append($close);
+    console.log('已添加关闭按钮并绑定事件:', tabId);
   }
 
   /**
