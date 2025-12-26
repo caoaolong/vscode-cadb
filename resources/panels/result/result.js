@@ -29,6 +29,7 @@ layui.use(["tabs", "layer"], function () {
     // 初始化 tabs 容器
     tabs.set({
       elem: "#" + TABS_ID,
+      closable: true, // 启用关闭按钮
     });
 
     // 初始化自定义右键菜单
