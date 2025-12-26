@@ -108,6 +108,7 @@ body {
 /* Layui 表单适配 */
 .layui-form-item {
   margin-bottom: 18px;
+  overflow: hidden; /* 确保包含浮动元素 */
 }
 
 .layui-form-label {
@@ -118,10 +119,12 @@ body {
   color: var(--vscode-foreground);
   font-weight: 500;
   font-size: 14px;
+  line-height: 1.5;
 }
 
 .layui-input-block {
   margin-left: 130px;
+  overflow: hidden; /* 创建BFC，避免被浮动元素覆盖 */
 }
 
 .layui-input,
@@ -226,6 +229,16 @@ body {
 .field-group .layui-form-item {
   margin-bottom: 18px;
   min-width: 0; /* 防止内容溢出 */
+  overflow: hidden; /* 确保清除浮动 */
+}
+
+/* 在网格布局中，保持label和输入框在同一行 */
+.field-group .layui-form-item .layui-form-label {
+  width: 80px; /* 在网格中使用较小的宽度 */
+}
+
+.field-group .layui-form-item .layui-input-block {
+  margin-left: 90px; /* 对应label宽度 + 10px间距 */
 }
 
 /* 单列布局时不使用 grid */
@@ -240,9 +253,11 @@ body {
   content: "";
   display: block;
   clear: both;
-  height: 0;
+}
+
+/* 确保表单项包含浮动元素 */
+.layui-form-item {
   overflow: hidden;
-  visibility: hidden;
 }
 
 /* Layui 折叠面板适配 */
