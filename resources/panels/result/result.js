@@ -26,8 +26,13 @@ layui.use(["tabs", "layer"], function () {
    * 初始化 Tabs
    */
   function initTabs() {
-    // 初始化 tabs 容器
+    // 方法 1: 使用 tabs.set() 设置全局默认值
     tabs.set({
+      closable: true, // 全局启用关闭按钮
+    });
+    
+    // 方法 2: 显式渲染 tabs 实例（推荐）
+    tabs.render({
       elem: "#" + TABS_ID,
       closable: true, // 启用关闭按钮
     });
@@ -188,11 +193,11 @@ layui.use(["tabs", "layer"], function () {
         $tab.toggleClass("tab-pinned");
         const newPinned = $tab.hasClass("tab-pinned");
 
-        // 更新关闭按钮显示
+        // 更新关闭按钮显示（兼容新旧类名）
         if (newPinned) {
-          $tab.find(".layui-tabs-close").hide();
+          $tab.find(".layui-tabs-close, .layui-tab-close").hide();
         } else {
-          $tab.find(".layui-tabs-close").show();
+          $tab.find(".layui-tabs-close, .layui-tab-close").show();
         }
         break;
 
@@ -286,20 +291,42 @@ layui.use(["tabs", "layer"], function () {
       pinned = false,
     } = options;
     const tabId = id || `tab-${Date.now()}`;
-    // 使用 Layui 标准 API 添加标签
+    
+    // 使用 Layui 标准 API 添加标签（注意：tabs.add 不支持 closable 参数）
     tabs.add(TABS_ID, {
       id: tabId,
       title: icon ? `<i class="layui-icon">${icon}</i> ${title}` : title,
       content: content,
-      closable: closable && !pinned,
       done: function (data) {
         // 标签添加完成后的回调
         const $headerItem = data.headerItem;
 
-        // 如果是固定标签，添加固定样式
-        if (pinned) {
+        // 调试：检查关闭按钮是否存在
+        console.log('标签添加完成:', tabId);
+        console.log('关闭按钮元素:', $headerItem.find(".layui-tabs-close, .layui-tab-close").length);
+        console.log('HTML 结构:', $headerItem.html());
+
+        // 如果不可关闭或者是固定标签，隐藏关闭按钮
+        if (!closable || pinned) {
           $headerItem.addClass("tab-pinned");
-          $headerItem.find(".layui-tabs-close").hide();
+          $headerItem.find(".layui-tabs-close, .layui-tab-close").hide();
+        } else {
+          // 确保关闭按钮显示
+          const $closeBtn = $headerItem.find(".layui-tabs-close, .layui-tab-close");
+          if ($closeBtn.length > 0) {
+            $closeBtn.show().css('display', 'inline-flex');
+            console.log('关闭按钮已显示');
+          } else {
+            console.warn('警告：未找到关闭按钮，尝试手动创建');
+            // 手动创建关闭按钮
+            const $close = $('<i class="layui-tabs-close layui-icon layui-icon-close"></i>');
+            $close.on('click', function(e) {
+              e.stopPropagation();
+              tabs.close(TABS_ID, tabId);
+            });
+            $headerItem.append($close);
+            console.log('已手动添加关闭按钮并绑定事件');
+          }
         }
 
         // 为新标签绑定右键菜单事件
