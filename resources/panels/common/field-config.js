@@ -3,9 +3,12 @@
  * 定义所有表单字段的类型、标签、验证规则等
  */
 
-// ==================== 数据库连接配置字段 ====================
+(function() {
+  'use strict';
 
-const datasourceFieldMapping = {
+  // ==================== 数据库连接配置字段 ====================
+
+  const datasourceFieldMapping = {
   // 基础字段
   dbType: {
     type: "select",
@@ -399,33 +402,34 @@ const indexFieldMapping = {
   },
 };
 
-// ==================== 导出配置 ====================
+  // ==================== 导出配置 ====================
 
-// 如果是在浏览器环境中（通过 script 标签引入）
-if (typeof window !== 'undefined') {
-  window.FieldConfig = {
-    datasource: datasourceFieldMapping,
-    user: userFieldMapping,
-    tableField: tableFieldMapping,
-    index: indexFieldMapping,
-    privilegeFields: privilegeFields,
-    commonPrivileges: commonPrivileges,
-    advancePrivileges: advancePrivileges,
-    privilegeLabels: privilegeLabels,
-  };
-}
+  // 如果是在浏览器环境中（通过 script 标签引入）
+  if (typeof window !== 'undefined') {
+    window.FieldConfig = {
+      datasource: datasourceFieldMapping,
+      user: userFieldMapping,
+      tableField: tableFieldMapping,
+      index: indexFieldMapping,
+      privilegeFields: privilegeFields,
+      commonPrivileges: commonPrivileges,
+      advancePrivileges: advancePrivileges,
+      privilegeLabels: privilegeLabels,
+    };
+  }
 
-// 如果是在 Node.js 环境中（通过 require 或 import）
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
-    datasource: datasourceFieldMapping,
-    user: userFieldMapping,
-    tableField: tableFieldMapping,
-    index: indexFieldMapping,
-    privilegeFields: privilegeFields,
-    commonPrivileges: commonPrivileges,
-    advancePrivileges: advancePrivileges,
-    privilegeLabels: privilegeLabels,
-  };
-}
+  // 如果是在 Node.js 环境中（通过 require 或 import）
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+      datasource: datasourceFieldMapping,
+      user: userFieldMapping,
+      tableField: tableFieldMapping,
+      index: indexFieldMapping,
+      privilegeFields: privilegeFields,
+      commonPrivileges: commonPrivileges,
+      advancePrivileges: advancePrivileges,
+      privilegeLabels: privilegeLabels,
+    };
+  }
+})();
 
