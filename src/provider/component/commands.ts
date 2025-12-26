@@ -254,6 +254,31 @@ export function registerDatasourceCommands(
       );
     }
   });
+
+  // 注册使用数据库命令（从 TreeView collection 节点）
+  vscode.commands.registerCommand("cadb.collection.useDatabase", (item: Datasource) => {
+    try {
+      console.log('[UseDatabase] 使用数据库:', item.label);
+      
+      // 确保 item 是 collection 节点
+      if (item.type !== 'collection') {
+        vscode.window.showWarningMessage('请在数据库节点上执行此操作');
+        return;
+      }
+      
+      // 通过 editor 设置当前数据库
+      if (provider.editor) {
+        provider.editor.setCurrentDatabase(item);
+      } else {
+        vscode.window.showErrorMessage('编辑器未初始化');
+      }
+    } catch (error) {
+      console.error('[UseDatabase] 错误:', error);
+      vscode.window.showErrorMessage(
+        `切换数据库失败: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
 }
 
 export function registerDatasourceItemCommands(provider: DataSourceProvider) {

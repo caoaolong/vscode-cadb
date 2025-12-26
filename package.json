@@ -75,6 +75,10 @@
       {
         "command": "cadb.datasource.selectDatabases",
         "title": "选择数据库"
+      },
+      {
+        "command": "cadb.collection.useDatabase",
+        "title": "使用数据库"
       }
     ],
     "menus": {
@@ -109,6 +113,11 @@
         {
           "command": "cadb.datasource.selectDatabases",
           "when": "view == datasource && viewItem == datasourceType",
+          "group": "context"
+        },
+        {
+          "command": "cadb.collection.useDatabase",
+          "when": "view == datasource && viewItem == collection",
           "group": "context"
         }
       ]

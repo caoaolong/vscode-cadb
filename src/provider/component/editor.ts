@@ -188,6 +188,43 @@ export class CaEditor {
   }
 
   /**
+   * 直接设置当前数据库（从 TreeView 中选择）
+   * @param database - 数据库 Datasource 对象（type: collection）
+   */
+  public setCurrentDatabase(database: Datasource): void {
+    // 查找数据库的连接节点
+    // 结构: datasource -> datasourceType -> collection
+    let connectionNode: Datasource | undefined = undefined;
+    
+    if (database.parent?.type === 'datasourceType' && database.parent?.parent?.type === 'datasource') {
+      connectionNode = database.parent.parent;
+    }
+    
+    if (!connectionNode) {
+      console.error('[CaEditor] 无法找到连接节点');
+      vscode.window.showErrorMessage('无法确定数据库所属的连接');
+      return;
+    }
+    
+    // 设置连接和数据库
+    this.currentConnection = connectionNode;
+    this.currentDatabase = database;
+    
+    console.log('[CaEditor] 直接设置数据库:', {
+      connection: this.currentConnection.label,
+      database: this.currentDatabase.label
+    });
+    
+    // 通知更新
+    this.notifyDatabaseChanged();
+    
+    // 显示成功消息
+    vscode.window.showInformationMessage(
+      `已切换到数据库: ${this.currentConnection.label} / ${this.currentDatabase.label}`
+    );
+  }
+
+  /**
    * 打开新的 SQL 编辑器
    */
   public async open(dir: vscode.Uri) {

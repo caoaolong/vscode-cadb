@@ -195,10 +195,24 @@ export class CaCompletionItemProvider implements vscode.CompletionItemProvider {
           db.label?.toString() || "",
           vscode.CompletionItemKind.Module
         );
-        item.detail = "数据库";
-        item.documentation = new vscode.MarkdownString(
-          db.tooltip?.toString() || ""
-        );
+        // 右侧显示类型标签
+        const charset = db.description || '';
+        item.detail = charset ? `[数据库] ${charset}` : '[数据库]';
+        
+        // 悬停文档
+        const docs = [];
+        docs.push(`**${db.label}**`);
+        docs.push('');
+        docs.push('📦 类型: 数据库');
+        if (charset) {
+          docs.push(`🔤 字符集: ${charset}`);
+        }
+        if (db.tooltip) {
+          docs.push('');
+          docs.push(db.tooltip.toString());
+        }
+        item.documentation = new vscode.MarkdownString(docs.join('\n'));
+        
         return item;
       });
 
@@ -239,10 +253,21 @@ export class CaCompletionItemProvider implements vscode.CompletionItemProvider {
           table.label?.toString() || "",
           vscode.CompletionItemKind.Class
         );
-        item.detail = "表";
-        item.documentation = new vscode.MarkdownString(
-          `${table.description || ""}`
-        );
+        // 右侧显示类型标签
+        const tableInfo = table.description?.toString() || '';
+        item.detail = tableInfo ? `[表] ${tableInfo}` : '[表]';
+        
+        // 悬停文档
+        const docs = [];
+        docs.push(`**${table.label}**`);
+        docs.push('');
+        docs.push('📋 类型: 数据表');
+        docs.push(`🗄️ 数据库: ${database.label}`);
+        if (tableInfo) {
+          docs.push(`ℹ️ 信息: ${tableInfo}`);
+        }
+        item.documentation = new vscode.MarkdownString(docs.join('\n'));
+        
         return item;
       });
 
@@ -288,12 +313,23 @@ export class CaCompletionItemProvider implements vscode.CompletionItemProvider {
           field.label?.toString() || "",
           vscode.CompletionItemKind.Field
         );
-        const descStr =
-          typeof field.description === "string" ? field.description : "字段";
-        item.detail = descStr;
-        item.documentation = new vscode.MarkdownString(
-          `表: ${tableName}\n类型: ${descStr}`
-        );
+        // 右侧显示类型标签
+        const fieldType =
+          typeof field.description === "string" ? field.description : "";
+        item.detail = fieldType ? `[字段] ${fieldType}` : '[字段]';
+        
+        // 悬停文档
+        const docs = [];
+        docs.push(`**${field.label}**`);
+        docs.push('');
+        docs.push('🔹 类型: 字段');
+        docs.push(`📋 所属表: ${tableName}`);
+        docs.push(`🗄️ 数据库: ${database.label}`);
+        if (fieldType) {
+          docs.push(`📊 数据类型: ${fieldType}`);
+        }
+        item.documentation = new vscode.MarkdownString(docs.join('\n'));
+        
         return item;
       });
 
@@ -452,9 +488,47 @@ export class CaCompletionItemProvider implements vscode.CompletionItemProvider {
         keyword,
         vscode.CompletionItemKind.Keyword
       );
-      item.detail = "SQL 关键字";
+      // 右侧显示类型标签
+      item.detail = "[关键字]";
+      
+      // 悬停文档
+      const category = this.getKeywordCategory(keyword);
+      const docs = [];
+      docs.push(`**${keyword}**`);
+      docs.push('');
+      docs.push(`⌨️ 类型: SQL 关键字 (${category})`);
+      item.documentation = new vscode.MarkdownString(docs.join('\n'));
+      
       return item;
     });
+  }
+
+  /**
+   * 获取关键字分类
+   */
+  private getKeywordCategory(keyword: string): string {
+    const dml = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'FROM', 'WHERE', 'JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'INNER JOIN', 'ON', 'AND', 'OR', 'NOT', 'IN', 'LIKE', 'BETWEEN', 'ORDER BY', 'GROUP BY', 'HAVING', 'LIMIT', 'OFFSET', 'AS', 'DISTINCT', 'ALL'];
+    const ddl = ['CREATE', 'ALTER', 'DROP', 'TRUNCATE', 'TABLE', 'DATABASE', 'INDEX', 'VIEW'];
+    const dataTypes = ['INT', 'VARCHAR', 'TEXT', 'DATE', 'DATETIME', 'TIMESTAMP', 'FLOAT', 'DOUBLE', 'DECIMAL', 'BOOLEAN'];
+    const constraints = ['PRIMARY KEY', 'FOREIGN KEY', 'UNIQUE', 'NOT NULL', 'DEFAULT', 'AUTO_INCREMENT', 'CHECK'];
+    const functions = ['COUNT', 'SUM', 'AVG', 'MAX', 'MIN'];
+    
+    if (dml.includes(keyword)) {
+      return 'DML';
+    }
+    if (ddl.includes(keyword)) {
+      return 'DDL';
+    }
+    if (dataTypes.includes(keyword)) {
+      return '数据类型';
+    }
+    if (constraints.includes(keyword)) {
+      return '约束';
+    }
+    if (functions.includes(keyword)) {
+      return '函数';
+    }
+    return '其他';
   }
 
   /**
