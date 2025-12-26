@@ -550,7 +550,7 @@ export class CaCompletionItemProvider implements vscode.CompletionItemProvider {
       items,
       timestamp: Date.now(),
     });
-  }
+	}
 
   /**
    * 清除缓存

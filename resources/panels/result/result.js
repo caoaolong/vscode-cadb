@@ -26,18 +26,9 @@ layui.use(["tabs", "layer"], function () {
    * 初始化 Tabs
    */
   function initTabs() {
-    // 方法 1: 使用 tabs.set() 设置全局默认值
-    tabs.set({
-      closable: true, // 全局启用关闭按钮
-    });
-    
-    // 方法 2: 显式渲染 tabs 实例（推荐）
-    tabs.render({
-      elem: "#" + TABS_ID,
-      closable: true, // 启用关闭按钮
-    });
-
-    // 初始化自定义右键菜单
+    // 注意：不需要手动调用 tabs.render()
+    // Layui 会根据 HTML 中的 lay-options 自动渲染
+    // 只需要初始化自定义右键菜单即可
     initContextMenu();
   }
 
@@ -193,11 +184,19 @@ layui.use(["tabs", "layer"], function () {
         $tab.toggleClass("tab-pinned");
         const newPinned = $tab.hasClass("tab-pinned");
 
-        // 更新关闭按钮显示（兼容新旧类名）
+        // 参考官方文档，使用 lay-closable 属性控制关闭按钮
         if (newPinned) {
-          $tab.find(".layui-tabs-close, .layui-tab-close").hide();
+          // 固定：设置为不可关闭
+          $tab.attr('lay-closable', 'false');
+          $tab.find(".layui-tabs-close, .layui-tab-close").remove();
         } else {
-          $tab.find(".layui-tabs-close, .layui-tab-close").show();
+          // 取消固定：移除属性
+          $tab.removeAttr('lay-closable');
+          // 手动添加关闭按钮（如果不存在）
+          if ($tab.find(".layui-tabs-close").length === 0) {
+            const $close = $('<i class="layui-tabs-close layui-icon layui-icon-close"></i>');
+            $tab.append($close);
+          }
         }
         break;
 
@@ -292,7 +291,8 @@ layui.use(["tabs", "layer"], function () {
     } = options;
     const tabId = id || `tab-${Date.now()}`;
     
-    // 使用 Layui 标准 API 添加标签（注意：tabs.add 不支持 closable 参数）
+    // 使用 Layui 标准 API 添加标签
+    // 参考官方文档：https://layui.dev/docs/2/tabs/#add
     tabs.add(TABS_ID, {
       id: tabId,
       title: icon ? `<i class="layui-icon">${icon}</i> ${title}` : title,
@@ -301,32 +301,20 @@ layui.use(["tabs", "layer"], function () {
         // 标签添加完成后的回调
         const $headerItem = data.headerItem;
 
-        // 调试：检查关闭按钮是否存在
         console.log('标签添加完成:', tabId);
-        console.log('关闭按钮元素:', $headerItem.find(".layui-tabs-close, .layui-tab-close").length);
-        console.log('HTML 结构:', $headerItem.html());
+        console.log('标签元素:', $headerItem[0]);
 
-        // 如果不可关闭或者是固定标签，隐藏关闭按钮
-        if (!closable || pinned) {
+        // 如果不可关闭，设置 lay-closable="false" 属性（参考官方示例）
+        if (!closable) {
+          $headerItem.attr('lay-closable', 'false');
+          // 移除关闭按钮
+          $headerItem.find(".layui-tabs-close, .layui-tab-close").remove();
+          console.log('已设置标签为不可关闭');
+        }
+
+        // 如果是固定标签，添加固定样式
+        if (pinned) {
           $headerItem.addClass("tab-pinned");
-          $headerItem.find(".layui-tabs-close, .layui-tab-close").hide();
-        } else {
-          // 确保关闭按钮显示
-          const $closeBtn = $headerItem.find(".layui-tabs-close, .layui-tab-close");
-          if ($closeBtn.length > 0) {
-            $closeBtn.show().css('display', 'inline-flex');
-            console.log('关闭按钮已显示');
-          } else {
-            console.warn('警告：未找到关闭按钮，尝试手动创建');
-            // 手动创建关闭按钮
-            const $close = $('<i class="layui-tabs-close layui-icon layui-icon-close"></i>');
-            $close.on('click', function(e) {
-              e.stopPropagation();
-              tabs.close(TABS_ID, tabId);
-            });
-            $headerItem.append($close);
-            console.log('已手动添加关闭按钮并绑定事件');
-          }
         }
 
         // 为新标签绑定右键菜单事件
@@ -547,8 +535,49 @@ layui.use(["tabs", "layer"], function () {
     }
   });
 
+  /**
+   * 初始化欢迎页面
+   */
+  function initWelcomePage() {
+    const welcomeContent = `
+      <div class="welcome-page">
+        <div class="welcome-content">
+          <i class="layui-icon layui-icon-search" style="font-size: 64px; color: var(--vscode-foreground); opacity: 0.3; margin-bottom: 20px;"></i>
+          <h2 style="color: var(--vscode-foreground); font-size: 18px; font-weight: 500; margin-bottom: 12px;">暂无查询结果</h2>
+          <p style="color: var(--vscode-descriptionForeground, #888); font-size: 13px; margin-bottom: 8px;">在 SQL 编辑器中执行查询语句，结果将显示在这里</p>
+          <div style="margin-top: 24px; color: var(--vscode-descriptionForeground, #888); font-size: 12px;">
+            <div style="margin-bottom: 8px;">
+              <i class="layui-icon layui-icon-tips" style="font-size: 14px;"></i>
+              <span>提示：使用 <code style="background: var(--vscode-input-background); padding: 2px 6px; border-radius: 3px;">Ctrl+Enter</code> 或点击代码上方的 <strong>▷ Run</strong> 按钮执行 SQL</span>
+            </div>
+            <div style="margin-bottom: 8px;">
+              <i class="layui-icon layui-icon-star" style="font-size: 14px;"></i>
+              <span>右键点击标签页可以固定结果</span>
+            </div>
+            <div>
+              <i class="layui-icon layui-icon-rate" style="font-size: 14px;"></i>
+              <span>固定的结果在新查询时不会被清除</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    addResultTab({
+      id: "welcome",
+      title: "欢迎",
+      content: welcomeContent,
+      icon: "&#xe68e;",
+      closable: false,
+      pinned: true,
+    });
+  }
+
   // 初始化
   initTabs();
+  
+  // 显示欢迎页面
+  initWelcomePage();
 
   // 通知 VSCode 页面已准备好
   if (vscode) {
