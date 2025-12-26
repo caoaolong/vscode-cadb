@@ -151,22 +151,36 @@ class DynamicForm {
    */
   generateFieldsHtml(fields) {
     let html = "";
-    const fieldCount = fields.length;
-
-    // 根据字段数量决定布局：少于4个用单列，否则用双列
-    const useGrid = fieldCount >= 4;
-
-    if (useGrid) {
-      html += '<div class="field-group">';
-    }
-
+    
+    // 分离带 hint 的字段和普通字段
+    const fieldsWithHint = [];
+    const normalFields = [];
+    
     fields.forEach((field) => {
+      if (field.config.hint) {
+        fieldsWithHint.push(field);
+      } else {
+        normalFields.push(field);
+      }
+    });
+    
+    // 普通字段使用网格布局（如果数量 >= 4）
+    if (normalFields.length >= 4) {
+      html += '<div class="field-group">';
+      normalFields.forEach((field) => {
+        html += this.generateFieldHtml(field.name, field.config);
+      });
+      html += "</div>";
+    } else {
+      normalFields.forEach((field) => {
+        html += this.generateFieldHtml(field.name, field.config);
+      });
+    }
+    
+    // 带 hint 的字段单独显示（不使用网格）
+    fieldsWithHint.forEach((field) => {
       html += this.generateFieldHtml(field.name, field.config);
     });
-
-    if (useGrid) {
-      html += "</div>";
-    }
 
     return html;
   }
@@ -249,11 +263,18 @@ class DynamicForm {
     `;
 
     if (config.options && Array.isArray(config.options)) {
+      // 如果没有选项，添加默认提示
+      if (config.options.length === 0) {
+        html += `<option value="">请选择</option>`;
+      }
+      
       config.options.forEach((option) => {
         const value = typeof option === "object" ? option.value : option;
         const label = typeof option === "object" ? option.label : option;
         html += `<option value="${value}">${label}</option>`;
       });
+    } else {
+      html += `<option value="">请选择</option>`;
     }
 
     html += `
