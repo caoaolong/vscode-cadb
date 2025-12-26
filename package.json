@@ -71,6 +71,10 @@
           "light": "resources/edit-light.svg",
           "dark": "resources/edit-dark.svg"
         }
+      },
+      {
+        "command": "cadb.datasource.selectDatabases",
+        "title": "选择数据库"
       }
     ],
     "menus": {
@@ -101,6 +105,11 @@
           "command": "cadb.datasource.add",
           "when": "view == datasource && viewItem =~ /Type$/",
           "group": "inline"
+        },
+        {
+          "command": "cadb.datasource.selectDatabases",
+          "when": "view == datasource && viewItem == datasourceType",
+          "group": "context"
         }
       ]
     }

@@ -195,15 +195,11 @@ layui.use(["tabs", "layer"], function () {
         } else {
           $tab.find(".layui-tabs-close").show();
         }
-
-        layer.msg(newPinned ? "已固定" : "已取消固定", { icon: 1, time: 1000 });
         break;
 
       case "close":
         if (!isPinned) {
           tabs.close(TABS_ID, tabId);
-        } else {
-          layer.msg("固定的标签无法关闭", { icon: 2, time: 1500 });
         }
         break;
 
@@ -245,10 +241,6 @@ layui.use(["tabs", "layer"], function () {
       tabs.close(TABS_ID, tabId);
       closedCount++;
     });
-
-    if (closedCount > 0) {
-      layer.msg(`已关闭 ${closedCount} 个标签`, { icon: 1, time: 1500 });
-    }
   }
 
   /**
@@ -282,16 +274,6 @@ layui.use(["tabs", "layer"], function () {
       tabs.close(TABS_ID, tabId);
       closedCount++;
     });
-
-    console.log('[Result] 已关闭标签数:', closedCount);
-
-    if (showMessage) {
-      if (closedCount > 0) {
-        layer.msg(`已关闭 ${closedCount} 个标签`, { icon: 1, time: 1500 });
-      } else {
-        layer.msg("没有可关闭的标签", { icon: 0, time: 1500 });
-      }
-    }
   }
 
   /**
@@ -366,7 +348,6 @@ layui.use(["tabs", "layer"], function () {
 
     // 检查是否固定
     if ($tab.hasClass("tab-pinned")) {
-      layer.msg("固定的标签无法关闭", { icon: 2, time: 1500 });
       return;
     }
 

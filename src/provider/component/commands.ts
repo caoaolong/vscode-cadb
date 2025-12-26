@@ -165,6 +165,95 @@ export function registerDatasourceCommands(
     provider.createChildren(item as Datasource, children);
     treeView.reveal(item as Datasource, { expand: true });
   });
+  
+  // 注册选择数据库命令
+  vscode.commands.registerCommand("cadb.datasource.selectDatabases", async (item: Datasource) => {
+    try {
+      console.log('[SelectDatabases] 开始选择数据库:', item.label);
+      
+      // 确保 item 是 datasourceType 节点
+      if (item.type !== 'datasourceType') {
+        vscode.window.showWarningMessage('请在数据库列表节点上执行此操作');
+        return;
+      }
+      
+      // 获取父节点（连接节点）
+      const connectionNode = item.parent;
+      if (!connectionNode || !connectionNode.label) {
+        vscode.window.showWarningMessage('无法找到连接信息');
+        return;
+      }
+      
+      const connectionName = connectionNode.label.toString();
+      console.log('[SelectDatabases] 连接名称:', connectionName);
+      
+      // 显示加载提示
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: "正在加载数据库列表...",
+          cancellable: false
+        },
+        async () => {
+          // 获取所有数据库
+          const allDatabases = await item.expand(provider.context);
+          
+          if (allDatabases.length === 0) {
+            vscode.window.showWarningMessage('该连接没有可用的数据库');
+            return;
+          }
+          
+          console.log('[SelectDatabases] 数据库总数:', allDatabases.length);
+          
+          // 获取当前已选择的数据库
+          const currentSelected = provider.getSelectedDatabases(connectionName);
+          console.log('[SelectDatabases] 当前已选择:', currentSelected);
+          
+          // 创建 QuickPick 项
+          interface DatabaseQuickPickItem extends vscode.QuickPickItem {
+            database: string;
+          }
+          
+          const quickPickItems: DatabaseQuickPickItem[] = allDatabases.map(db => ({
+            label: db.label?.toString() || '',
+            description: db.description || '',
+            database: db.label?.toString() || '',
+            picked: currentSelected.includes(db.label?.toString() || '')
+          }));
+          
+          // 显示多选 QuickPick
+          const selected = await vscode.window.showQuickPick(quickPickItems, {
+            placeHolder: `选择要显示的数据库（当前连接: ${connectionName}）`,
+            canPickMany: true,
+            matchOnDescription: true
+          });
+          
+          if (selected) {
+            const selectedDbs = selected.map(item => item.database);
+            console.log('[SelectDatabases] 用户选择:', selectedDbs);
+            
+            // 保存选择
+            provider.setSelectedDatabases(connectionName, selectedDbs);
+            
+            // 清空 datasourceType 节点的子节点缓存，强制重新加载
+            item.children = [];
+            
+            // 刷新 TreeView
+            provider.refresh();
+            
+            vscode.window.showInformationMessage(
+              `已选择 ${selectedDbs.length} 个数据库${selectedDbs.length === 0 ? '（将显示全部）' : ''}`
+            );
+          }
+        }
+      );
+    } catch (error) {
+      console.error('[SelectDatabases] 错误:', error);
+      vscode.window.showErrorMessage(
+        `选择数据库失败: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
 }
 
 export function registerDatasourceItemCommands(provider: DataSourceProvider) {

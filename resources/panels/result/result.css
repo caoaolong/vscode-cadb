@@ -180,7 +180,7 @@ body {
   border-radius: 3px;
   background: transparent !important;
   color: var(--vscode-fg) !important;
-  opacity: 0.7;
+  opacity: 0.6;
   font-size: 12px !important;
   margin-left: 4px;
   flex-shrink: 0;
@@ -188,35 +188,10 @@ body {
   cursor: pointer;
 }
 
+/* 关闭按钮悬停效果 */
 .layui-tab-close:hover,
 .layui-tabs-close:hover {
   background: rgba(255, 255, 255, 0.1) !important;
-  opacity: 1;
-}
-
-/* 默认隐藏关闭按钮，悬停时显示 */
-.layui-tab-title li .layui-tab-close,
-.layui-tab-title li .layui-tabs-close,
-.layui-tabs-header>li .layui-tab-close,
-.layui-tabs-header>li .layui-tabs-close {
-  opacity: 0;
-}
-
-/* 悬停或激活时显示关闭按钮 */
-.layui-tab-title li:hover .layui-tab-close,
-.layui-tab-title li:hover .layui-tabs-close,
-.layui-tab-title li.layui-this .layui-tab-close,
-.layui-tab-title li.layui-this .layui-tabs-close,
-.layui-tabs-header>li:hover .layui-tab-close,
-.layui-tabs-header>li:hover .layui-tabs-close,
-.layui-tabs-header>li.layui-this .layui-tab-close,
-.layui-tabs-header>li.layui-this .layui-tabs-close {
-  opacity: 0.7;
-}
-
-/* 关闭按钮悬停时完全显示 */
-.layui-tab-close:hover,
-.layui-tabs-close:hover {
   opacity: 1 !important;
 }
 
