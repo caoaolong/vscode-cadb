@@ -17,6 +17,7 @@
       rel="stylesheet"
       href="{{node-resources-uri}}/layui/dist/css/layui.css"
     />
+    <link rel="stylesheet" href="{{resources-uri}}/common/form.css" />
     <link rel="stylesheet" href="{{resources-uri}}/edit/edit.css" />
   </head>
   <body>
@@ -45,12 +46,15 @@
 
       <!-- 右侧面板 -->
       <div class="right-panel">
-        <div class="form-container">
-          <!-- 动态表单将在这里显示 -->
-        </div>
+        <!-- 动态表单将在这里生成 -->
+        <div id="formContainer"></div>
       </div>
     </div>
 
+    <script
+      nonce="{{resource-nonce}}"
+      src="{{resources-uri}}/common/form.js"
+    ></script>
     <script
       nonce="{{resource-nonce}}"
       src="{{resources-uri}}/edit/edit.js"

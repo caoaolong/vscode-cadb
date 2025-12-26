@@ -1,0 +1,52 @@
+/* 统一配置页面特殊样式 */
+
+/* 权限复选框网格布局（用于用户配置） */
+.permission-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px 15px;
+  margin: 15px 0;
+}
+
+.permission-item {
+  margin: 0 !important;
+}
+
+.permission-item input[type="checkbox"] {
+  margin: 0;
+}
+
+/* 小标题样式 */
+.section-title-small {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+  margin: 20px 0 10px 0;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--vscode-border);
+}
+
+/* 测试按钮特殊样式 */
+.layui-btn-test {
+  background-color: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border: 1px solid var(--vscode-border);
+}
+
+.layui-btn-test:hover {
+  background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .permission-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .permission-grid {
+    grid-template-columns: 1fr;
+  }
+}
+

@@ -1,7 +1,11 @@
 /**
  * Edit 页面 - 数据库结构编辑视图
  * 用于对数据库、表、字段、索引等进行结构修改
+ * 使用动态表单工具类
  */
+
+// VSCode API
+const vscode = acquireVsCodeApi();
 
 // 模拟数据
 const mockData = {
@@ -36,14 +40,14 @@ const mockData = {
       id: "index-primary",
       name: "PRIMARY",
       type: "primary",
-      fields: ["id"],
+      fields: "id",
       unique: true,
     },
     {
       id: "index-unique-email",
       name: "unique_email",
       type: "unique",
-      fields: ["email"],
+      fields: "email",
       unique: true,
     },
   ],
@@ -52,20 +56,94 @@ const mockData = {
 // 当前编辑的项
 let currentEditItem = null;
 let currentEditType = null; // 'field' 或 'index'
+let dynamicForm = null;
 
-// 页面初始化
+// 字段表单映射配置
+const fieldMapping = {
+  name: {
+    type: "text",
+    label: "字段名",
+    category: "base",
+    required: true,
+    placeholder: "字段名",
+  },
+  type: {
+    type: "select",
+    label: "数据类型",
+    category: "base",
+    required: true,
+    options: [
+      { value: "varchar", label: "VARCHAR" },
+      { value: "int", label: "INT" },
+      { value: "bigint", label: "BIGINT" },
+      { value: "text", label: "TEXT" },
+      { value: "datetime", label: "DATETIME" },
+      { value: "date", label: "DATE" },
+      { value: "decimal", label: "DECIMAL" },
+    ],
+  },
+  length: {
+    type: "number",
+    label: "长度",
+    category: "base",
+    placeholder: "字段长度（可选）",
+    hint: "部分类型需要指定长度，如 VARCHAR(255)",
+  },
+  defaultValue: {
+    type: "text",
+    label: "默认值",
+    category: "base",
+    placeholder: "默认值（可选）",
+  },
+  nullable: {
+    type: "switch",
+    label: "允许为空",
+    category: "base",
+    text: "是|否",
+  },
+};
+
+// 索引表单映射配置
+const indexMapping = {
+  name: {
+    type: "text",
+    label: "索引名",
+    category: "base",
+    required: true,
+    placeholder: "索引名",
+  },
+  type: {
+    type: "select",
+    label: "索引类型",
+    category: "base",
+    required: true,
+    options: [
+      { value: "primary", label: "主键索引" },
+      { value: "unique", label: "唯一索引" },
+      { value: "normal", label: "普通索引" },
+      { value: "fulltext", label: "全文索引" },
+    ],
+  },
+  fields: {
+    type: "text",
+    label: "涉及字段",
+    category: "base",
+    required: true,
+    placeholder: "字段名，多个用逗号分隔",
+    hint: "例如: id, name 或单个字段 email",
+  },
+  unique: {
+    type: "switch",
+    label: "唯一约束",
+    category: "base",
+    text: "是|否",
+  },
+};
+
+// Layui 初始化
 layui.use(["element", "form", "layer"], function () {
   const element = layui.element;
-  const form = layui.form;
   const layer = layui.layer;
-
-  // 获取 VSCode API
-  let vscode = null;
-  if (window.vscode) {
-    vscode = window.vscode;
-  } else {
-    vscode = typeof acquireVsCodeApi === "function" ? acquireVsCodeApi() : null;
-  }
 
   /**
    * 渲染字段列表
@@ -112,102 +190,19 @@ layui.use(["element", "form", "layer"], function () {
     currentEditItem = field;
     currentEditType = "field";
 
-    const formHtml = `
-      <form class="layui-form" lay-filter="field-form">
-        <div class="layui-form-item">
-          <label class="layui-form-label">字段名</label>
-          <div class="layui-input-block">
-            <input type="text" name="name" value="${
-              field.name
-            }" placeholder="字段名" 
-                   class="layui-input" required lay-verify="required">
-          </div>
-        </div>
-
-        <div class="layui-form-item">
-          <label class="layui-form-label">数据类型</label>
-          <div class="layui-input-block">
-            <select name="type" lay-verify="required">
-              <option value="varchar" ${
-                field.type === "varchar" ? "selected" : ""
-              }>VARCHAR</option>
-              <option value="int" ${
-                field.type === "int" ? "selected" : ""
-              }>INT</option>
-              <option value="bigint" ${
-                field.type === "bigint" ? "selected" : ""
-              }>BIGINT</option>
-              <option value="text" ${
-                field.type === "text" ? "selected" : ""
-              }>TEXT</option>
-              <option value="datetime" ${
-                field.type === "datetime" ? "selected" : ""
-              }>DATETIME</option>
-              <option value="date" ${
-                field.type === "date" ? "selected" : ""
-              }>DATE</option>
-              <option value="decimal" ${
-                field.type === "decimal" ? "selected" : ""
-              }>DECIMAL</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="layui-form-item">
-          <label class="layui-form-label">长度</label>
-          <div class="layui-input-block">
-            <input type="number" name="length" value="${field.length || ""}" 
-                   placeholder="字段长度（可选）" class="layui-input">
-            <div class="form-hint">部分类型需要指定长度，如 VARCHAR(255)</div>
-          </div>
-        </div>
-
-        <div class="layui-form-item">
-          <label class="layui-form-label">默认值</label>
-          <div class="layui-input-block">
-            <input type="text" name="defaultValue" value="${
-              field.defaultValue
-            }" 
-                   placeholder="默认值（可选）" class="layui-input">
-          </div>
-        </div>
-
-        <div class="layui-form-item">
-          <label class="layui-form-label">允许为空</label>
-          <div class="layui-input-block">
-            <input type="checkbox" name="nullable" lay-skin="switch" 
-                   lay-text="是|否" ${field.nullable ? "checked" : ""}>
-          </div>
-        </div>
-
-        <div class="button-group">
-          <button type="submit" class="layui-btn" lay-submit lay-filter="save-field">
-            <i class="layui-icon layui-icon-ok"></i> 保存字段
-          </button>
-          <button type="button" class="layui-btn layui-btn-primary" id="btn-delete-field">
-            <i class="layui-icon layui-icon-delete"></i> 删除字段
-          </button>
-        </div>
-      </form>
-    `;
-
-    $(".form-container").html(formHtml);
-    form.render();
-
-    // 删除按钮事件
-    $("#btn-delete-field").on("click", function () {
-      layer.confirm(
-        '确定要删除字段 "' + field.name + '" 吗？',
-        {
-          icon: 3,
-          title: "确认删除",
-        },
-        function (index) {
-          deleteField(field.id);
-          layer.close(index);
-        }
-      );
+    // 创建动态表单
+    dynamicForm = new DynamicForm({
+      container: "#formContainer",
+      fieldMapping: fieldMapping,
+      formId: "field-form",
+      onSubmit: handleSaveField,
+      onCancel: null, // 不需要取消按钮
     });
+
+    dynamicForm.load(field);
+
+    // 添加删除按钮
+    addDeleteButton("删除字段", handleDeleteField);
   }
 
   /**
@@ -217,124 +212,135 @@ layui.use(["element", "form", "layer"], function () {
     currentEditItem = index;
     currentEditType = "index";
 
-    const formHtml = `
-      <form class="layui-form" lay-filter="index-form">
-        <div class="layui-form-item">
-          <label class="layui-form-label">索引名</label>
-          <div class="layui-input-block">
-            <input type="text" name="name" value="${
-              index.name
-            }" placeholder="索引名" 
-                   class="layui-input" required lay-verify="required">
-          </div>
-        </div>
+    // 处理 fields 字段（数组转字符串）
+    const indexData = { ...index };
+    if (Array.isArray(indexData.fields)) {
+      indexData.fields = indexData.fields.join(", ");
+    }
 
-        <div class="layui-form-item">
-          <label class="layui-form-label">索引类型</label>
-          <div class="layui-input-block">
-            <select name="type" lay-verify="required">
-              <option value="primary" ${
-                index.type === "primary" ? "selected" : ""
-              }>主键索引</option>
-              <option value="unique" ${
-                index.type === "unique" ? "selected" : ""
-              }>唯一索引</option>
-              <option value="normal" ${
-                index.type === "normal" ? "selected" : ""
-              }>普通索引</option>
-              <option value="fulltext" ${
-                index.type === "fulltext" ? "selected" : ""
-              }>全文索引</option>
-            </select>
-          </div>
-        </div>
+    // 创建动态表单
+    dynamicForm = new DynamicForm({
+      container: "#formContainer",
+      fieldMapping: indexMapping,
+      formId: "index-form",
+      onSubmit: handleSaveIndex,
+      onCancel: null, // 不需要取消按钮
+    });
 
-        <div class="layui-form-item">
-          <label class="layui-form-label">涉及字段</label>
-          <div class="layui-input-block">
-            <input type="text" name="fields" value="${index.fields.join(", ")}" 
-                   placeholder="字段名，多个用逗号分隔" class="layui-input" 
-                   required lay-verify="required">
-            <div class="form-hint">例如: id, name 或单个字段 email</div>
-          </div>
-        </div>
+    dynamicForm.load(indexData);
 
-        <div class="layui-form-item">
-          <label class="layui-form-label">唯一约束</label>
-          <div class="layui-input-block">
-            <input type="checkbox" name="unique" lay-skin="switch" 
-                   lay-text="是|否" ${index.unique ? "checked" : ""}>
-          </div>
-        </div>
+    // 添加删除按钮
+    addDeleteButton("删除索引", handleDeleteIndex);
+  }
 
-        <div class="button-group">
-          <button type="submit" class="layui-btn" lay-submit lay-filter="save-index">
-            <i class="layui-icon layui-icon-ok"></i> 保存索引
-          </button>
-          <button type="button" class="layui-btn layui-btn-primary" id="btn-delete-index">
-            <i class="layui-icon layui-icon-delete"></i> 删除索引
-          </button>
-        </div>
-      </form>
-    `;
+  /**
+   * 添加删除按钮
+   */
+  function addDeleteButton(text, handler) {
+    const $buttonGroup = $("#formContainer .button-group");
+    if ($buttonGroup.find("#deleteBtn").length === 0) {
+      $buttonGroup.append(`
+        <button type="button" id="deleteBtn" class="layui-btn layui-btn-danger">
+          <i class="layui-icon layui-icon-delete"></i> ${text}
+        </button>
+      `);
 
-    $(".form-container").html(formHtml);
-    form.render();
+      $("#deleteBtn").on("click", handler);
+    }
+  }
 
-    // 删除按钮事件
-    $("#btn-delete-index").on("click", function () {
-      layer.confirm(
-        '确定要删除索引 "' + index.name + '" 吗？',
-        {
-          icon: 3,
-          title: "确认删除",
-        },
-        function (idx) {
-          deleteIndex(index.id);
-          layer.close(idx);
-        }
-      );
+  /**
+   * 处理保存字段
+   */
+  function handleSaveField(data) {
+    if (currentEditItem) {
+      Object.assign(currentEditItem, data);
+      renderFieldList();
+      dynamicForm.showStatus("字段保存成功！", "success");
+
+      // 通知 VSCode
+      vscode.postMessage({
+        command: "saveField",
+        data: data,
+      });
+    }
+  }
+
+  /**
+   * 处理保存索引
+   */
+  function handleSaveIndex(data) {
+    // 处理字段列表（字符串转数组）
+    if (typeof data.fields === "string") {
+      data.fields = data.fields
+        .split(",")
+        .map((f) => f.trim())
+        .filter((f) => f);
+    }
+
+    if (currentEditItem) {
+      Object.assign(currentEditItem, data);
+      renderIndexList();
+      dynamicForm.showStatus("索引保存成功！", "success");
+
+      // 通知 VSCode
+      vscode.postMessage({
+        command: "saveIndex",
+        data: data,
+      });
+    }
+  }
+
+  /**
+   * 处理删除字段
+   */
+  function handleDeleteField() {
+    if (!currentEditItem) return;
+
+    layer.confirm('确定要删除字段 "' + currentEditItem.name + '" 吗？', {
+      icon: 3,
+      title: "确认删除",
+    }, function (index) {
+      const idx = mockData.fields.findIndex((f) => f.id === currentEditItem.id);
+      if (idx !== -1) {
+        mockData.fields.splice(idx, 1);
+        renderFieldList();
+        layer.msg("字段已删除", { icon: 1, time: 1500 });
+
+        // 通知 VSCode
+        vscode.postMessage({
+          command: "deleteField",
+          fieldId: currentEditItem.id,
+        });
+      }
+      layer.close(index);
     });
   }
 
   /**
-   * 删除字段
+   * 处理删除索引
    */
-  function deleteField(fieldId) {
-    const idx = mockData.fields.findIndex((f) => f.id === fieldId);
-    if (idx !== -1) {
-      mockData.fields.splice(idx, 1);
-      renderFieldList();
-      layer.msg("字段已删除", { icon: 1, time: 1500 });
+  function handleDeleteIndex() {
+    if (!currentEditItem) return;
 
-      // 通知 VSCode
-      if (vscode) {
-        vscode.postMessage({
-          command: "deleteField",
-          fieldId: fieldId,
-        });
-      }
-    }
-  }
+    layer.confirm('确定要删除索引 "' + currentEditItem.name + '" 吗？', {
+      icon: 3,
+      title: "确认删除",
+    }, function (index) {
+      const idx = mockData.indexes.findIndex((i) => i.id === currentEditItem.id);
+      if (idx !== -1) {
+        mockData.indexes.splice(idx, 1);
+        renderIndexList();
+        layer.msg("索引已删除", { icon: 1, time: 1500 });
 
-  /**
-   * 删除索引
-   */
-  function deleteIndex(indexId) {
-    const idx = mockData.indexes.findIndex((i) => i.id === indexId);
-    if (idx !== -1) {
-      mockData.indexes.splice(idx, 1);
-      renderIndexList();
-      layer.msg("索引已删除", { icon: 1, time: 1500 });
-
-      // 通知 VSCode
-      if (vscode) {
+        // 通知 VSCode
         vscode.postMessage({
           command: "deleteIndex",
-          indexId: indexId,
+          indexId: currentEditItem.id,
         });
       }
-    }
+      layer.close(index);
+    });
   }
 
   // 初始化列表
@@ -384,54 +390,6 @@ layui.use(["element", "form", "layer"], function () {
     }
   });
 
-  // 保存字段表单
-  form.on("submit(save-field)", function (data) {
-
-    // 更新字段数据
-    if (currentEditItem) {
-      Object.assign(currentEditItem, data.field);
-      renderFieldList();
-    }
-
-    // 通知 VSCode
-    if (vscode) {
-      vscode.postMessage({
-        command: "saveField",
-        data: data.field,
-      });
-    }
-
-    return false;
-  });
-
-  // 保存索引表单
-  form.on("submit(save-index)", function (data) {
-    // 处理字段列表
-    const fieldsStr = data.field.fields || "";
-    data.field.fields = fieldsStr
-      .split(",")
-      .map((f) => f.trim())
-      .filter((f) => f);
-
-    // 更新索引数据
-    if (currentEditItem) {
-      Object.assign(currentEditItem, data.field);
-      renderIndexList();
-    }
-
-    layer.msg("索引保存成功！", { icon: 1, time: 1500 });
-
-    // 通知 VSCode
-    if (vscode) {
-      vscode.postMessage({
-        command: "saveIndex",
-        data: data.field,
-      });
-    }
-
-    return false;
-  });
-
   // 监听来自 VSCode 的消息
   window.addEventListener("message", (event) => {
     const { command, data } = event.data;
@@ -448,8 +406,17 @@ layui.use(["element", "form", "layer"], function () {
       renderFieldList();
       renderIndexList();
     } else if (command === "status") {
-      const icon = data.success ? 1 : 2;
-      layer.msg(data.message || "操作完成", { icon: icon, time: 2000 });
+      if (dynamicForm) {
+        dynamicForm.showStatus(
+          data.message || "操作完成",
+          data.success ? "success" : "error"
+        );
+      } else {
+        layer.msg(data.message || "操作完成", {
+          icon: data.success ? 1 : 2,
+          time: 2000,
+        });
+      }
     }
   });
 });

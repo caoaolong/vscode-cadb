@@ -1,17 +1,13 @@
-/* Edit 页面专属样式 - 使用 VSCode 主题变量 */
+/* Edit 页面专属样式 - 左右分栏布局 */
 
 :root {
   --vscode-bg: var(--vscode-editor-background, #1e1e1e);
   --vscode-fg: var(--vscode-editor-foreground, #d4d4d4);
   --vscode-border: var(--vscode-panel-border, #3e3e42);
-  --vscode-input-bg: var(--vscode-input-background, #3c3c3c);
-  --vscode-input-fg: var(--vscode-input-foreground, #cccccc);
   --vscode-btn-bg: var(--vscode-button-background, #0e639c);
-  --vscode-btn-fg: var(--vscode-button-foreground, #ffffff);
   --vscode-select-bg: var(--vscode-list-activeSelectionBackground, #094771);
   --vscode-select-fg: var(--vscode-list-activeSelectionForeground, #ffffff);
   --vscode-hover: var(--vscode-list-hoverBackground, #2d2d30);
-  --vscode-focus: var(--vscode-focusBorder, #007acc);
 }
 
 * {
@@ -144,141 +140,20 @@ body {
   background: var(--vscode-bg);
 }
 
-/* 表单样式 */
-.form-container {
+/* 表单容器 */
+#formContainer {
   max-width: 600px;
 }
 
-.form-container h2 {
-  color: var(--vscode-fg);
-  margin: 0 0 20px 0;
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.layui-form-item {
-  margin-bottom: 18px;
-}
-
-.layui-form-label {
-  color: var(--vscode-fg);
-  background: transparent;
-  font-weight: 500;
-	width: 110px;
-}
-
-.layui-input,
-.layui-select,
-.layui-textarea {
-  background-color: var(--vscode-input-bg);
-  color: var(--vscode-input-fg);
-  border: 1px solid var(--vscode-border);
-  border-radius: 2px;
-}
-
-.layui-input:hover,
-.layui-select:hover,
-.layui-textarea:hover {
-  border-color: var(--vscode-focus);
-}
-
-.layui-input:focus,
-.layui-select:focus,
-.layui-textarea:focus {
-  border-color: var(--vscode-focus);
-  box-shadow: 0 0 0 1px var(--vscode-focus);
-}
-
-.layui-input::placeholder,
-.layui-textarea::placeholder {
-  color: #888;
-}
-
-/* 按钮样式 */
-.layui-btn {
-  background-color: var(--vscode-btn-bg);
+/* 危险按钮样式 */
+.layui-btn-danger {
+  background-color: #c62828;
+  color: #ffffff;
   border: none;
-  border-radius: 2px;
 }
 
-.layui-btn:hover {
-  background-color: #1177bb;
-}
-
-.layui-btn-primary {
-  background-color: transparent;
-  color: var(--vscode-fg);
-  border: 1px solid var(--vscode-border);
-}
-
-.layui-btn-primary:hover {
-  background-color: var(--vscode-hover);
-  border-color: var(--vscode-focus);
-}
-
-/* 提示文本 */
-.form-hint {
-  margin-top: 4px;
-  font-size: 12px;
-  color: #888;
-}
-
-/* Select 下拉框适配 */
-.layui-form-select dl {
-  background-color: var(--vscode-input-bg);
-  border: 1px solid var(--vscode-border);
-}
-
-.layui-form-select dl dd {
-  color: var(--vscode-input-fg);
-}
-
-.layui-form-select dl dd:hover {
-  background-color: var(--vscode-hover);
-}
-
-.layui-form-select dl dd.layui-this {
-  background-color: var(--vscode-select-bg);
-  color: var(--vscode-select-fg);
-}
-
-/* 开关样式适配 */
-.layui-form-switch {
-  background-color: #555;
-}
-
-.layui-form-onswitch {
-  background-color: var(--vscode-btn-bg);
-}
-
-/* Checkbox 样式适配 */
-.layui-form-checkbox[lay-skin="primary"] {
-  border-color: var(--vscode-border);
-}
-
-.layui-form-checked[lay-skin="primary"] {
-  background-color: var(--vscode-btn-bg);
-  border-color: var(--vscode-btn-bg);
-}
-
-/* 字段组样式 */
-.field-group {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.field-group .layui-form-item {
-  margin-bottom: 0;
-}
-
-/* 按钮组 */
-.button-group {
-  display: flex;
-  gap: 8px;
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid var(--vscode-border);
+.layui-btn-danger:hover {
+  background-color: #d32f2f;
 }
 
 /* 滚动条样式适配 VSCode */
@@ -303,4 +178,3 @@ body {
 .right-panel ::-webkit-scrollbar-track {
   background: transparent;
 }
-

@@ -11,7 +11,7 @@ import { DatabaseSelector } from "./database_selector";
 
 function createWebview(
   provider: DataSourceProvider,
-  viewType: "datasourceConfig" | "datasourceTable" | "tableEdit" | "userEdit",
+  viewType: "settings" | "datasourceTable" | "tableEdit",
   title: string
 ): vscode.WebviewPanel {
   const panel = vscode.window.createWebviewPanel(
@@ -66,14 +66,18 @@ function createWebview(
 
 async function editEntry(provider: DataSourceProvider, item: Datasource) {
   let panel = null;
+  let configType = "";
+  
   if (item.type === "datasource") {
     panel = createWebview(
       provider,
-      "datasourceConfig",
+      "settings",
       `【${item.label}】编辑`
     );
+    configType = "datasource";
   } else if (item.type === "user") {
-    panel = createWebview(provider, "userEdit", `【${item.label}】编辑`);
+    panel = createWebview(provider, "settings", `【${item.label}】编辑`);
+    configType = "user";
   } else if (
     item.type === "document" ||
     item.type === "field" ||
@@ -87,6 +91,7 @@ async function editEntry(provider: DataSourceProvider, item: Datasource) {
   const data: FormResult | undefined = await item.edit();
   panel.webview.postMessage({
     command: "load",
+    configType: configType,
     data: data,
   });
   
@@ -218,7 +223,14 @@ async function addEntry(item: any, provider: DataSourceProvider) {
     await (item as Datasource).create(provider.context, provider.editor);
     provider.refresh();
   } else {
-    const panel = createWebview(provider, "datasourceConfig", "数据库连接配置");
+    const panel = createWebview(provider, "settings", "数据库连接配置");
+    // 发送初始化消息，指定为 datasource 类型的新建模式
+    panel.webview.postMessage({
+      command: "load",
+      configType: "datasource",
+      data: null,
+    });
+    
     panel.webview.onDidReceiveMessage(async (message) => {
       switch (message.command) {
         case "save":

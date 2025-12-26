@@ -23,12 +23,12 @@ export class DataSourceProvider implements vscode.TreeDataProvider<Datasource> {
     this.model = [];
     this.context = context;
     this.panels = {
-      datasourceConfig: readFileSync(
+      settings: readFileSync(
         path.join(
           this.context.extensionPath,
           "resources",
           "panels",
-          "config.html"
+          "settings.html"
         ),
         "utf-8"
       ),
@@ -47,15 +47,6 @@ export class DataSourceProvider implements vscode.TreeDataProvider<Datasource> {
           "resources",
           "panels",
           "edit.html"
-        ),
-        "utf-8"
-      ),
-      userEdit: readFileSync(
-        path.join(
-          this.context.extensionPath,
-          "resources",
-          "panels",
-          "user.html"
         ),
         "utf-8"
       ),
