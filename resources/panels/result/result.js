@@ -28,8 +28,22 @@ layui.use(["tabs", "layer"], function () {
   function initTabs() {
     // 注意：不需要手动调用 tabs.render()
     // Layui 会根据 HTML 中的 lay-options 自动渲染
-    // 只需要初始化自定义右键菜单即可
+    
+    // 初始化自定义右键菜单
     initContextMenu();
+    
+    // 为已存在的标签（欢迎页）绑定右键菜单
+    setTimeout(() => {
+      $(`#${TABS_ID} .layui-tabs-header>li`).each(function() {
+        const $tab = $(this);
+        $tab.off("contextmenu").on("contextmenu", function (e) {
+          e.preventDefault();
+          const layId = $(this).attr("lay-id");
+          showContextMenu(layId, e.clientX, e.clientY);
+        });
+      });
+      console.log('已为现有标签绑定右键菜单');
+    }, 100);
   }
 
   /**
@@ -419,10 +433,6 @@ layui.use(["tabs", "layer"], function () {
     new Tabulator(`#${containerId}`, {
       height: "100%",
       layout: "fitColumns",
-      pagination: true,
-      paginationSize: 50,
-      paginationSizeSelector: [25, 50, 100, 200],
-      paginationCounter: "rows",
       columns: tabulatorColumns,
       data: data,
       selectable: true,
@@ -535,49 +545,8 @@ layui.use(["tabs", "layer"], function () {
     }
   });
 
-  /**
-   * 初始化欢迎页面
-   */
-  function initWelcomePage() {
-    const welcomeContent = `
-      <div class="welcome-page">
-        <div class="welcome-content">
-          <i class="layui-icon layui-icon-search" style="font-size: 64px; color: var(--vscode-foreground); opacity: 0.3; margin-bottom: 20px;"></i>
-          <h2 style="color: var(--vscode-foreground); font-size: 18px; font-weight: 500; margin-bottom: 12px;">暂无查询结果</h2>
-          <p style="color: var(--vscode-descriptionForeground, #888); font-size: 13px; margin-bottom: 8px;">在 SQL 编辑器中执行查询语句，结果将显示在这里</p>
-          <div style="margin-top: 24px; color: var(--vscode-descriptionForeground, #888); font-size: 12px;">
-            <div style="margin-bottom: 8px;">
-              <i class="layui-icon layui-icon-tips" style="font-size: 14px;"></i>
-              <span>提示：使用 <code style="background: var(--vscode-input-background); padding: 2px 6px; border-radius: 3px;">Ctrl+Enter</code> 或点击代码上方的 <strong>▷ Run</strong> 按钮执行 SQL</span>
-            </div>
-            <div style="margin-bottom: 8px;">
-              <i class="layui-icon layui-icon-star" style="font-size: 14px;"></i>
-              <span>右键点击标签页可以固定结果</span>
-            </div>
-            <div>
-              <i class="layui-icon layui-icon-rate" style="font-size: 14px;"></i>
-              <span>固定的结果在新查询时不会被清除</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-
-    addResultTab({
-      id: "welcome",
-      title: "欢迎",
-      content: welcomeContent,
-      icon: "&#xe68e;",
-      closable: false,
-      pinned: true,
-    });
-  }
-
   // 初始化
   initTabs();
-  
-  // 显示欢迎页面
-  initWelcomePage();
 
   // 通知 VSCode 页面已准备好
   if (vscode) {
