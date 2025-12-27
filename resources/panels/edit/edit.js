@@ -220,52 +220,68 @@ layui.use(["element", "form", "layer"], function () {
    * 处理删除字段
    */
   function handleDeleteField() {
-    if (!currentEditItem) return;
+    if (!currentEditItem) {
+      return;
+    }
 
-    layer.confirm('确定要删除字段 "' + currentEditItem.name + '" 吗？', {
-      icon: 3,
-      title: "确认删除",
-    }, function (index) {
-      const idx = mockData.fields.findIndex((f) => f.id === currentEditItem.id);
-      if (idx !== -1) {
-        mockData.fields.splice(idx, 1);
-        renderFieldList();
-        layer.msg("字段已删除", { icon: 1, time: 1500 });
+    layer.confirm(
+      '确定要删除字段 "' + currentEditItem.name + '" 吗？',
+      {
+        icon: 3,
+        title: "确认删除",
+      },
+      function (index) {
+        const idx = mockData.fields.findIndex(
+          (f) => f.id === currentEditItem.id
+        );
+        if (idx !== -1) {
+          mockData.fields.splice(idx, 1);
+          renderFieldList();
+          layer.msg("字段已删除", { icon: 1, time: 1500 });
 
-        // 通知 VSCode
-        vscode.postMessage({
-          command: "deleteField",
-          fieldId: currentEditItem.id,
-        });
+          // 通知 VSCode
+          vscode.postMessage({
+            command: "deleteField",
+            fieldId: currentEditItem.id,
+          });
+        }
+        layer.close(index);
       }
-      layer.close(index);
-    });
+    );
   }
 
   /**
    * 处理删除索引
    */
   function handleDeleteIndex() {
-    if (!currentEditItem) return;
+    if (!currentEditItem) {
+      return;
+    }
 
-    layer.confirm('确定要删除索引 "' + currentEditItem.name + '" 吗？', {
-      icon: 3,
-      title: "确认删除",
-    }, function (index) {
-      const idx = mockData.indexes.findIndex((i) => i.id === currentEditItem.id);
-      if (idx !== -1) {
-        mockData.indexes.splice(idx, 1);
-        renderIndexList();
-        layer.msg("索引已删除", { icon: 1, time: 1500 });
+    layer.confirm(
+      '确定要删除索引 "' + currentEditItem.name + '" 吗？',
+      {
+        icon: 3,
+        title: "确认删除",
+      },
+      function (index) {
+        const idx = mockData.indexes.findIndex(
+          (i) => i.id === currentEditItem.id
+        );
+        if (idx !== -1) {
+          mockData.indexes.splice(idx, 1);
+          renderIndexList();
+          layer.msg("索引已删除", { icon: 1, time: 1500 });
 
-        // 通知 VSCode
-        vscode.postMessage({
-          command: "deleteIndex",
-          indexId: currentEditItem.id,
-        });
+          // 通知 VSCode
+          vscode.postMessage({
+            command: "deleteIndex",
+            indexId: currentEditItem.id,
+          });
+        }
+        layer.close(index);
       }
-      layer.close(index);
-    });
+    );
   }
 
   // 初始化列表

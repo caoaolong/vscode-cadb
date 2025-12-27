@@ -89,6 +89,7 @@ async function editEntry(provider: DataSourceProvider, item: Datasource) {
   }
   
   const data: FormResult | undefined = await item.edit();
+	console.log(data);
   panel.webview.postMessage({
     command: "load",
     configType: configType,

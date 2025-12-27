@@ -41,6 +41,7 @@ export interface DatasourceInputData {
 }
 
 export class Datasource extends vscode.TreeItem {
+	public data: DatasourceInputData;
   public children: Datasource[] = [];
   public root?: Datasource;
   public parent?: Datasource;
@@ -69,6 +70,10 @@ export class Datasource extends vscode.TreeItem {
       return Promise.resolve(undefined);
     }
     switch (this.type) {
+			case "user":
+				return this.dataloder.descUser(this);
+			case "datasource":
+				return this.dataloder.descDatasource(this);
       case "document":
         return this.dataloder.descTable(this);
       default:
@@ -160,6 +165,7 @@ export class Datasource extends vscode.TreeItem {
     parent?: Datasource
   ) {
     super(input.name);
+		this.data = input;
     this.dataloder = dataloader;
     this.parent = parent;
     this.type = this.contextValue = input.type;

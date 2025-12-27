@@ -43,6 +43,8 @@ export interface Dataloader {
     pageSize?: number
   ): Promise<TableResult>;
 
+  descDatasource(ds: Datasource): Promise<FormResult | undefined>;
+  descUser(ds: Datasource): Promise<FormResult | undefined>;
   descDatabase(ds: Datasource): Promise<FormResult | undefined>;
   descTable(ds: Datasource): Promise<FormResult | undefined>;
   descColumn(ds: Datasource): Promise<FormResult | undefined>;

@@ -30,6 +30,26 @@ export class MySQLDataloader implements Dataloader {
   descStructure(): string[] {
     return ["Field", "Type", "Null", "Key", "Default", "Extra"];
   }
+  descDatasource(ds: Datasource): Promise<FormResult | undefined> {
+    return Promise.resolve({
+      rowData: [ds.data],
+    });
+  }
+  descUser(ds: Datasource): Promise<FormResult | undefined> {
+    return new Promise<FormResult | undefined>((resolve) => {
+			const label = ds.label ? ds.label.toString() : "";
+			const [user, host] = label.split("@");
+      this.conn.query(`SELECT * FROM mysql.user WHERE HOST = '${host}' AND USER = '${user}'`, (err, results) => {
+        if (err) {
+          vscode.window.showErrorMessage(err.message);
+          return resolve(undefined);
+        }
+        return resolve({
+          rowData: results as Record<string, any>[],
+        });
+      });
+    });
+  }
   descDatabase(ds: Datasource): Promise<FormResult | undefined> {
     return new Promise<FormResult | undefined>((resolve) => {
       this.conn.query(``, (err, results) => {

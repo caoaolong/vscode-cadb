@@ -451,3 +451,6 @@ body {
   }
 }
 
+.layui-form select.native-select {
+  display: block !important;
+}

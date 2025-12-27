@@ -22,11 +22,14 @@ class DynamicForm {
     this.element = null;
     this.currentData = null;
 
-    // 初始化 Layui
-    layui.use(["form", "layer", "element"], () => {
-      this.form = layui.form;
-      this.layer = layui.layer;
-      this.element = layui.element;
+    this.ready = new Promise((resolve) => {
+      // 初始化 Layui
+      layui.use(["form", "layer", "element"], () => {
+        this.form = layui.form;
+        this.layer = layui.layer;
+        this.element = layui.element;
+        resolve();
+      });
     });
   }
 
@@ -34,7 +37,9 @@ class DynamicForm {
    * 根据数据加载并生成表单
    * @param {Object} data 表单数据
    */
-  load(data) {
+  async load(data) {
+    await this.ready;
+
     this.currentData = data || {};
     const fields = Object.keys(this.currentData);
 
@@ -44,6 +49,9 @@ class DynamicForm {
 
     fields.forEach((fieldName) => {
       const config = this.getFieldConfig(fieldName);
+      if (config.type === "hidden") {
+        return;
+      }
       if (config.category === "advance") {
         advanceFields.push({ name: fieldName, config });
       } else {
@@ -59,13 +67,8 @@ class DynamicForm {
     this.fillFormData(this.currentData);
 
     // 重新渲染表单
-    if (this.form) {
-      this.form.render();
-      // 初始化折叠面板
-      if (this.element) {
-        this.element.init();
-      }
-    }
+    this.form.render("checkbox");
+    this.form.render("switch");
 
     // 绑定事件
     this.bindEvents();
@@ -131,7 +134,8 @@ class DynamicForm {
     html += '<button type="button" class="layui-btn" id="submitBtn">';
     html += '<i class="layui-icon layui-icon-ok"></i> 保存';
     html += "</button>";
-    html += '<button type="button" class="layui-btn layui-btn-primary" id="cancelBtn">';
+    html +=
+      '<button type="button" class="layui-btn layui-btn-primary" id="cancelBtn">';
     html += '<i class="layui-icon layui-icon-close"></i> 取消';
     html += "</button>";
     html += "</div>";
@@ -151,11 +155,11 @@ class DynamicForm {
    */
   generateFieldsHtml(fields) {
     let html = "";
-    
+
     // 分离带 hint 的字段和普通字段
     const fieldsWithHint = [];
     const normalFields = [];
-    
+
     fields.forEach((field) => {
       if (field.config.hint) {
         fieldsWithHint.push(field);
@@ -163,7 +167,7 @@ class DynamicForm {
         normalFields.push(field);
       }
     });
-    
+
     // 普通字段使用网格布局（如果数量 >= 4）
     if (normalFields.length >= 4) {
       html += '<div class="field-group">';
@@ -176,7 +180,7 @@ class DynamicForm {
         html += this.generateFieldHtml(field.name, field.config);
       });
     }
-    
+
     // 带 hint 的字段单独显示（不使用网格）
     fieldsWithHint.forEach((field) => {
       html += this.generateFieldHtml(field.name, field.config);
@@ -255,34 +259,28 @@ class DynamicForm {
    * 生成下拉框字段
    */
   generateSelectField(fieldName, config) {
-    const required = config.required ? 'lay-verify="required"' : "";
-    let html = `
-      <label class="layui-form-label">${config.label}</label>
-      <div class="layui-input-block">
-        <select name="${fieldName}" ${required}>
-    `;
+    const required = config.required ? "required" : "";
+    const options = Array.isArray(config.options) ? config.options : [];
 
-    if (config.options && Array.isArray(config.options)) {
-      // 如果没有选项，添加默认提示
-      if (config.options.length === 0) {
-        html += `<option value="">请选择</option>`;
-      }
-      
-      config.options.forEach((option) => {
-        const value = typeof option === "object" ? option.value : option;
-        const label = typeof option === "object" ? option.label : option;
-        html += `<option value="${value}">${label}</option>`;
-      });
-    } else {
-      html += `<option value="">请选择</option>`;
-    }
-
-    html += `
-        </select>
-      </div>
-    `;
-
-    return html;
+    return `
+    <label class="layui-form-label">${config.label}</label>
+    <div class="layui-input-block">
+      <select
+        name="${fieldName}"
+        class="native-select layui-input"
+        ${required}
+      >
+        <option value="">请选择</option>
+        ${options
+          .map((option) => {
+            const value = typeof option === "object" ? option.value : option;
+            const label = typeof option === "object" ? option.label : option;
+            return `<option value="${value}">${label}</option>`;
+          })
+          .join("")}
+      </select>
+    </div>
+  `;
   }
 
   /**
@@ -350,17 +348,16 @@ class DynamicForm {
       const value = data[fieldName];
       const $field = $(`[name="${fieldName}"]`);
 
-      if (!$field.length) return;
+      if (!$field.length) {
+        return;
+      }
 
       switch (config.type) {
         case "checkbox":
         case "switch":
           // 处理 Y/N 或 boolean 值
           const checked =
-            value === "Y" ||
-            value === true ||
-            value === 1 ||
-            value === "1";
+            value === "Y" || value === true || value === 1 || value === "1";
           $field.prop("checked", checked);
           break;
         case "select":
@@ -382,7 +379,8 @@ class DynamicForm {
 
     // 重新渲染表单
     if (this.form) {
-      this.form.render();
+      this.form.render("checkbox");
+      this.form.render("switch");
     }
   }
 
@@ -469,21 +467,27 @@ class DynamicForm {
     const self = this;
 
     // 提交按钮
-    this.container.find("#submitBtn").off("click").on("click", function () {
-      if (self.validate()) {
-        const data = self.getData();
-        if (self.onSubmit) {
-          self.onSubmit(data);
+    this.container
+      .find("#submitBtn")
+      .off("click")
+      .on("click", function () {
+        if (self.validate()) {
+          const data = self.getData();
+          if (self.onSubmit) {
+            self.onSubmit(data);
+          }
         }
-      }
-    });
+      });
 
     // 取消按钮
-    this.container.find("#cancelBtn").off("click").on("click", function () {
-      if (self.onCancel) {
-        self.onCancel();
-      }
-    });
+    this.container
+      .find("#cancelBtn")
+      .off("click")
+      .on("click", function () {
+        if (self.onCancel) {
+          self.onCancel();
+        }
+      });
   }
 
   /**
@@ -493,7 +497,8 @@ class DynamicForm {
     const $form = this.container.find("form");
     $form[0].reset();
     if (this.form) {
-      this.form.render();
+      this.form.render("checkbox");
+      this.form.render("switch");
     }
   }
 
@@ -505,4 +510,3 @@ class DynamicForm {
     this.currentData = null;
   }
 }
-
