@@ -132,7 +132,8 @@ export class MySQLDataloader implements Dataloader {
     const table = ds.label || "";
     const database = ds.parent.parent.label || "";
     return new Promise<FormResult | undefined>((resolve) => {
-      this.conn.query(`DESC ${database}.${table}`, (err, results) => {
+      // 使用 SHOW FULL COLUMNS 而不是 DESC，可以获取字段注释
+      this.conn.query(`SHOW FULL COLUMNS FROM ${database}.${table}`, (err, results) => {
         if (err) {
           vscode.window.showErrorMessage(err.message);
           return resolve(undefined);

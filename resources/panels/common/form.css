@@ -195,70 +195,124 @@ body {
 
 /* 复选框和开关 */
 .layui-form-checkbox[lay-skin="primary"] {
-  border: 1px solid var(--vscode-input-border);
-  background-color: var(--vscode-input-background);
+  border: none;
+  background-color: transparent;
   color: var(--vscode-foreground);
-  padding: 6px 12px;
-  border-radius: 2px;
-  transition: all 0.2s;
-  font-size: 14px;
-  line-height: 1.5;
+  padding: 6px 0;
+  margin: 0;
+  transition: all 0.15s ease;
+  font-size: 13px;
+  line-height: 1.6;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
 }
 
 .layui-form-checkbox[lay-skin="primary"]:hover {
-  border-color: var(--vscode-focusBorder);
-  background-color: var(--vscode-hoverBackground);
-}
-
-.layui-form-checkbox[lay-skin="primary"] i {
   color: var(--vscode-foreground);
-  border: 2px solid var(--vscode-input-border);
-  background-color: var(--vscode-input-background);
-  border-radius: 2px;
-  transition: all 0.2s;
 }
 
+.layui-form-checkbox[lay-skin="primary"] span {
+  vertical-align: middle;
+}
+
+/* Checkbox 图标样式 - 未选中 */
+.layui-form-checkbox[lay-skin="primary"] i {
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--vscode-checkbox-border, #6e6e6e);
+  background-color: var(--vscode-checkbox-background, #3c3c3c);
+  border-radius: 3px;
+  transition: all 0.15s ease;
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+  font-style: normal;
+  margin: 0;
+}
+
+.layui-form-checkbox[lay-skin="primary"]:hover i {
+  border-color: var(--vscode-checkbox-border, #8e8e8e);
+  background-color: var(--vscode-checkbox-background, #454545);
+}
+
+/* Checkbox 图标样式 - 选中 */
 .layui-form-checked[lay-skin="primary"] {
-  background-color: var(--vscode-button-background);
-  border-color: var(--vscode-button-background);
-  color: var(--vscode-button-foreground);
+  background-color: transparent;
+  border-color: transparent;
+  color: var(--vscode-foreground);
 }
 
 .layui-form-checked[lay-skin="primary"] i {
-  background-color: var(--vscode-focusBorder);
-  border-color: var(--vscode-focusBorder);
-  color: var(--vscode-button-foreground);
+  background-color: var(--vscode-checkbox-selectBackground, #007acc);
+  border-color: var(--vscode-checkbox-selectBorder, #007acc);
+}
+
+/* 选中后的对勾 */
+.layui-form-checked[lay-skin="primary"] i::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: solid var(--vscode-checkbox-foreground, #ffffff);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
 }
 
 /* 复选框禁用状态 */
 .layui-form-checkbox.layui-checkbox-disbaled[lay-skin="primary"] {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
+}
+
+.layui-form-checkbox.layui-checkbox-disbaled[lay-skin="primary"] i {
+  background-color: var(--vscode-input-background);
+  border-color: var(--vscode-input-border);
 }
 
 /* 开关样式 */
 .layui-form-switch {
-  background-color: var(--vscode-input-background);
-  border: 1px solid var(--vscode-input-border);
-  transition: all 0.2s;
+  background-color: var(--vscode-input-background, #3c3c3c);
+  border: 1px solid var(--vscode-input-border, #6e6e6e);
+  border-radius: 11px;
+  height: 22px;
+  min-width: 44px;
+  transition: all 0.2s ease;
 }
 
 .layui-form-switch:hover {
-  border-color: var(--vscode-focusBorder);
+  border-color: var(--vscode-focusBorder, #007acc);
 }
 
 .layui-form-switch em {
-  background-color: var(--vscode-foreground);
-  transition: all 0.2s;
+  background-color: var(--vscode-foreground, #cccccc);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  position: relative;
+  left: 1px;
+  top: 1px;
 }
 
 .layui-form-onswitch {
-  background-color: var(--vscode-button-background);
-  border-color: var(--vscode-button-background);
+  background-color: var(--vscode-button-background, #007acc);
+  border-color: var(--vscode-button-background, #007acc);
 }
 
 .layui-form-onswitch em {
-  background-color: var(--vscode-button-foreground);
+  background-color: var(--vscode-button-foreground, #ffffff);
+  left: auto;
+  right: 1px;
+}
+
+/* 开关禁用状态 */
+.layui-form-switch[disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* 字段分组布局 - 响应式网格 */
@@ -305,13 +359,15 @@ body {
 
 /* Layui 折叠面板适配 */
 .layui-collapse {
-  border: 1px solid var(--vscode-border);
-  border-radius: 4px;
+  border: 1px solid var(--vscode-widget-border, var(--vscode-border));
+  border-radius: 3px;
   margin-top: 20px;
+  background-color: var(--vscode-editor-background);
+  overflow: hidden;
 }
 
 .layui-colla-item {
-  border-bottom: 1px solid var(--vscode-border);
+  border-bottom: none;
 }
 
 .layui-colla-item:last-child {
@@ -319,17 +375,31 @@ body {
 }
 
 .layui-colla-title {
-  background-color: var(--vscode-input-background);
+  background-color: var(--vscode-sideBar-background, var(--vscode-input-background));
   color: var(--vscode-foreground);
-  font-weight: 600;
-  padding: 12px 15px;
+  font-weight: 500;
+  font-size: 13px;
+  padding: 10px 15px;
   border-left: 3px solid transparent;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  user-select: none;
 }
 
 .layui-colla-title:hover {
-  background-color: var(--vscode-hoverBackground);
+  background-color: var(--vscode-list-hoverBackground, var(--vscode-hoverBackground));
+}
+
+.layui-colla-title::before {
+  content: '▶';
+  display: inline-block;
+  margin-right: 8px;
+  font-size: 10px;
+  transition: transform 0.2s ease;
+  color: var(--vscode-icon-foreground, var(--vscode-foreground));
+  opacity: 0.8;
 }
 
 .layui-colla-title.layui-this {
@@ -337,10 +407,15 @@ body {
   background-color: var(--vscode-editor-background);
 }
 
+.layui-colla-title.layui-this::before {
+  transform: rotate(90deg);
+}
+
 .layui-colla-content {
   background-color: var(--vscode-editor-background);
-  padding: 15px;
+  padding: 20px 15px 15px 15px;
   display: none;
+  border-top: 1px solid var(--vscode-widget-border, var(--vscode-border));
 }
 
 .layui-colla-content.layui-show {

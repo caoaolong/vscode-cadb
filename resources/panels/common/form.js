@@ -115,8 +115,8 @@ class DynamicForm {
       html += this.generateFieldsHtml(baseFields);
     }
 
-    // 高级字段（折叠面板）
-    if (advanceFields.length > 0) {
+    // 高级字段（折叠面板）- 只有当存在高级字段时才显示
+    if (advanceFields && advanceFields.length > 0) {
       html += '<div class="form-divider"></div>';
       html += '<div class="layui-collapse" lay-accordion="">';
       html += '<div class="layui-colla-item">';
@@ -289,12 +289,15 @@ class DynamicForm {
   generateCheckboxField(fieldName, config) {
     const title = config.title || config.label;
     return `
-      <input
-        type="checkbox"
-        name="${fieldName}"
-        lay-skin="primary"
-        title="${title}"
-      />
+      <label class="layui-form-label">${config.label}</label>
+      <div class="layui-input-block">
+        <input
+          type="checkbox"
+          name="${fieldName}"
+          lay-skin="primary"
+          title="${title}"
+        />
+      </div>
     `;
   }
 

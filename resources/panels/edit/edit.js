@@ -78,9 +78,22 @@ layui.use(["element", "form", "layer"], function () {
     $fieldList.empty();
 
     mockData.fields.forEach((field) => {
+      // 根据字段类型显示不同的图标和标记
+      let icon = "layui-icon-cols";
+      let badge = "";
+      
+      if (field.key === "PRI") {
+        icon = "layui-icon-key"; // 主键显示钥匙图标
+        badge = '<span style="color: #FFB800; margin-left: 5px; font-size: 11px;">[PK]</span>';
+      } else if (field.key === "UNI") {
+        badge = '<span style="color: #1E9FFF; margin-left: 5px; font-size: 11px;">[UNI]</span>';
+      } else if (field.key === "MUL") {
+        badge = '<span style="color: #5FB878; margin-left: 5px; font-size: 11px;">[IDX]</span>';
+      }
+      
       $fieldList.append(`
         <li class="menu-item" data-id="${field.id}" data-type="field">
-          <i class="layui-icon layui-icon-cols"></i> ${field.name}
+          <i class="layui-icon ${icon}"></i> ${field.name}${badge}
         </li>
       `);
     });
@@ -162,16 +175,23 @@ layui.use(["element", "form", "layer"], function () {
    * 添加删除按钮
    */
   function addDeleteButton(text, handler) {
-    const $buttonGroup = $("#formContainer .button-group");
-    if ($buttonGroup.find("#deleteBtn").length === 0) {
+    // 使用 setTimeout 确保 DynamicForm 完全渲染后再添加按钮
+    setTimeout(() => {
+      const $buttonGroup = $("#formContainer .button-group");
+      
+      // 先移除已存在的删除按钮（如果有）
+      $buttonGroup.find("#deleteBtn").remove();
+      
+      // 添加新的删除按钮
       $buttonGroup.append(`
         <button type="button" id="deleteBtn" class="layui-btn layui-btn-danger">
           <i class="layui-icon layui-icon-delete"></i> ${text}
         </button>
       `);
 
-      $("#deleteBtn").on("click", handler);
-        }
+      // 绑定点击事件
+      $("#deleteBtn").off("click").on("click", handler);
+    }, 50); // 延迟 50ms 以确保表单已完全渲染
   }
 
   /**
@@ -335,12 +355,95 @@ layui.use(["element", "form", "layer"], function () {
   window.addEventListener("message", (event) => {
     const { command, data } = event.data;
 
-    if (command === "loadData") {
+    if (command === "load" || command === "loadData") {
       // 加载数据
-      if (data.fields) {
+      if (data && data.rowData) {
+        // 从 DESC table 查询结果转换数据
+        // rowData 格式：[{ Field, Type, Null, Key, Default, Extra }, ...]
+        const fields = [];
+        const indexes = [];
+        const indexMap = {}; // 用于收集索引信息
+        
+        data.rowData.forEach((row, index) => {
+          // 创建字段对象
+          const field = {
+            id: `field-${row.Field}`,
+            name: row.Field,
+            type: row.Type,
+            length: null, // 可以从 Type 中解析，如 varchar(255)
+            defaultValue: row.Default || "",
+            nullable: row.Null === "YES",
+            key: row.Key,
+            extra: row.Extra || "",
+            comment: row.Comment || "",
+          };
+          
+          // 解析长度（如果有）
+          const lengthMatch = row.Type.match(/\((\d+)\)/);
+          if (lengthMatch) {
+            field.length = parseInt(lengthMatch[1]);
+            field.type = row.Type.replace(/\(\d+\)/, ""); // 移除长度，只保留类型名
+          }
+          
+          fields.push(field);
+          
+          // 收集索引信息
+          if (row.Key) {
+            if (row.Key === "PRI") {
+              if (!indexMap.PRIMARY) {
+                indexMap.PRIMARY = {
+                  id: "index-primary",
+                  name: "PRIMARY",
+                  type: "primary",
+                  fields: [],
+                  unique: true,
+                };
+              }
+              indexMap.PRIMARY.fields.push(row.Field);
+            } else if (row.Key === "UNI") {
+              const indexName = `unique_${row.Field}`;
+              indexMap[indexName] = {
+                id: `index-${indexName}`,
+                name: indexName,
+                type: "unique",
+                fields: [row.Field],
+                unique: true,
+              };
+            } else if (row.Key === "MUL") {
+              const indexName = `index_${row.Field}`;
+              indexMap[indexName] = {
+                id: `index-${indexName}`,
+                name: indexName,
+                type: "index",
+                fields: [row.Field],
+                unique: false,
+              };
+            }
+          }
+        });
+        
+        // 将索引映射转换为数组
+        Object.keys(indexMap).forEach((key) => {
+          const idx = indexMap[key];
+          // 将字段数组转换为逗号分隔的字符串（用于显示）
+          if (Array.isArray(idx.fields)) {
+            idx.fieldsArray = idx.fields;
+            idx.fields = idx.fields.join(", ");
+          }
+          indexes.push(idx);
+        });
+        
+        mockData.fields = fields;
+        mockData.indexes = indexes;
+        
+        console.log("加载的字段数据:", fields);
+        console.log("加载的索引数据:", indexes);
+      } else if (data && data.fields) {
+        // 兼容旧格式
         mockData.fields = data.fields;
       }
-      if (data.indexes) {
+      
+      if (data && data.indexes) {
         mockData.indexes = data.indexes;
       }
 
