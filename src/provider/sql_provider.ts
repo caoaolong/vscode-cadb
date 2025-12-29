@@ -230,62 +230,65 @@ export class SQLCodeLensProvider implements vscode.CodeLensProvider {
     return new Promise((resolve, reject) => {
       // 记录开始时间
       const startTime = Date.now();
-      const timestamp = new Date().toLocaleString('zh-CN', { hour12: false });
-
-      // 输出到输出面板
-      this.outputChannel.appendLine('='.repeat(80));
-      this.outputChannel.appendLine(`[${timestamp}] 执行 SQL`);
-      this.outputChannel.appendLine(`数据库: ${database}`);
-      this.outputChannel.appendLine(`SQL 语句:`);
-      this.outputChannel.appendLine(sql);
-      this.outputChannel.appendLine('-'.repeat(80));
 
       // 切换到指定数据库
       connection.changeUser({ database }, (err: any) => {
         if (err) {
-          this.outputChannel.appendLine(`✗ 切换数据库失败: ${err.message}`);
-          this.outputChannel.appendLine('='.repeat(80));
-          this.outputChannel.appendLine('');
+          // 格式化时间戳
+          const timestamp = this.formatTimestamp(new Date());
+          const errorMsg = `[${timestamp} ${database}, ERROR] ${err.message}`;
+          this.outputChannel.appendLine(errorMsg);
+          this.outputChannel.show(true);
           return reject(err);
         }
 
-        this.outputChannel.appendLine(`✓ 已切换到数据库: ${database}`);
-
         // 执行 SQL
         connection.query(sql, (error: any, results: any, fields: any) => {
+          // 计算执行时间
+          const executionTime = (Date.now() - startTime) / 1000;
+          const timestamp = this.formatTimestamp(new Date());
+          
           if (error) {
-            this.outputChannel.appendLine(`✗ SQL 执行失败: ${error.message}`);
-            this.outputChannel.appendLine(`错误代码: ${error.code}`);
-            if (error.sqlMessage) {
-              this.outputChannel.appendLine(`错误详情: ${error.sqlMessage}`);
-            }
-            this.outputChannel.appendLine('='.repeat(80));
-            this.outputChannel.appendLine('');
+            // 错误格式: [yyyy-MM-dd HH:mm:ss database_name, ERROR] error_message - SQL
+            const sqlOneLine = sql.replace(/\s+/g, ' ').trim();
+            const errorMsg = `[${timestamp} ${database}, ERROR] ${error.message} - ${sqlOneLine}`;
+            this.outputChannel.appendLine(errorMsg);
+            this.outputChannel.show(true);
             return reject(error);
           }
 
-          // 计算执行时间（秒）
-          const executionTime = (Date.now() - startTime) / 1000;
+          // 成功格式: [yyyy-MM-dd HH:mm:ss database_name, spend_time] (N rows) SQL
           const rowCount = Array.isArray(results) ? results.length : results.affectedRows || 0;
-
-          this.outputChannel.appendLine(`✓ SQL 执行成功`);
-          this.outputChannel.appendLine(`执行时间: ${executionTime.toFixed(3)} 秒`);
-          this.outputChannel.appendLine(`影响行数: ${rowCount}`);
-          this.outputChannel.appendLine('='.repeat(80));
-          this.outputChannel.appendLine('');
-
-          // 显示输出面板
+          const spendTime = executionTime < 0.001 ? '<0.001s' : `${executionTime.toFixed(3)}s`;
+          const sqlOneLine = sql.replace(/\s+/g, ' ').trim();
+          const logMsg = `[${timestamp} ${database}, ${spendTime}] (${rowCount} rows) ${sqlOneLine}`;
+          
+          this.outputChannel.appendLine(logMsg);
           this.outputChannel.show(true); // true 表示保持焦点在编辑器
 
           resolve({
             results,
             fields,
             sql,
-            executionTime, // 添加执行时间
+            executionTime,
           });
         });
       });
     });
+  }
+
+  /**
+   * 格式化时间戳为 yyyy-MM-dd HH:mm:ss 格式
+   */
+  private formatTimestamp(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
   }
 
   private sendResultToWebview(result: any, sql: string): void {

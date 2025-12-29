@@ -171,7 +171,7 @@ layui.use(["element", "form", "layer"], function () {
       `);
 
       $("#deleteBtn").on("click", handler);
-    }
+        }
   }
 
   /**
@@ -184,10 +184,10 @@ layui.use(["element", "form", "layer"], function () {
       dynamicForm.showStatus("字段保存成功！", "success");
 
       // 通知 VSCode
-      vscode.postMessage({
+        vscode.postMessage({
         command: "saveField",
         data: data,
-      });
+        });
     }
   }
 
@@ -240,7 +240,7 @@ layui.use(["element", "form", "layer"], function () {
           console.log('字段已删除');
 
           // 通知 VSCode
-          vscode.postMessage({
+        vscode.postMessage({
             command: "deleteField",
             fieldId: currentEditItem.id,
           });
@@ -277,8 +277,8 @@ layui.use(["element", "form", "layer"], function () {
           vscode.postMessage({
             command: "deleteIndex",
             indexId: currentEditItem.id,
-          });
-        }
+        });
+      }
         layer.close(index);
       }
     );

@@ -3,7 +3,7 @@
 import * as vscode from "vscode";
 import { DataSourceProvider } from "./provider/database_provider";
 import {
-  registerCodeLensCommands,
+	registerCodeLensCommands,
   registerDatasourceCommands,
   registerDatasourceItemCommands,
   registerEditorCommands,
@@ -42,7 +42,7 @@ export function activate(context: vscode.ExtensionContext) {
   // CodeLens
   const sqlCodeLens = new SQLCodeLensProvider(outputChannel);
   vscode.languages.registerCodeLensProvider("sql", sqlCodeLens);
-  registerCodeLensCommands(sqlCodeLens);
+	registerCodeLensCommands(sqlCodeLens);
 
   // SQL 编辑器（带数据库选择器）
   const editor = new CaEditor(provider);
