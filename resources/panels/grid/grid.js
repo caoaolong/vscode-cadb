@@ -17,10 +17,11 @@ $(function () {
   // 初始化 SQL 输入增强
   let whereInput, orderByInput;
   
-  const initSQLInputs = () => {
+  const initSQLInputs = (fields = []) => {
     // WHERE 输入框
     whereInput = new SQLInput("#input-where", {
       onEnter: applyFilter,
+      fields: fields,
       keywords: [
         'AND', 'OR', 'NOT', 'IN', 'BETWEEN', 'LIKE', 'IS', 'NULL',
         'TRUE', 'FALSE', 'EXISTS', 'ANY', 'ALL',
@@ -33,14 +34,33 @@ $(function () {
     // ORDER BY 输入框
     orderByInput = new SQLInput("#input-orderby", {
       onEnter: applyFilter,
+      fields: fields,
       keywords: [
         'ASC', 'DESC', 'NULLS', 'FIRST', 'LAST',
       ]
     });
   };
 
+  // 更新字段列表
+  const updateSQLInputFields = (fields) => {
+    if (whereInput) {
+      whereInput.options.fields = fields;
+    }
+    if (orderByInput) {
+      orderByInput.options.fields = fields;
+    }
+  };
+
   // 应用过滤
   const applyFilter = () => {
+    if (!whereInput || !orderByInput) {
+      layui.use("layer", function () {
+        const layer = layui.layer;
+        layer.msg("请等待数据加载完成", { icon: 0, time: 2000 });
+      });
+      return;
+    }
+
     const whereClause = whereInput.getValue();
     const orderByClause = orderByInput.getValue();
 
@@ -48,8 +68,7 @@ $(function () {
     dbTable.applyFilter(whereClause, orderByClause);
   };
 
-  // 延迟初始化 SQL 输入（等待 DOM 完全加载）
-  setTimeout(initSQLInputs, 100);
+  // 注意：SQL 输入会在数据加载时自动初始化（见 message 监听器）
 
   // 绑定按钮事件
   $("#btn-add").on("click", dbTable.addRow);
@@ -89,6 +108,17 @@ $(function () {
 
     if (command === "load") {
       dbTable.init(data.columnDefs, data.rowData);
+      
+      // 提取字段名称并更新到 SQL 输入组件
+      const fields = data.columnDefs.map(col => col.field);
+      
+      // 如果 SQL 输入还未初始化，先初始化
+      if (!whereInput || !orderByInput) {
+        initSQLInputs(fields);
+      } else {
+        // 否则更新字段列表
+        updateSQLInputFields(fields);
+      }
     } else if (command === "status") {
       layui.use("layer", function () {
         const layer = layui.layer;

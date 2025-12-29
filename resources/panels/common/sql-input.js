@@ -10,6 +10,7 @@ class SQLInput {
       onEnter: options.onEnter || null,
       placeholder: options.placeholder || '',
       keywords: options.keywords || this.getDefaultKeywords(),
+      fields: options.fields || [], // 表字段列表
       ...options
     };
 
@@ -127,9 +128,19 @@ class SQLInput {
    */
   showSuggestions(word) {
     const upperWord = word.toUpperCase();
-    this.currentSuggestions = this.options.keywords.filter(keyword => 
-      keyword.toUpperCase().startsWith(upperWord)
-    );
+    
+    // 收集关键字建议
+    const keywordSuggestions = this.options.keywords
+      .filter(keyword => keyword.toUpperCase().startsWith(upperWord))
+      .map(keyword => ({ text: keyword, type: 'keyword' }));
+    
+    // 收集字段建议
+    const fieldSuggestions = this.options.fields
+      .filter(field => field.toUpperCase().startsWith(upperWord))
+      .map(field => ({ text: field, type: 'field' }));
+    
+    // 合并建议：字段优先，然后是关键字
+    this.currentSuggestions = [...fieldSuggestions, ...keywordSuggestions];
 
     if (this.currentSuggestions.length === 0) {
       this.hideAutocomplete();
@@ -140,7 +151,7 @@ class SQLInput {
     this.autocompleteList.empty();
     this.currentSuggestions.forEach((suggestion, index) => {
       const li = $('<li></li>')
-        .text(suggestion)
+        .addClass(`suggestion-${suggestion.type}`)
         .attr('data-index', index)
         .on('mousedown', (e) => {
           e.preventDefault();
@@ -150,6 +161,13 @@ class SQLInput {
           this.setSelectedIndex(index);
         });
       
+      // 创建建议项内容
+      const textSpan = $('<span class="suggestion-text"></span>').text(suggestion.text);
+      const typeSpan = $('<span class="suggestion-type"></span>').text(
+        suggestion.type === 'keyword' ? '关键字' : '字段'
+      );
+      
+      li.append(textSpan).append(typeSpan);
       this.autocompleteList.append(li);
     });
 
@@ -160,18 +178,75 @@ class SQLInput {
   }
 
   /**
-   * 定位自动完成列表
+   * 定位自动完成列表（基于光标位置）
    */
   positionAutocomplete() {
-    const offset = this.input.offset();
-    const height = this.input.outerHeight();
+    const inputElement = this.input[0];
+    const cursorPos = inputElement.selectionStart;
+    const value = inputElement.value;
+    
+    // 获取输入框的位置和尺寸
+    const inputOffset = this.input.offset();
+    const inputHeight = this.input.outerHeight();
+    
+    // 计算光标位置的水平偏移
+    const cursorX = this.getCursorXPosition(inputElement, cursorPos);
+    
+    // 计算自动完成列表的位置
+    let left = inputOffset.left + cursorX;
+    const top = inputOffset.top + inputHeight + 2; // 2px 间隙
+    
+    // 确保不超出屏幕右边界
+    const windowWidth = $(window).width();
+    const listWidth = 250; // 预估列表宽度
+    if (left + listWidth > windowWidth) {
+      left = windowWidth - listWidth - 10;
+    }
+    
+    // 确保不超出输入框左边界
+    if (left < inputOffset.left) {
+      left = inputOffset.left;
+    }
 
     this.autocompleteList.css({
-      position: 'absolute',
-      top: offset.top + height,
-      left: offset.left,
-      minWidth: this.input.outerWidth()
+      position: 'fixed',
+      top: top + 'px',
+      left: left + 'px',
+      minWidth: '200px',
+      maxWidth: '300px'
     });
+  }
+
+  /**
+   * 获取光标的水平位置（像素）
+   */
+  getCursorXPosition(inputElement, cursorPos) {
+    // 创建一个临时的测量元素
+    const measureSpan = $('<span></span>').css({
+      position: 'absolute',
+      visibility: 'hidden',
+      whiteSpace: 'pre',
+      font: this.input.css('font'),
+      fontSize: this.input.css('font-size'),
+      fontFamily: this.input.css('font-family'),
+      fontWeight: this.input.css('font-weight'),
+      letterSpacing: this.input.css('letter-spacing'),
+      padding: this.input.css('padding'),
+    });
+    
+    // 获取光标前的文本
+    const textBeforeCursor = inputElement.value.substring(0, cursorPos);
+    measureSpan.text(textBeforeCursor);
+    
+    // 添加到 body 进行测量
+    $('body').append(measureSpan);
+    const width = measureSpan.width();
+    measureSpan.remove();
+    
+    // 考虑输入框的 padding
+    const paddingLeft = parseInt(this.input.css('padding-left')) || 0;
+    
+    return width + paddingLeft;
   }
 
   /**
@@ -192,6 +267,7 @@ class SQLInput {
     }
 
     const suggestion = this.currentSuggestions[index];
+    const suggestionText = suggestion.text || suggestion;
     const value = this.input.val();
     const cursorPos = this.input[0].selectionStart;
     
@@ -201,11 +277,11 @@ class SQLInput {
     const wordStart = match ? cursorPos - match[0].length : cursorPos;
     
     // 替换当前单词
-    const newValue = value.substring(0, wordStart) + suggestion + ' ' + value.substring(cursorPos);
+    const newValue = value.substring(0, wordStart) + suggestionText + ' ' + value.substring(cursorPos);
     this.input.val(newValue);
     
     // 设置光标位置
-    const newCursorPos = wordStart + suggestion.length + 1;
+    const newCursorPos = wordStart + suggestionText.length + 1;
     this.input[0].setSelectionRange(newCursorPos, newCursorPos);
     
     this.hideAutocomplete();
