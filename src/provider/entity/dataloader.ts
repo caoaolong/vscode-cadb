@@ -16,6 +16,7 @@ export interface TableResult {
   title: string;
   rowData: Record<string, any>[];
   columnDefs: ColDef[];
+  queryTime?: number; // 查询时间（秒）
 }
 
 export interface FormResult {

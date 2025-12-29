@@ -25,7 +25,9 @@ export class MySQLDataloader implements Dataloader {
       user: input.username,
       password: input.password,
       database: input.database,
-      connectTimeout: 5000,
+      connectTimeout: 2000, // 连接超时缩短到 2 秒
+      enableKeepAlive: true, // 启用 TCP keep-alive
+      keepAliveInitialDelay: 10000, // keep-alive 初始延迟 10 秒
     };
     this.conn = createConnection(this.connectionConfig);
   }
@@ -35,24 +37,56 @@ export class MySQLDataloader implements Dataloader {
    */
   private async ensureConnection(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
+      // 设置 ping 超时
+      const pingTimeout = setTimeout(() => {
+        console.log('连接 ping 超时，正在重新连接...');
+        this.reconnect().then(resolve).catch(reject);
+      }, 1000); // 1 秒超时
+      
       // 使用 ping 检查连接是否活跃
       this.conn.ping((err) => {
+        clearTimeout(pingTimeout);
+        
         if (err) {
           console.log('连接 ping 失败，正在重新连接...');
-          // ping 失败，销毁旧连接并创建新连接
-          this.conn.destroy();
-          this.conn = createConnection(this.connectionConfig);
-          this.conn.connect((connectErr) => {
-            if (connectErr) {
-              console.error('重新连接失败:', connectErr.message);
-              reject(connectErr);
-            } else {
-              console.log('重新连接成功');
-              resolve();
-            }
-          });
+          this.reconnect().then(resolve).catch(reject);
         } else {
           // 连接正常
+          resolve();
+        }
+      });
+    });
+  }
+  
+  /**
+   * 重新连接到数据库
+   */
+  private async reconnect(): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      // 销毁旧连接
+      try {
+        this.conn.destroy();
+      } catch (e) {
+        // 忽略销毁错误
+      }
+      
+      // 创建新连接
+      this.conn = createConnection(this.connectionConfig);
+      
+      // 设置连接超时
+      const connectTimeout = setTimeout(() => {
+        this.conn.destroy();
+        reject(new Error('连接超时'));
+      }, 2000); // 2 秒超时
+      
+      this.conn.connect((connectErr) => {
+        clearTimeout(connectTimeout);
+        
+        if (connectErr) {
+          console.error('重新连接失败:', connectErr.message);
+          reject(connectErr);
+        } else {
+          console.log('重新连接成功');
           resolve();
         }
       });
@@ -136,7 +170,17 @@ export class MySQLDataloader implements Dataloader {
 
   test(): Promise<PromiseResult> {
     return new Promise<PromiseResult>((resolve) => {
+      // 设置测试超时时间为 3 秒
+      const timeout = setTimeout(() => {
+        this.conn?.destroy();
+        resolve({
+          success: false,
+          message: '连接超时（3秒）',
+        });
+      }, 3000);
+      
       this.conn?.connect((err) => {
+        clearTimeout(timeout);
         if (err) {
           resolve({
             success: false,
@@ -152,24 +196,38 @@ export class MySQLDataloader implements Dataloader {
   }
 
   connect(): Promise<void> {
-    return new Promise<void>((resolve) => {
+    return new Promise<void>((resolve, reject) => {
+      // 设置总超时时间为 3 秒
+      const timeout = setTimeout(() => {
+        reject(new Error('连接超时（3秒）'));
+      }, 3000);
+      
       if (this.conn.authorized) {
         this.conn.ping((err) => {
+          clearTimeout(timeout);
           if (err) {
             vscode.window.showErrorMessage(err.message);
+            reject(err);
+          } else {
+            resolve();
           }
-          resolve();
         });
       } else {
         this.conn.connect((err) => {
           if (err) {
+            clearTimeout(timeout);
             vscode.window.showErrorMessage(`连接失败：${err.message}`);
+            reject(err);
+            return;
           }
           this.conn.ping((err) => {
+            clearTimeout(timeout);
             if (err) {
               vscode.window.showErrorMessage(err.message);
+              reject(err);
+            } else {
+              resolve();
             }
-            resolve();
           });
         });
       }
@@ -570,6 +628,10 @@ ORDER BY
   ): Promise<TableResult> {
     page = page ? page : 1;
     pageSize = pageSize ? pageSize : 50;
+    
+    // 记录查询开始时间
+    const startTime = Date.now();
+    
     const descTable = await new Promise<ColDef[]>((resolve) => {
       const table = ds.label;
       const database = ds.parent?.parent?.label;
@@ -615,10 +677,15 @@ ORDER BY
         }
       );
     });
+    
+    // 计算查询时间（秒）
+    const queryTime = (Date.now() - startTime) / 1000;
+    
     return Promise.resolve({
       title: ds.label,
       columnDefs: descTable,
       rowData: dataTable,
+      queryTime: queryTime,
     } as TableResult);
   }
 }

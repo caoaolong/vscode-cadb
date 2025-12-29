@@ -13,14 +13,16 @@ class DatabaseTableData {
     this.tableData = [];
     this.columns = [];
     this.changedRows = new Set();
+    this.queryTime = 0; // 查询时间（秒）
   }
 
   /**
    * 初始化表格
    */
-  init(columns, data) {
+  init(columns, data, queryTime) {
     this.columns = columns;
     this.tableData = data;
+    this.queryTime = queryTime || 0;
     this.changedRows.clear();
     this._initDataTable();
   }
@@ -29,12 +31,19 @@ class DatabaseTableData {
    * 初始化 Tabulator
    */
   _initDataTable() {
+    const self = this;
     this.table = new Tabulator(this.tableSelector, {
       height: "100%",
       layout: "fitColumns",
       pagination: "local",
       paginationSize: 50,
-      paginationCounter: "rows",
+      paginationCounter: function(pageSize, currentRow, currentPage, totalRows, totalPages) {
+        // 自定义显示查询时间
+        const timeDisplay = self.queryTime < 0.001 
+          ? '<0.001s' 
+          : `${self.queryTime.toFixed(3)}s`;
+        return `查询时间: ${timeDisplay} | ${totalRows} 行`;
+      },
       columns: this._buildColumns(),
       data: [],
       // 启用行选择

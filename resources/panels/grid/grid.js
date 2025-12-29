@@ -101,7 +101,7 @@ $(function () {
     const { command, data } = event.data;
 
     if (command === "load") {
-      dbTable.init(data.columnDefs, data.rowData);
+      dbTable.init(data.columnDefs, data.rowData, data.queryTime);
       
       // 提取字段名称并更新到 SQL 输入组件
       const fields = data.columnDefs.map(col => col.field);
