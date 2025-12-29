@@ -286,38 +286,99 @@ class DatabaseTableData {
    * @returns {Array} 过滤后的数据
    */
   filterByWhereClause(data, whereClause) {
+    console.log('=== WHERE 过滤开始 ===');
+    console.log('原始 WHERE 子句:', whereClause);
+    console.log('数据行数:', data.length);
+    console.log('可用字段:', this.columns.map(c => c.field));
+    
     // 简单的 WHERE 子句解析（支持基本的条件）
-    return data.filter(row => {
+    const filteredData = data.filter(row => {
       try {
-        // 替换字段名为 row.字段名
-        let condition = whereClause;
+        let condition = whereClause.trim();
         
-        // 替换所有字段名
+        // 先处理 LIKE 运算符（需要特殊处理）
+        // 将 field LIKE 'value' 转换为 field.toString().includes('value')
+        condition = condition.replace(
+          /(\w+)\s+LIKE\s+['"]([^'"]+)['"]/gi,
+          (match, field, pattern) => {
+            return `(row["${field}"] && row["${field}"].toString().includes("${pattern}"))`;
+          }
+        );
+        
+        // 处理 IS NULL 和 IS NOT NULL
+        condition = condition.replace(
+          /(\w+)\s+IS\s+NOT\s+NULL/gi,
+          (match, field) => {
+            return `(row["${field}"] !== null && row["${field}"] !== undefined && row["${field}"] !== "")`;
+          }
+        );
+        
+        condition = condition.replace(
+          /(\w+)\s+IS\s+NULL/gi,
+          (match, field) => {
+            return `(row["${field}"] === null || row["${field}"] === undefined || row["${field}"] === "")`;
+          }
+        );
+        
+        // 替换所有字段名为 row["字段名"]
+        // 但要避免替换已经处理过的 row["xxx"] 格式
         this.columns.forEach(col => {
           const fieldName = col.field;
-          // 使用正则表达式替换字段名（避免替换引号内的内容）
-          const regex = new RegExp(`\\b${fieldName}\\b`, 'gi');
+          // 匹配独立的字段名（不在 row["..."] 或引号内）
+          const regex = new RegExp(`(?<!row\\[")\\b${fieldName}\\b(?!")`, 'gi');
           condition = condition.replace(regex, `row["${fieldName}"]`);
         });
 
-        // 替换 SQL 运算符为 JavaScript 运算符
+        // 替换 SQL 逻辑运算符为 JavaScript 运算符
         condition = condition
           .replace(/\bAND\b/gi, '&&')
           .replace(/\bOR\b/gi, '||')
-          .replace(/\bNOT\b/gi, '!')
-          .replace(/\bIS NULL\b/gi, '=== null || === ""')
-          .replace(/\bIS NOT NULL\b/gi, '!== null && !== ""')
-          .replace(/\bLIKE\b/gi, '.includes')
-          .replace(/'/g, '"');
+          .replace(/\bNOT\b/gi, '!');
+        
+        // 替换单引号为双引号（JavaScript 字符串）
+        condition = condition.replace(/'/g, '"');
+        
+        // 处理字符串比较（确保转换为字符串进行比较）
+        // row["field"] = "value" -> row["field"].toString() === "value"
+        condition = condition.replace(
+          /row\["(\w+)"\]\s*([!=<>]+)\s*"([^"]*)"/g,
+          (match, field, operator, value) => {
+            const safeValue = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+            return `(row["${field}"] && row["${field}"].toString() ${operator}= "${safeValue}")`;
+          }
+        );
 
+        console.log('转换后的条件:', condition);
+        
         // 使用 Function 创建动态函数（比 eval 更安全）
-        const evaluator = new Function('row', `return ${condition};`);
-        return evaluator(row);
+        const evaluator = new Function('row', `
+          try {
+            return ${condition};
+          } catch (e) {
+            console.error('执行条件出错:', e);
+            return false;
+          }
+        `);
+        
+        const result = evaluator(row);
+        
+        if (result) {
+          console.log('✓ 匹配的行:', row);
+        }
+        
+        return result;
       } catch (error) {
-        console.error('Filter error:', error);
-        return true; // 如果出错，保留该行
+        console.error('✗ Filter error:', error);
+        console.error('错误的条件:', whereClause);
+        console.error('当前行:', row);
+        return false; // 出错时不保留该行
       }
     });
+    
+    console.log('过滤后行数:', filteredData.length);
+    console.log('=== WHERE 过滤结束 ===');
+    
+    return filteredData;
   }
 
   /**
