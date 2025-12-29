@@ -528,7 +528,7 @@ layui.use(["tabs", "layer"], function () {
 
         addResultTab({
           id: tabId,
-          title: title || "查询结果",
+          title: title || "查询",
           content: content,
           icon: "&#xe65b;",
           pinned: pinned || false,

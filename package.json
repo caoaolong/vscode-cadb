@@ -23,7 +23,7 @@
       "panel": [
         {
           "id": "query",
-          "title": "查询结果",
+          "title": "查询",
           "icon": "resources/icons/query.svg"
         }
       ]
@@ -41,7 +41,7 @@
         {
           "type": "webview",
           "id": "query",
-          "name": "查询结果",
+          "name": "查询",
           "icon": "resources/icons/query.svg",
           "contextualTitle": "Query Result"
         }

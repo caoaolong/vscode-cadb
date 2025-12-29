@@ -14,9 +14,51 @@ $(function () {
     vscode: vscode,
   });
 
+  // 初始化 SQL 输入增强
+  let whereInput, orderByInput;
+  
+  const initSQLInputs = () => {
+    // WHERE 输入框
+    whereInput = new SQLInput("#input-where", {
+      onEnter: applyFilter,
+      keywords: [
+        'AND', 'OR', 'NOT', 'IN', 'BETWEEN', 'LIKE', 'IS', 'NULL',
+        'TRUE', 'FALSE', 'EXISTS', 'ANY', 'ALL',
+        '=', '!=', '<>', '<', '>', '<=', '>=',
+        'COUNT', 'SUM', 'AVG', 'MAX', 'MIN',
+        'UPPER', 'LOWER', 'LENGTH', 'TRIM',
+      ]
+    });
+
+    // ORDER BY 输入框
+    orderByInput = new SQLInput("#input-orderby", {
+      onEnter: applyFilter,
+      keywords: [
+        'ASC', 'DESC', 'NULLS', 'FIRST', 'LAST',
+      ]
+    });
+  };
+
+  // 应用过滤
+  const applyFilter = () => {
+    const whereClause = whereInput.getValue();
+    const orderByClause = orderByInput.getValue();
+
+    // 应用过滤到表格
+    dbTable.applyFilter(whereClause, orderByClause);
+  };
+
+  // 延迟初始化 SQL 输入（等待 DOM 完全加载）
+  setTimeout(initSQLInputs, 100);
+
   // 绑定按钮事件
   $("#btn-add").on("click", dbTable.addRow);
-  $("#btn-refresh").on("click", dbTable.refreshTable);
+  $("#btn-refresh").on("click", () => {
+    dbTable.refreshTable();
+    // 清空过滤条件
+    if (whereInput) whereInput.clear();
+    if (orderByInput) orderByInput.clear();
+  });
   $("#btn-delete").on("click", dbTable.deleteRow);
   $("#btn-export-csv").on("click", dbTable.exportCSV);
   $("#btn-export-json").on("click", dbTable.exportJSON);

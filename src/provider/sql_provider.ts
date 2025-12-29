@@ -226,6 +226,9 @@ export class SQLCodeLensProvider implements vscode.CodeLensProvider {
     database: string
   ): Promise<any> {
     return new Promise((resolve, reject) => {
+      // 记录开始时间
+      const startTime = Date.now();
+
       // 切换到指定数据库
       connection.changeUser({ database }, (err: any) => {
         if (err) {
@@ -238,10 +241,14 @@ export class SQLCodeLensProvider implements vscode.CodeLensProvider {
             return reject(error);
           }
 
+          // 计算执行时间（秒）
+          const executionTime = (Date.now() - startTime) / 1000;
+
           resolve({
             results,
             fields,
             sql,
+            executionTime, // 添加执行时间
           });
         });
       });

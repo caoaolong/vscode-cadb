@@ -195,27 +195,70 @@ body {
 
 /* 复选框和开关 */
 .layui-form-checkbox[lay-skin="primary"] {
-  border-color: var(--vscode-input-border);
+  border: 1px solid var(--vscode-input-border);
+  background-color: var(--vscode-input-background);
   color: var(--vscode-foreground);
+  padding: 6px 12px;
+  border-radius: 2px;
+  transition: all 0.2s;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .layui-form-checkbox[lay-skin="primary"]:hover {
   border-color: var(--vscode-focusBorder);
+  background-color: var(--vscode-hoverBackground);
+}
+
+.layui-form-checkbox[lay-skin="primary"] i {
+  color: var(--vscode-foreground);
+  border: 2px solid var(--vscode-input-border);
+  background-color: var(--vscode-input-background);
+  border-radius: 2px;
+  transition: all 0.2s;
 }
 
 .layui-form-checked[lay-skin="primary"] {
   background-color: var(--vscode-button-background);
   border-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
 }
 
+.layui-form-checked[lay-skin="primary"] i {
+  background-color: var(--vscode-focusBorder);
+  border-color: var(--vscode-focusBorder);
+  color: var(--vscode-button-foreground);
+}
+
+/* 复选框禁用状态 */
+.layui-form-checkbox.layui-checkbox-disbaled[lay-skin="primary"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 开关样式 */
 .layui-form-switch {
   background-color: var(--vscode-input-background);
   border: 1px solid var(--vscode-input-border);
+  transition: all 0.2s;
+}
+
+.layui-form-switch:hover {
+  border-color: var(--vscode-focusBorder);
+}
+
+.layui-form-switch em {
+  background-color: var(--vscode-foreground);
+  transition: all 0.2s;
 }
 
 .layui-form-onswitch {
   background-color: var(--vscode-button-background);
   border-color: var(--vscode-button-background);
+}
+
+.layui-form-onswitch em {
+  background-color: var(--vscode-button-foreground);
 }
 
 /* 字段分组布局 - 响应式网格 */

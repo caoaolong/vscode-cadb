@@ -13,6 +13,7 @@ export class ResultWebviewProvider implements vscode.WebviewViewProvider {
   private htmlTemplate: string;
   private isWebviewReady: boolean = false;
   private pendingMessages: any[] = [];
+  private resultCounter: number = 0; // 查询结果编号计数器
 
   constructor(context: vscode.ExtensionContext) {
     this.context = context;
@@ -160,15 +161,25 @@ export class ResultWebviewProvider implements vscode.WebviewViewProvider {
     // 提取数据
     const data = Array.isArray(result.results) ? result.results : [];
 
-    // 生成标签标题
-    const sqlPreview = sql.length > 50 ? sql.substring(0, 50) + "..." : sql;
-    const title = `查询结果 (${data.length}行)`;
+    // 获取执行时间（秒）
+    const executionTime = result.executionTime || 0;
+    const timeDisplay = executionTime < 0.01 
+      ? '<0.01s' 
+      : `${executionTime.toFixed(2)}s`;
+
+    // 递增结果编号
+    this.resultCounter++;
+
+    // 生成标签标题（包含编号）
+    const title = `结果 #${this.resultCounter} (${timeDisplay})`;
 
     return {
       command: "showResult",
       title: title,
       columns: columns,
       data: data,
+      executionTime: executionTime,
+      rowCount: data.length,
       id: `result-${Date.now()}`,
       pinned: false,
     };
