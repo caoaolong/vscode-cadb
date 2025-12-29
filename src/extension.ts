@@ -20,6 +20,10 @@ export function activate(context: vscode.ExtensionContext) {
   // 清除数据
   // context.globalState.update("cadb.connections", undefined);
 
+  // 创建输出通道用于显示 SQL 执行日志
+  const outputChannel = vscode.window.createOutputChannel("CADB SQL");
+  context.subscriptions.push(outputChannel);
+
   const provider = new DataSourceProvider(context);
   // 视图命令
   vscode.window.registerTreeDataProvider("datasource", provider);
@@ -36,7 +40,7 @@ export function activate(context: vscode.ExtensionContext) {
   registerDatasourceItemCommands(provider);
 
   // CodeLens
-  const sqlCodeLens = new SQLCodeLensProvider();
+  const sqlCodeLens = new SQLCodeLensProvider(outputChannel);
   vscode.languages.registerCodeLensProvider("sql", sqlCodeLens);
   registerCodeLensCommands(sqlCodeLens);
 

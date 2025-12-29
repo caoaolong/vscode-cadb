@@ -117,11 +117,8 @@ class DatabaseTableData {
 
     this.table.replaceData(this.tableData);
     this.changedRows.clear();
-
-    layui.use("layer", function () {
-      const layer = layui.layer;
-      layer.msg("表格已刷新", { icon: 1, time: 1500 });
-    });
+    
+    console.log('表格已刷新');
   };
 
   /**
@@ -134,10 +131,7 @@ class DatabaseTableData {
 
     const selectedRows = this.table.getSelectedData();
     if (selectedRows.length === 0) {
-      layui.use("layer", function () {
-        const layer = layui.layer;
-        layer.msg("请先选择要删除的行", { icon: 0, time: 2000 });
-      });
+      console.warn('请先选择要删除的行');
       return;
     }
 
@@ -154,7 +148,7 @@ class DatabaseTableData {
           // 用户确认删除
           self.table.getSelectedRows().forEach((row) => row.delete());
           layer.close(index);
-          layer.msg("删除成功", { icon: 1, time: 1500 });
+          console.log('删除成功');
         }
       );
     });
@@ -184,10 +178,7 @@ class DatabaseTableData {
    * 导出为 SQL
    */
   exportSQL = () => {
-    layui.use("layer", function () {
-      const layer = layui.layer;
-      layer.msg("SQL 导出功能开发中...", { icon: 0, time: 2000 });
-    });
+    console.log('SQL 导出功能开发中...');
   };
 
   /**
@@ -221,22 +212,9 @@ class DatabaseTableData {
     if (whereClause && whereClause.trim()) {
       try {
         filteredData = this.filterByWhereClause(filteredData, whereClause);
-        
-        layui.use("layer", function () {
-          const layer = layui.layer;
-          layer.msg(`已应用 WHERE 过滤，找到 ${filteredData.length} 条记录`, { 
-            icon: 1, 
-            time: 2000 
-          });
-        });
+        console.log(`✓ 已应用 WHERE 过滤，找到 ${filteredData.length} 条记录`);
       } catch (error) {
-        layui.use("layer", function () {
-          const layer = layui.layer;
-          layer.msg(`WHERE 子句错误: ${error.message}`, { 
-            icon: 2, 
-            time: 3000 
-          });
-        });
+        console.error(`✗ WHERE 子句错误: ${error.message}`);
         return;
       }
     }
@@ -247,22 +225,10 @@ class DatabaseTableData {
         filteredData = this.sortByOrderByClause(filteredData, orderByClause);
         
         if (!whereClause) {
-          layui.use("layer", function () {
-            const layer = layui.layer;
-            layer.msg(`已应用 ORDER BY 排序`, { 
-              icon: 1, 
-              time: 2000 
-            });
-          });
+          console.log('✓ 已应用 ORDER BY 排序');
         }
       } catch (error) {
-        layui.use("layer", function () {
-          const layer = layui.layer;
-          layer.msg(`ORDER BY 子句错误: ${error.message}`, { 
-            icon: 2, 
-            time: 3000 
-          });
-        });
+        console.error(`✗ ORDER BY 子句错误: ${error.message}`);
         return;
       }
     }
@@ -272,10 +238,7 @@ class DatabaseTableData {
 
     // 如果没有过滤和排序，显示提示
     if (!whereClause && !orderByClause) {
-      layui.use("layer", function () {
-        const layer = layui.layer;
-        layer.msg("已清除过滤和排序", { icon: 1, time: 1500 });
-      });
+      console.log('已清除过滤和排序');
     }
   }
 
@@ -291,94 +254,219 @@ class DatabaseTableData {
     console.log('数据行数:', data.length);
     console.log('可用字段:', this.columns.map(c => c.field));
     
-    // 简单的 WHERE 子句解析（支持基本的条件）
-    const filteredData = data.filter(row => {
-      try {
-        let condition = whereClause.trim();
-        
-        // 先处理 LIKE 运算符（需要特殊处理）
-        // 将 field LIKE 'value' 转换为 field.toString().includes('value')
-        condition = condition.replace(
-          /(\w+)\s+LIKE\s+['"]([^'"]+)['"]/gi,
-          (match, field, pattern) => {
-            return `(row["${field}"] && row["${field}"].toString().includes("${pattern}"))`;
+    try {
+      // 解析 WHERE 条件（不使用 eval 或 new Function）
+      const condition = this.parseWhereCondition(whereClause);
+      
+      const filteredData = data.filter(row => {
+        try {
+          const result = this.evaluateCondition(condition, row);
+          if (result) {
+            console.log('✓ 匹配的行:', row);
           }
-        );
-        
-        // 处理 IS NULL 和 IS NOT NULL
-        condition = condition.replace(
-          /(\w+)\s+IS\s+NOT\s+NULL/gi,
-          (match, field) => {
-            return `(row["${field}"] !== null && row["${field}"] !== undefined && row["${field}"] !== "")`;
-          }
-        );
-        
-        condition = condition.replace(
-          /(\w+)\s+IS\s+NULL/gi,
-          (match, field) => {
-            return `(row["${field}"] === null || row["${field}"] === undefined || row["${field}"] === "")`;
-          }
-        );
-        
-        // 替换所有字段名为 row["字段名"]
-        // 但要避免替换已经处理过的 row["xxx"] 格式
-        this.columns.forEach(col => {
-          const fieldName = col.field;
-          // 匹配独立的字段名（不在 row["..."] 或引号内）
-          const regex = new RegExp(`(?<!row\\[")\\b${fieldName}\\b(?!")`, 'gi');
-          condition = condition.replace(regex, `row["${fieldName}"]`);
-        });
-
-        // 替换 SQL 逻辑运算符为 JavaScript 运算符
-        condition = condition
-          .replace(/\bAND\b/gi, '&&')
-          .replace(/\bOR\b/gi, '||')
-          .replace(/\bNOT\b/gi, '!');
-        
-        // 替换单引号为双引号（JavaScript 字符串）
-        condition = condition.replace(/'/g, '"');
-        
-        // 处理字符串比较（确保转换为字符串进行比较）
-        // row["field"] = "value" -> row["field"].toString() === "value"
-        condition = condition.replace(
-          /row\["(\w+)"\]\s*([!=<>]+)\s*"([^"]*)"/g,
-          (match, field, operator, value) => {
-            const safeValue = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-            return `(row["${field}"] && row["${field}"].toString() ${operator}= "${safeValue}")`;
-          }
-        );
-
-        console.log('转换后的条件:', condition);
-        
-        // 使用 Function 创建动态函数（比 eval 更安全）
-        const evaluator = new Function('row', `
-          try {
-            return ${condition};
-          } catch (e) {
-            console.error('执行条件出错:', e);
-            return false;
-          }
-        `);
-        
-        const result = evaluator(row);
-        
-        if (result) {
-          console.log('✓ 匹配的行:', row);
+          return result;
+        } catch (error) {
+          console.error('✗ 评估行时出错:', error.message);
+          return false;
         }
-        
-        return result;
-      } catch (error) {
-        console.error('✗ Filter error:', error);
-        console.error('错误的条件:', whereClause);
-        console.error('当前行:', row);
-        return false; // 出错时不保留该行
+      });
+      
+      console.log('过滤后行数:', filteredData.length);
+      console.log('=== WHERE 过滤结束 ===');
+      
+      return filteredData;
+    } catch (error) {
+      console.error('✗ WHERE 解析错误:', error.message);
+      console.log('=== WHERE 过滤结束 ===');
+      throw error;
+    }
+  }
+
+  /**
+   * 解析 WHERE 条件为抽象语法树
+   * @param {string} whereClause - WHERE 子句
+   * @returns {Object} 条件对象
+   */
+  parseWhereCondition(whereClause) {
+    const clause = whereClause.trim();
+    
+    // 处理 AND/OR 逻辑运算符（优先级：OR < AND）
+    // 先处理 OR
+    const orParts = this.splitByOperator(clause, 'OR');
+    if (orParts.length > 1) {
+      return {
+        type: 'OR',
+        conditions: orParts.map(part => this.parseWhereCondition(part))
+      };
+    }
+    
+    // 再处理 AND
+    const andParts = this.splitByOperator(clause, 'AND');
+    if (andParts.length > 1) {
+      return {
+        type: 'AND',
+        conditions: andParts.map(part => this.parseWhereCondition(part))
+      };
+    }
+    
+    // 处理单个比较条件
+    return this.parseComparison(clause);
+  }
+
+  /**
+   * 按运算符分割字符串（忽略引号内的内容）
+   */
+  splitByOperator(str, operator) {
+    const parts = [];
+    let current = '';
+    let inQuote = false;
+    let quoteChar = '';
+    let i = 0;
+    
+    while (i < str.length) {
+      const char = str[i];
+      
+      if ((char === '"' || char === "'") && (i === 0 || str[i-1] !== '\\')) {
+        if (!inQuote) {
+          inQuote = true;
+          quoteChar = char;
+        } else if (char === quoteChar) {
+          inQuote = false;
+        }
+        current += char;
+        i++;
+      } else if (!inQuote && str.substr(i, operator.length + 2).toUpperCase() === ` ${operator} `) {
+        parts.push(current.trim());
+        current = '';
+        i += operator.length + 2;
+      } else {
+        current += char;
+        i++;
       }
-    });
+    }
     
-    console.log('过滤后行数:', filteredData.length);
-    console.log('=== WHERE 过滤结束 ===');
+    if (current.trim()) {
+      parts.push(current.trim());
+    }
     
-    return filteredData;
+    return parts.length > 1 ? parts : [str];
+  }
+
+  /**
+   * 解析比较表达式
+   */
+  parseComparison(expr) {
+    expr = expr.trim();
+    
+    // 处理 IS NULL / IS NOT NULL
+    const isNullMatch = expr.match(/^(\w+)\s+IS\s+NULL$/i);
+    if (isNullMatch) {
+      return { type: 'IS_NULL', field: isNullMatch[1] };
+    }
+    
+    const isNotNullMatch = expr.match(/^(\w+)\s+IS\s+NOT\s+NULL$/i);
+    if (isNotNullMatch) {
+      return { type: 'IS_NOT_NULL', field: isNotNullMatch[1] };
+    }
+    
+    // 处理 LIKE
+    const likeMatch = expr.match(/^(\w+)\s+LIKE\s+['"]([^'"]+)['"]$/i);
+    if (likeMatch) {
+      return { type: 'LIKE', field: likeMatch[1], value: likeMatch[2] };
+    }
+    
+    // 处理比较运算符: =, !=, <>, <, >, <=, >=
+    const comparisonMatch = expr.match(/^(\w+)\s*(=|!=|<>|<=|>=|<|>)\s*(.+)$/);
+    if (comparisonMatch) {
+      let value = comparisonMatch[3].trim();
+      
+      // 移除引号
+      if ((value.startsWith('"') && value.endsWith('"')) || 
+          (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      
+      return {
+        type: 'COMPARISON',
+        field: comparisonMatch[1],
+        operator: comparisonMatch[2] === '<>' ? '!=' : comparisonMatch[2],
+        value: value
+      };
+    }
+    
+    throw new Error(`无法解析条件: ${expr}`);
+  }
+
+  /**
+   * 评估条件
+   */
+  evaluateCondition(condition, row) {
+    switch (condition.type) {
+      case 'AND':
+        return condition.conditions.every(c => this.evaluateCondition(c, row));
+        
+      case 'OR':
+        return condition.conditions.some(c => this.evaluateCondition(c, row));
+        
+      case 'IS_NULL':
+        const nullValue = row[condition.field];
+        return nullValue === null || nullValue === undefined || nullValue === '';
+        
+      case 'IS_NOT_NULL':
+        const notNullValue = row[condition.field];
+        return notNullValue !== null && notNullValue !== undefined && notNullValue !== '';
+        
+      case 'LIKE':
+        const likeValue = row[condition.field];
+        if (likeValue === null || likeValue === undefined) return false;
+        return likeValue.toString().includes(condition.value);
+        
+      case 'COMPARISON':
+        return this.compareValues(
+          row[condition.field],
+          condition.operator,
+          condition.value
+        );
+        
+      default:
+        throw new Error(`未知的条件类型: ${condition.type}`);
+    }
+  }
+
+  /**
+   * 比较两个值
+   */
+  compareValues(fieldValue, operator, compareValue) {
+    // 处理 null/undefined
+    if (fieldValue === null || fieldValue === undefined) {
+      return operator === '!=' && compareValue !== '';
+    }
+    
+    // 转换为字符串进行比较
+    const fieldStr = fieldValue.toString();
+    const compareStr = compareValue.toString();
+    
+    // 尝试数值比较
+    const fieldNum = parseFloat(fieldStr);
+    const compareNum = parseFloat(compareStr);
+    const isNumeric = !isNaN(fieldNum) && !isNaN(compareNum);
+    
+    switch (operator) {
+      case '=':
+        return isNumeric ? fieldNum === compareNum : fieldStr === compareStr;
+      case '!=':
+        return isNumeric ? fieldNum !== compareNum : fieldStr !== compareStr;
+      case '<':
+        return isNumeric ? fieldNum < compareNum : fieldStr < compareStr;
+      case '>':
+        return isNumeric ? fieldNum > compareNum : fieldStr > compareStr;
+      case '<=':
+        return isNumeric ? fieldNum <= compareNum : fieldStr <= compareStr;
+      case '>=':
+        return isNumeric ? fieldNum >= compareNum : fieldStr >= compareStr;
+      default:
+        throw new Error(`未知的运算符: ${operator}`);
+    }
   }
 
   /**

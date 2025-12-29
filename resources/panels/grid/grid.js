@@ -54,10 +54,7 @@ $(function () {
   // 应用过滤
   const applyFilter = () => {
     if (!whereInput || !orderByInput) {
-      layui.use("layer", function () {
-        const layer = layui.layer;
-        layer.msg("请等待数据加载完成", { icon: 0, time: 2000 });
-      });
+      console.warn('请等待数据加载完成');
       return;
     }
 
@@ -87,10 +84,7 @@ $(function () {
   $("#btn-save").on("click", () => {
     const changedRows = dbTable.getChangedRows();
     if (changedRows.length === 0) {
-      layui.use("layer", function () {
-        const layer = layui.layer;
-        layer.msg("没有需要保存的修改", { icon: 0, time: 2000 });
-      });
+      console.log('没有需要保存的修改');
       return;
     }
 
@@ -120,11 +114,7 @@ $(function () {
         updateSQLInputFields(fields);
       }
     } else if (command === "status") {
-      layui.use("layer", function () {
-        const layer = layui.layer;
-        const icon = data.success ? 1 : 2;
-        layer.msg(data.message || "操作完成", { icon: icon, time: 2000 });
-      });
+      console.log('操作状态:', data.success ? '成功' : '失败', '-', data.message || "操作完成");
     }
   });
 

@@ -8,8 +8,10 @@ export class SQLCodeLensProvider implements vscode.CodeLensProvider {
   public readonly onDidChangeCodeLenses: vscode.Event<void> =
     this._onDidChangeCodeLenses.event;
   private editor?: CaEditor;
+  private outputChannel: vscode.OutputChannel;
 
-  constructor() {
+  constructor(outputChannel: vscode.OutputChannel) {
+    this.outputChannel = outputChannel;
     vscode.workspace.onDidChangeConfiguration((_) => {
       this._onDidChangeCodeLenses.fire();
     });
@@ -228,21 +230,52 @@ export class SQLCodeLensProvider implements vscode.CodeLensProvider {
     return new Promise((resolve, reject) => {
       // 记录开始时间
       const startTime = Date.now();
+      const timestamp = new Date().toLocaleString('zh-CN', { hour12: false });
+
+      // 输出到输出面板
+      this.outputChannel.appendLine('='.repeat(80));
+      this.outputChannel.appendLine(`[${timestamp}] 执行 SQL`);
+      this.outputChannel.appendLine(`数据库: ${database}`);
+      this.outputChannel.appendLine(`SQL 语句:`);
+      this.outputChannel.appendLine(sql);
+      this.outputChannel.appendLine('-'.repeat(80));
 
       // 切换到指定数据库
       connection.changeUser({ database }, (err: any) => {
         if (err) {
+          this.outputChannel.appendLine(`✗ 切换数据库失败: ${err.message}`);
+          this.outputChannel.appendLine('='.repeat(80));
+          this.outputChannel.appendLine('');
           return reject(err);
         }
+
+        this.outputChannel.appendLine(`✓ 已切换到数据库: ${database}`);
 
         // 执行 SQL
         connection.query(sql, (error: any, results: any, fields: any) => {
           if (error) {
+            this.outputChannel.appendLine(`✗ SQL 执行失败: ${error.message}`);
+            this.outputChannel.appendLine(`错误代码: ${error.code}`);
+            if (error.sqlMessage) {
+              this.outputChannel.appendLine(`错误详情: ${error.sqlMessage}`);
+            }
+            this.outputChannel.appendLine('='.repeat(80));
+            this.outputChannel.appendLine('');
             return reject(error);
           }
 
           // 计算执行时间（秒）
           const executionTime = (Date.now() - startTime) / 1000;
+          const rowCount = Array.isArray(results) ? results.length : results.affectedRows || 0;
+
+          this.outputChannel.appendLine(`✓ SQL 执行成功`);
+          this.outputChannel.appendLine(`执行时间: ${executionTime.toFixed(3)} 秒`);
+          this.outputChannel.appendLine(`影响行数: ${rowCount}`);
+          this.outputChannel.appendLine('='.repeat(80));
+          this.outputChannel.appendLine('');
+
+          // 显示输出面板
+          this.outputChannel.show(true); // true 表示保持焦点在编辑器
 
           resolve({
             results,
