@@ -384,6 +384,16 @@ export function registerDatasourceCommands(
             // 刷新 TreeView
             provider.refresh();
             
+            // 等待刷新完成后，从缓存恢复描述
+            setTimeout(async () => {
+              if (connectionNode && provider.context) {
+                const cached = await provider.loadCachedTreeData(connectionNode);
+                if (cached) {
+                  provider.refresh();
+                }
+              }
+            }, 100);
+            
             vscode.window.showInformationMessage(
               `已选择 ${selectedDbs.length} 个数据库${selectedDbs.length === 0 ? '（将显示全部）' : ''}`
             );

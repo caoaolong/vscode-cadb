@@ -69,8 +69,8 @@ export class DataSourceProvider implements vscode.TreeDataProvider<Datasource> {
     element: Datasource
   ): vscode.TreeItem | Thenable<vscode.TreeItem> {
     // Keep getTreeItem synchronous — child loading is handled in getChildren
-    // 确保 description 从 data.extra 同步（如果存在）
-    if (element.data && element.data.extra && !element.description) {
+    // 确保 description 从 data.extra 同步（优先使用 data.extra）
+    if (element.data && element.data.extra) {
       element.description = element.data.extra;
     }
     return element;
@@ -82,11 +82,17 @@ export class DataSourceProvider implements vscode.TreeDataProvider<Datasource> {
     if (element) {
       // If children already loaded, return them
       if (element.children && element.children.length) {
+        // 确保子节点的描述已从 data.extra 同步
+        for (const child of element.children) {
+          if (child.data && child.data.extra && !child.description) {
+            child.description = child.data.extra;
+          }
+        }
         return element.children;
       }
 
       // Otherwise load children asynchronously. Return a Promise so VS Code shows a loading indicator
-      return element.expand(this.context).then((children) => {
+      return element.expand(this.context).then(async (children) => {
         element.children = children || [];
         
         // 如果是 datasourceType 节点，根据选择过滤数据库
@@ -100,6 +106,18 @@ export class DataSourceProvider implements vscode.TreeDataProvider<Datasource> {
                 selectedDbs.includes(child.label?.toString() || '')
               );
             }
+          }
+          
+          // 从缓存恢复数据库和表的描述
+          if (connectionName && this.treeState.cachedTreeData?.[connectionName]) {
+            await this.restoreDescriptionsFromCache(element, this.treeState.cachedTreeData[connectionName]);
+          }
+        }
+        
+        // 确保所有子节点的描述已从 data.extra 同步
+        for (const child of element.children) {
+          if (child.data && child.data.extra) {
+            child.description = child.data.extra;
           }
         }
         
@@ -416,6 +434,69 @@ export class DataSourceProvider implements vscode.TreeDataProvider<Datasource> {
       }
       
       this._onDidChangeTreeData.fire(node);
+    }
+  }
+
+  /**
+   * 从缓存恢复节点描述
+   * @param node 当前节点
+   * @param cachedData 缓存数据
+   */
+  private async restoreDescriptionsFromCache(node: Datasource, cachedData: any): Promise<void> {
+    if (!cachedData || !cachedData.children) {
+      return;
+    }
+
+    // 查找对应的缓存数据
+    const findCachedNode = (children: any[], targetType: string, targetName: string): any => {
+      for (const child of children) {
+        if (child.type === targetType && child.name === targetName) {
+          return child;
+        }
+        if (child.children) {
+          const found = findCachedNode(child.children, targetType, targetName);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+
+    // 恢复数据库节点的描述
+    if (node.type === 'datasourceType' && node.children) {
+      for (const dbNode of node.children) {
+        if (dbNode.type === 'collection') {
+          const cachedDb = findCachedNode(cachedData.children, 'collection', dbNode.label?.toString() || '');
+          if (cachedDb && cachedDb.description) {
+            dbNode.description = cachedDb.description;
+            if (dbNode.data) {
+              dbNode.data.extra = cachedDb.description;
+            }
+            this._onDidChangeTreeData.fire(dbNode);
+            
+            // 恢复表节点的描述
+            if (dbNode.children) {
+              const tableTypeNode = dbNode.children.find(c => c.type === 'collectionType');
+              if (tableTypeNode && tableTypeNode.children && cachedDb.children) {
+                const cachedTableType = findCachedNode(cachedDb.children, 'collectionType', '表');
+                if (cachedTableType && cachedTableType.children) {
+                  for (const tableNode of tableTypeNode.children) {
+                    if (tableNode.type === 'document') {
+                      const cachedTable = findCachedNode(cachedTableType.children, 'document', tableNode.label?.toString() || '');
+                      if (cachedTable && cachedTable.description) {
+                        tableNode.description = cachedTable.description;
+                        if (tableNode.data) {
+                          tableNode.data.extra = cachedTable.description;
+                        }
+                        this._onDidChangeTreeData.fire(tableNode);
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 
