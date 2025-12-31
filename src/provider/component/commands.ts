@@ -282,7 +282,32 @@ export function registerDatasourceCommands(
   provider: DataSourceProvider,
   treeView: vscode.TreeView<Datasource>
 ) {
-  vscode.commands.registerCommand("cadb.datasource.refresh", provider.refresh);
+  // 注册刷新命令，支持完整加载
+  vscode.commands.registerCommand("cadb.datasource.refresh", async (item?: Datasource) => {
+    if (item && item.type === 'datasource') {
+      // 如果指定了数据源，则完整加载该数据源
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: `正在刷新 ${item.label}...`,
+          cancellable: false
+        },
+        async (progress) => {
+          // 清除缓存
+          provider.clearCachedTreeData(item.label?.toString() || '');
+          // 清空子节点，强制重新加载
+          item.children = [];
+          // 完整加载
+          await provider.loadAllChildren(item, progress);
+          // 刷新视图
+          provider.refresh();
+        }
+      );
+    } else {
+      // 否则执行普通刷新
+      provider.refresh();
+    }
+  });
   vscode.commands.registerCommand("cadb.datasource.add", (item) =>
     addEntry(item, provider)
   );

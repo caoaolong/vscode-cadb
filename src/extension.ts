@@ -36,6 +36,34 @@ export function activate(context: vscode.ExtensionContext) {
       provider.refresh();
     }
   });
+  
+  // 监听 TreeView 选择变化，当选择 datasource 节点时触发完整加载
+  treeView.onDidChangeSelection(async (e) => {
+    if (e.selection && e.selection.length > 0) {
+      const selectedItem = e.selection[0];
+      if (selectedItem.type === 'datasource') {
+        // 先尝试从缓存加载
+        const cached = await provider.loadCachedTreeData(selectedItem);
+        if (!cached) {
+          // 如果缓存不存在，则完整加载
+          await vscode.window.withProgress(
+            {
+              location: vscode.ProgressLocation.Notification,
+              title: `正在加载 ${selectedItem.label}...`,
+              cancellable: false
+            },
+            async (progress) => {
+              await provider.loadAllChildren(selectedItem, progress);
+              provider.refresh();
+            }
+          );
+        } else {
+          // 如果从缓存加载成功，刷新视图
+          provider.refresh();
+        }
+      }
+    }
+  });
   // 数据项命令
   registerDatasourceItemCommands(provider);
 
