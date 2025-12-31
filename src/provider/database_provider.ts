@@ -114,6 +114,11 @@ export class DataSourceProvider implements vscode.TreeDataProvider<Datasource> {
           }
         }
         
+        // 如果是表节点（document），加载字段并更新描述
+        if (element.type === 'document') {
+          await this.loadDocumentChildren(element);
+        }
+        
         // 确保所有子节点的描述已从 data.extra 同步
         for (const child of element.children) {
           if (child.data && child.data.extra) {
@@ -234,8 +239,20 @@ export class DataSourceProvider implements vscode.TreeDataProvider<Datasource> {
         child.children = databases || [];
         this._onDidChangeTreeData.fire(child);
 
+        // 检查是否有选择的数据库
+        const connectionName = datasource.label?.toString() || '';
+        const selectedDbs = this.getSelectedDatabases(connectionName);
+        let databasesToLoad = child.children;
+        
+        // 如果用户选择了数据库，只加载选择的数据库
+        if (selectedDbs.length > 0) {
+          databasesToLoad = child.children.filter(db => 
+            selectedDbs.includes(db.label?.toString() || '')
+          );
+        }
+
         // 遍历每个数据库
-        for (const db of child.children) {
+        for (const db of databasesToLoad) {
           if (db.type === 'collection') {
             // 加载数据库下的表
             progress?.report({ message: `正在加载数据库 ${db.label} 的表...` });
@@ -300,6 +317,24 @@ export class DataSourceProvider implements vscode.TreeDataProvider<Datasource> {
    * @param document 表节点
    */
   private async loadDocumentChildren(document: Datasource): Promise<void> {
+    // 如果已经加载过字段，检查描述是否已设置
+    if (document.children && document.children.length > 0) {
+      const fieldTypeNode = document.children.find(child => child.type === 'fieldType');
+      if (fieldTypeNode && fieldTypeNode.children && fieldTypeNode.children.length > 0) {
+        // 字段已加载，只需更新描述（如果还没有）
+        if (!document.description || !document.data?.extra) {
+          const fieldCount = fieldTypeNode.children.length;
+          const descriptionText = `${fieldCount} 个字段`;
+          document.description = descriptionText;
+          if (document.data) {
+            document.data.extra = descriptionText;
+          }
+          this._onDidChangeTreeData.fire(document);
+        }
+        return;
+      }
+    }
+    
     // 加载表下的对象类型（字段、索引）
     const objectTypes = await document.expand(this.context);
     document.children = objectTypes || [];
