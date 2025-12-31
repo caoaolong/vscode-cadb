@@ -195,7 +195,7 @@
 
   // 用户字段映射
   const userFieldMapping = {
-    Authentication_string: {
+    authentication_string: {
       type: "hidden",
     },
     // 基础字段
@@ -230,7 +230,6 @@
       placeholder: "留空则不修改密码",
       hint: "提示：编辑模式下留空密码字段将不会修改密码",
     },
-
     // 连接限制
     max_connections: {
       type: "number",
