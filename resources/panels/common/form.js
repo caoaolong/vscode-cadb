@@ -75,6 +75,9 @@ class DynamicForm {
     this.form.render("checkbox");
     this.form.render("switch");
 
+    // 初始化字段显示状态
+    this.updateAllFieldsVisibility();
+
     // 绑定事件
     this.bindEvents();
   }
@@ -201,7 +204,14 @@ class DynamicForm {
    * @returns {string} 字段HTML
    */
   generateFieldHtml(fieldName, config) {
-    let html = '<div class="layui-form-item">';
+    // 处理条件显示和隐藏
+    const showExpression = config.show || "";
+    const hiddenExpression = config.hidden || "";
+    const showAttr = showExpression ? `data-show="${showExpression.replace(/"/g, '&quot;')}"` : "";
+    const hiddenAttr = hiddenExpression ? `data-hidden="${hiddenExpression.replace(/"/g, '&quot;')}"` : "";
+    const fieldAttr = `data-field-name="${fieldName}"`;
+    
+    let html = `<div class="layui-form-item" ${fieldAttr} ${showAttr} ${hiddenAttr}>`;
 
     switch (config.type) {
       case "select":
@@ -695,6 +705,9 @@ class DynamicForm {
       this.form.render("checkbox");
       this.form.render("switch");
     }
+    
+    // 更新字段显示状态
+    this.updateAllFieldsVisibility();
   }
 
   /**
@@ -783,6 +796,132 @@ class DynamicForm {
   }
 
   /**
+   * 评估显示表达式
+   * @param {string} expression 表达式，如 "dbType == 'redis'" 或 "dbType.value == 'redis'"
+   * @param {Object} formData 表单数据
+   * @returns {boolean} 是否显示
+   */
+  evaluateShowExpression(expression, formData) {
+    if (!expression || !expression.trim()) {
+      return true; // 没有表达式，默认显示
+    }
+
+    try {
+      let evalExpression = expression.trim();
+      
+      // 先处理带 .value 的引用（如 dbType.value）
+      const fieldValuePattern = /(\w+)\.value\b/g;
+      evalExpression = evalExpression.replace(fieldValuePattern, (match, fieldName) => {
+        if (formData.hasOwnProperty(fieldName)) {
+          const value = formData[fieldName];
+          return this.formatValueForExpression(value);
+        }
+        return 'null';
+      });
+      
+      // 再处理直接字段引用（如 dbType）
+      // 先找出所有可能的字段名
+      const fieldNames = Object.keys(formData);
+      const keywords = ['true', 'false', 'null', 'undefined', 'return', 'if', 'else', 'and', 'or', 'not'];
+      
+      // 按长度降序排序，先匹配长的字段名
+      fieldNames.sort((a, b) => b.length - a.length);
+      
+      fieldNames.forEach(fieldName => {
+        if (keywords.includes(fieldName)) {
+          return; // 跳过关键字
+        }
+        
+        // 使用单词边界匹配字段名，避免部分匹配
+        const fieldPattern = new RegExp('\\b' + fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'g');
+        evalExpression = evalExpression.replace(fieldPattern, (match, offset, string) => {
+          // 检查是否在字符串字面量中
+          const before = string.substring(0, offset);
+          const quoteCount = (before.match(/"/g) || []).length;
+          const singleQuoteCount = (before.match(/'/g) || []).length;
+          
+          // 如果引号数量是奇数，说明在字符串中
+          if (quoteCount % 2 === 1 || singleQuoteCount % 2 === 1) {
+            return match;
+          }
+          
+          // 检查前面是否有 .value（已经处理过）
+          if (offset > 0 && string.substring(offset - 6, offset) === '.value') {
+            return match;
+          }
+          
+          // 替换为实际值
+          const value = formData[fieldName];
+          return this.formatValueForExpression(value);
+        });
+      });
+
+      // 使用 Function 构造函数安全地评估表达式
+      const result = new Function('return ' + evalExpression)();
+      return Boolean(result);
+    } catch (error) {
+      console.error('评估显示表达式失败:', expression, error);
+      return true; // 出错时默认显示
+    }
+  }
+
+  /**
+   * 格式化值为表达式可用的格式
+   * @param {any} value 值
+   * @returns {string} 格式化后的值
+   */
+  formatValueForExpression(value) {
+    if (value === null || value === undefined) {
+      return 'null';
+    } else if (typeof value === 'string') {
+      return `"${value.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`;
+    } else if (typeof value === 'boolean') {
+      return value ? 'true' : 'false';
+    } else if (typeof value === 'number') {
+      return value.toString();
+    } else {
+      return `"${String(value).replace(/"/g, '\\"')}"`;
+    }
+  }
+
+  /**
+   * 更新所有字段的显示状态
+   */
+  updateAllFieldsVisibility() {
+    const formData = this.getData();
+    const $form = this.container.find("form");
+    
+    $form.find("[data-field-name]").each((index, element) => {
+      const $item = $(element);
+      const fieldName = $item.attr("data-field-name");
+      const showExpression = $item.attr("data-show");
+      const hiddenExpression = $item.attr("data-hidden");
+      
+      let shouldShow = true; // 默认显示
+      
+      // 优先检查 hidden 表达式（优先级更高）
+      if (hiddenExpression) {
+        const isHidden = this.evaluateShowExpression(hiddenExpression, formData);
+        if (isHidden) {
+          shouldShow = false;
+        }
+      }
+      
+      // 如果 hidden 表达式没有隐藏，再检查 show 表达式
+      if (shouldShow && showExpression) {
+        shouldShow = this.evaluateShowExpression(showExpression, formData);
+      }
+      
+      // 更新显示状态
+      if (shouldShow) {
+        $item.show();
+      } else {
+        $item.hide();
+      }
+    });
+  }
+
+  /**
    * 绑定事件
    */
   bindEvents() {
@@ -810,6 +949,39 @@ class DynamicForm {
           self.onCancel();
         }
       });
+
+    // 监听所有字段变化，更新条件显示
+    const $form = this.container.find("form");
+    
+    // 移除旧的事件监听器，避免重复绑定
+    $form.off("input change", "input, select, textarea");
+    
+    // 监听输入框、选择框、文本域变化
+    $form.on("input change", "input, select, textarea", function () {
+      // 使用 setTimeout 确保值已更新
+      setTimeout(() => {
+        self.updateAllFieldsVisibility();
+      }, 0);
+    });
+
+    // 监听复选框和开关变化（使用 layui 的表单事件）
+    if (this.form) {
+      // 移除旧的事件监听器
+      this.form.off("checkbox switch");
+      
+      // 监听复选框和开关变化
+      this.form.on("checkbox", function(data) {
+        setTimeout(() => {
+          self.updateAllFieldsVisibility();
+        }, 0);
+      });
+      
+      this.form.on("switch", function(data) {
+        setTimeout(() => {
+          self.updateAllFieldsVisibility();
+        }, 0);
+      });
+    }
   }
 
   /**

@@ -21,9 +21,7 @@
       required: true,
       options: [
         { value: "mysql", label: "MySQL" },
-        { value: "postgres", label: "PostgreSQL" },
-        { value: "sqlite", label: "SQLite" },
-        { value: "mssql", label: "SQL Server" },
+        { value: "redis", label: "Redis" },
       ],
     },
     name: {
@@ -47,18 +45,21 @@
       placeholder: "3306",
       min: 1,
       max: 65535,
+      hidden: "dbType == 'sqlite'", // 当数据库类型是 sqlite 时隐藏（hidden 优先级高于 show）
     },
     username: {
       type: "text",
       label: "用户名",
       category: "base",
       placeholder: "数据库用户名",
+      show: "dbType != 'redis'", // 当数据库类型不是 redis 时显示
     },
     password: {
       type: "password",
       label: "密码",
       category: "base",
       placeholder: "数据库密码",
+      show: "dbType != 'redis'", // 当数据库类型不是 redis 时显示
     },
     database: {
       type: "text",
@@ -66,6 +67,7 @@
       category: "base",
       placeholder: "数据库名称",
       hint: "要连接的数据库名称（可选）",
+      show: "dbType != 'redis'", // 当数据库类型不是 redis 时显示
     },
 
     // SQLite 专用字段
@@ -75,6 +77,8 @@
       category: "base",
       placeholder: "/path/to/database.db",
       hint: "SQLite 数据库文件的完整路径",
+      show: "dbType == 'sqlite'", // 当数据库类型是 sqlite 时显示
+      // 也可以使用 hidden: "dbType != 'sqlite'" 实现相同效果
     },
 
     // 高级字段
