@@ -490,7 +490,9 @@ export class DataSourceProvider implements vscode.TreeDataProvider<Datasource> {
         }
         if (child.children) {
           const found = findCachedNode(child.children, targetType, targetName);
-          if (found) return found;
+          if (found) {
+						return found;
+					}
         }
       }
       return null;
