@@ -195,6 +195,9 @@
 
   // 用户字段映射
   const userFieldMapping = {
+    Authentication_string: {
+      type: "hidden",
+    },
     // 基础字段
     User: {
       type: "text",

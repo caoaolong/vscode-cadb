@@ -204,6 +204,7 @@ export class Datasource extends vscode.TreeItem {
       case "index":
       case "indexType":
         this.initIndexType(input);
+        break;
       case "file":
       case "fileType":
         this.initFileType(input);

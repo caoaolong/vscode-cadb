@@ -24,13 +24,15 @@ class DynamicForm {
 
     this.ready = new Promise((resolve) => {
       // 初始化 Layui
-      layui.use(["form", "layer", "element"], () => {
+      layui.use(["form", "layer", "element", "laydate"], () => {
         this.form = layui.form;
         this.layer = layui.layer;
         this.element = layui.element;
+        this.laydate = layui.laydate;
         resolve();
       });
     });
+    this.laydateInstances = {}; // 存储 laydate 实例
   }
 
   /**
@@ -65,6 +67,9 @@ class DynamicForm {
 
     // 填充数据
     this.fillFormData(this.currentData);
+
+    // 初始化日期和时间选择器
+    this.initDateFields();
 
     // 重新渲染表单
     this.form.render("checkbox");
@@ -211,8 +216,21 @@ class DynamicForm {
       case "textarea":
         html += this.generateTextareaField(fieldName, config);
         break;
+      case "date":
+        html += this.generateDateField(fieldName, config);
+        break;
+      case "time":
+        html += this.generateTimeField(fieldName, config);
+        break;
+      case "datetime":
+        html += this.generateDateTimeField(fieldName, config);
+        break;
       case "number":
+        html += this.generateNumberField(fieldName, config);
+        break;
       case "password":
+        html += this.generatePasswordField(fieldName, config);
+        break;
       case "text":
       default:
         html += this.generateInputField(fieldName, config);
@@ -251,6 +269,66 @@ class DynamicForm {
           ${max}
           class="layui-input"
         />
+      </div>
+    `;
+  }
+
+  /**
+   * 生成数字输入框字段（使用 lay-affix="number"）
+   */
+  generateNumberField(fieldName, config) {
+    const required = config.required ? 'lay-verify="required"' : "";
+    const placeholder = config.placeholder || "";
+    const step = config.step !== undefined ? `step="${config.step}"` : "";
+    const min = config.min !== undefined ? `min="${config.min}"` : "";
+    const max = config.max !== undefined ? `max="${config.max}"` : "";
+    const precision = config.precision !== undefined ? `lay-precision="${config.precision}"` : "";
+    const stepStrictly = config.stepStrictly ? `lay-step-strictly` : "";
+    const wheel = config.wheel !== undefined ? `lay-wheel="${config.wheel}"` : "";
+    const value = config.value !== undefined ? `value="${config.value}"` : "";
+
+    return `
+      <label class="layui-form-label">${config.label}</label>
+      <div class="layui-input-block">
+        <input
+          type="text"
+          name="${fieldName}"
+          placeholder="${placeholder}"
+          ${required}
+          ${step}
+          ${min}
+          ${max}
+          ${precision}
+          ${stepStrictly}
+          ${wheel}
+          ${value}
+          lay-affix="number"
+          class="layui-input"
+        />
+      </div>
+    `;
+  }
+
+  /**
+   * 生成密码输入框字段（使用 lay-affix="eye" 实现密码显隐）
+   */
+  generatePasswordField(fieldName, config) {
+    const required = config.required ? 'lay-verify="required"' : "";
+    const placeholder = config.placeholder || "";
+
+    return `
+      <label class="layui-form-label">${config.label}</label>
+      <div class="layui-input-block">
+        <div class="layui-input-wrap">
+          <input
+            type="password"
+            name="${fieldName}"
+            placeholder="${placeholder}"
+            ${required}
+            lay-affix="eye"
+            class="layui-input"
+          />
+        </div>
       </div>
     `;
   }
@@ -342,6 +420,224 @@ class DynamicForm {
   }
 
   /**
+   * 生成日期选择字段
+   */
+  generateDateField(fieldName, config) {
+    const required = config.required ? 'lay-verify="required"' : "";
+    const placeholder = config.placeholder || "yyyy-MM-dd";
+    const format = config.format || "yyyy-MM-dd";
+    const fieldId = `${this.formId}-${fieldName}`;
+
+    return `
+      <label class="layui-form-label">${config.label}</label>
+      <div class="layui-input-block">
+        <input
+          type="text"
+          name="${fieldName}"
+          id="${fieldId}"
+          placeholder="${placeholder}"
+          ${required}
+          class="layui-input"
+          autocomplete="off"
+        />
+      </div>
+    `;
+  }
+
+  /**
+   * 生成时间选择字段
+   */
+  generateTimeField(fieldName, config) {
+    const required = config.required ? 'lay-verify="required"' : "";
+    const placeholder = config.placeholder || "HH:mm:ss";
+    const format = config.format || "HH:mm:ss";
+    const fieldId = `${this.formId}-${fieldName}`;
+
+    return `
+      <label class="layui-form-label">${config.label}</label>
+      <div class="layui-input-block">
+        <input
+          type="text"
+          name="${fieldName}"
+          id="${fieldId}"
+          placeholder="${placeholder}"
+          ${required}
+          class="layui-input"
+          autocomplete="off"
+        />
+      </div>
+    `;
+  }
+
+  /**
+   * 生成日期时间选择字段
+   */
+  generateDateTimeField(fieldName, config) {
+    const required = config.required ? 'lay-verify="required"' : "";
+    const placeholder = config.placeholder || "yyyy-MM-dd HH:mm:ss";
+    const format = config.format || "yyyy-MM-dd HH:mm:ss";
+    const fieldId = `${this.formId}-${fieldName}`;
+
+    return `
+      <label class="layui-form-label">${config.label}</label>
+      <div class="layui-input-block">
+        <input
+          type="text"
+          name="${fieldName}"
+          id="${fieldId}"
+          placeholder="${placeholder}"
+          ${required}
+          class="layui-input"
+          autocomplete="off"
+        />
+      </div>
+    `;
+  }
+
+  /**
+   * 初始化日期和时间选择器
+   */
+  initDateFields() {
+    if (!this.laydate) {
+      return;
+    }
+
+    const dateFields = [];
+    const timeFields = [];
+    const datetimeFields = [];
+
+    // 收集所有日期、时间和日期时间字段
+    Object.keys(this.currentData).forEach((fieldName) => {
+      const config = this.getFieldConfig(fieldName);
+      if (config.type === "date") {
+        dateFields.push({ fieldName, config });
+      } else if (config.type === "time") {
+        timeFields.push({ fieldName, config });
+      } else if (config.type === "datetime") {
+        datetimeFields.push({ fieldName, config });
+      }
+    });
+
+    // 初始化日期选择器
+    dateFields.forEach(({ fieldName, config }) => {
+      const fieldId = `#${this.formId}-${fieldName}`;
+      const $field = this.container.find(fieldId);
+      
+      if ($field.length) {
+        const format = config.format || "yyyy-MM-dd";
+        const range = config.range || false;
+        const min = config.min || "";
+        const max = config.max || "";
+        const instanceId = `${this.formId}-${fieldName}`;
+
+        const laydateConfig = {
+          elem: fieldId,
+          id: instanceId,
+          type: "date",
+          format: format,
+          range: range,
+        };
+
+        if (min) {
+          laydateConfig.min = min;
+        }
+        if (max) {
+          laydateConfig.max = max;
+        }
+
+        // 如果之前有实例，先销毁
+        if (this.laydateInstances[fieldName]) {
+          try {
+            this.laydate.close(instanceId);
+          } catch (e) {
+            // 忽略错误
+          }
+        }
+
+        // 创建新实例
+        this.laydateInstances[fieldName] = this.laydate.render(laydateConfig);
+      }
+    });
+
+    // 初始化时间选择器
+    timeFields.forEach(({ fieldName, config }) => {
+      const fieldId = `#${this.formId}-${fieldName}`;
+      const $field = this.container.find(fieldId);
+      
+      if ($field.length) {
+        const format = config.format || "HH:mm:ss";
+        const range = config.range || false;
+        const instanceId = `${this.formId}-${fieldName}`;
+
+        const laydateConfig = {
+          elem: fieldId,
+          id: instanceId,
+          type: "time",
+          format: format,
+          range: range,
+        };
+
+        // 如果之前有实例，先销毁
+        if (this.laydateInstances[fieldName]) {
+          try {
+            this.laydate.close(instanceId);
+          } catch (e) {
+            // 忽略错误
+          }
+        }
+
+        // 创建新实例
+        this.laydateInstances[fieldName] = this.laydate.render(laydateConfig);
+      }
+    });
+
+    // 初始化日期时间选择器
+    datetimeFields.forEach(({ fieldName, config }) => {
+      const fieldId = `#${this.formId}-${fieldName}`;
+      const $field = this.container.find(fieldId);
+      
+      if ($field.length) {
+        const format = config.format || "yyyy-MM-dd HH:mm:ss";
+        const range = config.range || false;
+        const min = config.min || "";
+        const max = config.max || "";
+        const fullPanel = config.fullPanel || false; // 是否显示全面板（日期和时间同时显示）
+        const instanceId = `${this.formId}-${fieldName}`;
+
+        const laydateConfig = {
+          elem: fieldId,
+          id: instanceId,
+          type: "datetime",
+          format: format,
+          range: range,
+        };
+
+        if (min) {
+          laydateConfig.min = min;
+        }
+        if (max) {
+          laydateConfig.max = max;
+        }
+        if (fullPanel) {
+          laydateConfig.fullPanel = true; // 2.8+ 支持全面板显示
+        }
+
+        // 如果之前有实例，先销毁
+        if (this.laydateInstances[fieldName]) {
+          try {
+            this.laydate.close(instanceId);
+          } catch (e) {
+            // 忽略错误
+          }
+        }
+
+        // 创建新实例
+        this.laydateInstances[fieldName] = this.laydate.render(laydateConfig);
+      }
+    });
+  }
+
+  /**
    * 填充表单数据
    * @param {Object} data 表单数据
    */
@@ -365,6 +661,20 @@ class DynamicForm {
           break;
         case "select":
           $field.val(value);
+          break;
+        case "date":
+        case "time":
+        case "datetime":
+          // 日期、时间和日期时间字段直接设置值
+          $field.val(value || "");
+          break;
+        case "number":
+          // 数字字段，确保值为数字或空字符串
+          $field.val(value !== null && value !== undefined ? value : "");
+          break;
+        case "password":
+          // 密码字段直接设置值
+          $field.val(value || "");
           break;
         default:
           // 处理 Buffer 类型（如 SSL 字段）
@@ -407,7 +717,16 @@ class DynamicForm {
           break;
         case "number":
           const numValue = $element.val();
-          formData[fieldName] = numValue ? parseInt(numValue, 10) : 0;
+          // 支持整数和小数
+          if (numValue && numValue.trim() !== "") {
+            const parsed = parseFloat(numValue);
+            formData[fieldName] = isNaN(parsed) ? 0 : parsed;
+          } else {
+            formData[fieldName] = 0;
+          }
+          break;
+        case "password":
+          formData[fieldName] = $element.val();
           break;
         default:
           formData[fieldName] = $element.val();
@@ -509,6 +828,19 @@ class DynamicForm {
    * 销毁表单
    */
   destroy() {
+    // 销毁所有 laydate 实例
+    if (this.laydate && this.laydateInstances) {
+      Object.keys(this.laydateInstances).forEach((fieldName) => {
+        try {
+          const instanceId = `${this.formId}-${fieldName}`;
+          this.laydate.close(instanceId);
+        } catch (e) {
+          // 忽略错误
+        }
+      });
+      this.laydateInstances = {};
+    }
+    
     this.container.empty();
     this.currentData = null;
   }
