@@ -69,6 +69,10 @@ export class DataSourceProvider implements vscode.TreeDataProvider<Datasource> {
     element: Datasource
   ): vscode.TreeItem | Thenable<vscode.TreeItem> {
     // Keep getTreeItem synchronous — child loading is handled in getChildren
+    // 确保 description 从 data.extra 同步（如果存在）
+    if (element.data && element.data.extra && !element.description) {
+      element.description = element.data.extra;
+    }
     return element;
   }
   
@@ -253,8 +257,16 @@ export class DataSourceProvider implements vscode.TreeDataProvider<Datasource> {
 
       // 更新数据库描述为表的数量
       const tableCount = tableTypeNode.children.length;
-      collection.description = `${tableCount} 个表`;
+      const descriptionText = `${tableCount} 个表`;
+      collection.description = descriptionText;
+      if (collection.data) {
+        collection.data.extra = descriptionText;
+      }
+      // 强制刷新该节点及其父节点
       this._onDidChangeTreeData.fire(collection);
+      if (collection.parent) {
+        this._onDidChangeTreeData.fire(collection.parent);
+      }
 
       // 遍历每个表，加载字段和索引
       for (const table of tableTypeNode.children) {
@@ -285,8 +297,16 @@ export class DataSourceProvider implements vscode.TreeDataProvider<Datasource> {
 
       // 更新表描述为字段的数量
       const fieldCount = fieldTypeNode.children.length;
-      document.description = `${fieldCount} 个字段`;
+      const descriptionText = `${fieldCount} 个字段`;
+      document.description = descriptionText;
+      if (document.data) {
+        document.data.extra = descriptionText;
+      }
+      // 强制刷新该节点及其父节点
       this._onDidChangeTreeData.fire(document);
+      if (document.parent) {
+        this._onDidChangeTreeData.fire(document.parent);
+      }
     }
 
     // 查找"索引"类型节点
@@ -365,6 +385,9 @@ export class DataSourceProvider implements vscode.TreeDataProvider<Datasource> {
     // 更新描述
     if (data.description) {
       node.description = data.description;
+      if (node.data) {
+        node.data.extra = data.description;
+      }
     }
 
     // 递归处理子节点
@@ -381,6 +404,9 @@ export class DataSourceProvider implements vscode.TreeDataProvider<Datasource> {
         if (child) {
           if (childData.description) {
             child.description = childData.description;
+            if (child.data) {
+              child.data.extra = childData.description;
+            }
           }
           // 递归处理子节点的子节点
           if (childData.children && childData.children.length > 0) {
