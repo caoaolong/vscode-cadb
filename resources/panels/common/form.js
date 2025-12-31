@@ -796,7 +796,7 @@ class DynamicForm {
   }
 
   /**
-   * 评估显示表达式
+   * 评估显示表达式（不使用 eval，避免 CSP 错误）
    * @param {string} expression 表达式，如 "dbType == 'redis'" 或 "dbType.value == 'redis'"
    * @param {Object} formData 表单数据
    * @returns {boolean} 是否显示
@@ -807,62 +807,255 @@ class DynamicForm {
     }
 
     try {
-      let evalExpression = expression.trim();
-      
-      // 先处理带 .value 的引用（如 dbType.value）
-      const fieldValuePattern = /(\w+)\.value\b/g;
-      evalExpression = evalExpression.replace(fieldValuePattern, (match, fieldName) => {
-        if (formData.hasOwnProperty(fieldName)) {
-          const value = formData[fieldName];
-          return this.formatValueForExpression(value);
-        }
-        return 'null';
-      });
-      
-      // 再处理直接字段引用（如 dbType）
-      // 先找出所有可能的字段名
-      const fieldNames = Object.keys(formData);
-      const keywords = ['true', 'false', 'null', 'undefined', 'return', 'if', 'else', 'and', 'or', 'not'];
-      
-      // 按长度降序排序，先匹配长的字段名
-      fieldNames.sort((a, b) => b.length - a.length);
-      
-      fieldNames.forEach(fieldName => {
-        if (keywords.includes(fieldName)) {
-          return; // 跳过关键字
-        }
-        
-        // 使用单词边界匹配字段名，避免部分匹配
-        const fieldPattern = new RegExp('\\b' + fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'g');
-        evalExpression = evalExpression.replace(fieldPattern, (match, offset, string) => {
-          // 检查是否在字符串字面量中
-          const before = string.substring(0, offset);
-          const quoteCount = (before.match(/"/g) || []).length;
-          const singleQuoteCount = (before.match(/'/g) || []).length;
-          
-          // 如果引号数量是奇数，说明在字符串中
-          if (quoteCount % 2 === 1 || singleQuoteCount % 2 === 1) {
-            return match;
-          }
-          
-          // 检查前面是否有 .value（已经处理过）
-          if (offset > 0 && string.substring(offset - 6, offset) === '.value') {
-            return match;
-          }
-          
-          // 替换为实际值
-          const value = formData[fieldName];
-          return this.formatValueForExpression(value);
-        });
-      });
-
-      // 使用 Function 构造函数安全地评估表达式
-      const result = new Function('return ' + evalExpression)();
-      return Boolean(result);
+      // 解析并评估表达式，不使用 eval 或 Function
+      return this.parseAndEvaluateExpression(expression.trim(), formData);
     } catch (error) {
       console.error('评估显示表达式失败:', expression, error);
       return true; // 出错时默认显示
     }
+  }
+
+  /**
+   * 解析并评估表达式（不使用 eval）
+   * @param {string} expression 表达式
+   * @param {Object} formData 表单数据
+   * @returns {boolean} 结果
+   */
+  parseAndEvaluateExpression(expression, formData) {
+    // 先替换字段引用为实际值
+    let processedExpression = expression;
+    
+    // 处理带 .value 的引用（如 dbType.value）
+    const fieldValuePattern = /(\w+)\.value\b/g;
+    processedExpression = processedExpression.replace(fieldValuePattern, (match, fieldName) => {
+      if (formData.hasOwnProperty(fieldName)) {
+        return this.formatValueForExpression(formData[fieldName]);
+      }
+      return 'null';
+    });
+    
+    // 处理直接字段引用（如 dbType）
+    const fieldNames = Object.keys(formData);
+    const keywords = ['true', 'false', 'null', 'undefined'];
+    
+    // 按长度降序排序，先匹配长的字段名
+    fieldNames.sort((a, b) => b.length - a.length);
+    
+    fieldNames.forEach(fieldName => {
+      if (keywords.includes(fieldName)) {
+        return; // 跳过关键字
+      }
+      
+      // 使用单词边界匹配字段名
+      const fieldPattern = new RegExp('\\b' + fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'g');
+      processedExpression = processedExpression.replace(fieldPattern, (match, offset, string) => {
+        // 检查是否在字符串字面量中
+        const before = string.substring(0, offset);
+        const quoteCount = (before.match(/"/g) || []).length;
+        const singleQuoteCount = (before.match(/'/g) || []).length;
+        
+        // 如果引号数量是奇数，说明在字符串中
+        if (quoteCount % 2 === 1 || singleQuoteCount % 2 === 1) {
+          return match;
+        }
+        
+        // 检查前面是否有 .value（已经处理过）
+        if (offset > 0 && string.substring(offset - 6, offset) === '.value') {
+          return match;
+        }
+        
+        // 替换为实际值
+        return this.formatValueForExpression(formData[fieldName]);
+      });
+    });
+
+    // 使用简单的表达式解析器（不使用 eval）
+    return this.safeEvaluateExpression(processedExpression);
+  }
+
+  /**
+   * 安全地评估表达式（不使用 eval）
+   * @param {string} expression 已替换字段值的表达式
+   * @returns {boolean} 结果
+   */
+  safeEvaluateExpression(expression) {
+    // 移除所有空格
+    expression = expression.replace(/\s+/g, '');
+    
+    // 解析逻辑表达式
+    return this.evaluateLogicalExpression(expression);
+  }
+
+  /**
+   * 评估逻辑表达式（支持 &&, ||, !）
+   * @param {string} expression 表达式
+   * @returns {boolean} 结果
+   */
+  evaluateLogicalExpression(expression) {
+    // 处理逻辑非
+    if (expression.startsWith('!')) {
+      return !this.evaluateLogicalExpression(expression.substring(1));
+    }
+    
+    // 处理逻辑或（优先级最低）
+    const orIndex = this.findOperatorIndex(expression, '||');
+    if (orIndex !== -1) {
+      const left = expression.substring(0, orIndex);
+      const right = expression.substring(orIndex + 2);
+      return this.evaluateLogicalExpression(left) || this.evaluateLogicalExpression(right);
+    }
+    
+    // 处理逻辑与
+    const andIndex = this.findOperatorIndex(expression, '&&');
+    if (andIndex !== -1) {
+      const left = expression.substring(0, andIndex);
+      const right = expression.substring(andIndex + 2);
+      return this.evaluateLogicalExpression(left) && this.evaluateLogicalExpression(right);
+    }
+    
+    // 处理比较表达式
+    return this.evaluateComparisonExpression(expression);
+  }
+
+  /**
+   * 评估比较表达式（支持 ==, !=, ===, !==, <, >, <=, >=）
+   * @param {string} expression 表达式
+   * @returns {boolean} 结果
+   */
+  evaluateComparisonExpression(expression) {
+    // 尝试各种比较运算符
+    const operators = [
+      { op: '!==', len: 3 },
+      { op: '===', len: 3 },
+      { op: '!=', len: 2 },
+      { op: '==', len: 2 },
+      { op: '<=', len: 2 },
+      { op: '>=', len: 2 },
+      { op: '<', len: 1 },
+      { op: '>', len: 1 }
+    ];
+    
+    for (const { op, len } of operators) {
+      const index = expression.indexOf(op);
+      if (index !== -1) {
+        const left = expression.substring(0, index);
+        const right = expression.substring(index + len);
+        const leftValue = this.parseValue(left);
+        const rightValue = this.parseValue(right);
+        
+        switch (op) {
+          case '==':
+          case '===':
+            return this.compareValues(leftValue, rightValue) === 0;
+          case '!=':
+          case '!==':
+            return this.compareValues(leftValue, rightValue) !== 0;
+          case '<':
+            return this.compareValues(leftValue, rightValue) < 0;
+          case '>':
+            return this.compareValues(leftValue, rightValue) > 0;
+          case '<=':
+            return this.compareValues(leftValue, rightValue) <= 0;
+          case '>=':
+            return this.compareValues(leftValue, rightValue) >= 0;
+        }
+      }
+    }
+    
+    // 如果没有比较运算符，尝试解析为布尔值
+    const value = this.parseValue(expression);
+    return Boolean(value);
+  }
+
+  /**
+   * 查找运算符的位置（考虑字符串字面量）
+   * @param {string} expression 表达式
+   * @param {string} operator 运算符
+   * @returns {number} 位置，-1 表示未找到
+   */
+  findOperatorIndex(expression, operator) {
+    let inString = false;
+    let quoteChar = null;
+    
+    for (let i = 0; i <= expression.length - operator.length; i++) {
+      const char = expression[i];
+      
+      // 处理字符串字面量
+      if ((char === '"' || char === "'") && (i === 0 || expression[i - 1] !== '\\')) {
+        if (!inString) {
+          inString = true;
+          quoteChar = char;
+        } else if (char === quoteChar) {
+          inString = false;
+          quoteChar = null;
+        }
+        continue;
+      }
+      
+      if (!inString) {
+        // 检查是否匹配运算符
+        if (expression.substring(i, i + operator.length) === operator) {
+          return i;
+        }
+      }
+    }
+    
+    return -1;
+  }
+
+  /**
+   * 解析值（字符串、数字、布尔值、null）
+   * @param {string} valueStr 值字符串
+   * @returns {any} 解析后的值
+   */
+  parseValue(valueStr) {
+    valueStr = valueStr.trim();
+    
+    // 字符串字面量
+    if ((valueStr.startsWith('"') && valueStr.endsWith('"')) ||
+        (valueStr.startsWith("'") && valueStr.endsWith("'"))) {
+      return valueStr.substring(1, valueStr.length - 1).replace(/\\"/g, '"').replace(/\\'/g, "'");
+    }
+    
+    // 布尔值
+    if (valueStr === 'true') return true;
+    if (valueStr === 'false') return false;
+    if (valueStr === 'null') return null;
+    
+    // 数字
+    const num = parseFloat(valueStr);
+    if (!isNaN(num) && isFinite(valueStr)) {
+      return num;
+    }
+    
+    return valueStr;
+  }
+
+  /**
+   * 比较两个值
+   * @param {any} a 值1
+   * @param {any} b 值2
+   * @returns {number} -1, 0, 1
+   */
+  compareValues(a, b) {
+    // 类型转换比较（类似 ==）
+    if (a === b) return 0;
+    
+    // 数字比较
+    if (typeof a === 'number' && typeof b === 'number') {
+      return a < b ? -1 : 1;
+    }
+    
+    // 字符串比较
+    if (typeof a === 'string' && typeof b === 'string') {
+      return a < b ? -1 : (a > b ? 1 : 0);
+    }
+    
+    // 类型转换
+    const aStr = String(a);
+    const bStr = String(b);
+    if (aStr === bStr) return 0;
+    return aStr < bStr ? -1 : 1;
   }
 
   /**
