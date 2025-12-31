@@ -30,7 +30,8 @@ export function activate(context: vscode.ExtensionContext) {
   const treeView = vscode.window.createTreeView("datasource", {
     treeDataProvider: provider,
   });
-  registerDatasourceCommands(provider, treeView);
+  const datasourceCommands = registerDatasourceCommands(provider, treeView);
+  datasourceCommands.forEach(cmd => context.subscriptions.push(cmd));
   treeView.onDidChangeVisibility((e) => {
     if (e.visible) {
       provider.refresh();

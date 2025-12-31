@@ -281,9 +281,11 @@ async function addEntry(item: any, provider: DataSourceProvider) {
 export function registerDatasourceCommands(
   provider: DataSourceProvider,
   treeView: vscode.TreeView<Datasource>
-) {
+): vscode.Disposable[] {
+  const disposables: vscode.Disposable[] = [];
+  
   // 注册刷新命令，支持完整加载
-  vscode.commands.registerCommand("cadb.datasource.refresh", async (item?: Datasource) => {
+  disposables.push(vscode.commands.registerCommand("cadb.datasource.refresh", async (item?: Datasource) => {
     if (item && item.type === 'datasource') {
       // 如果指定了数据源，则完整加载该数据源
       await vscode.window.withProgress(
@@ -307,21 +309,24 @@ export function registerDatasourceCommands(
       // 否则执行普通刷新
       provider.refresh();
     }
-  });
-  vscode.commands.registerCommand("cadb.datasource.add", (item) =>
+  }));
+  
+  disposables.push(vscode.commands.registerCommand("cadb.datasource.add", (item) =>
     addEntry(item, provider)
-  );
-  vscode.commands.registerCommand("cadb.datasource.edit", (item) =>
+  ));
+  
+  disposables.push(vscode.commands.registerCommand("cadb.datasource.edit", (item) =>
     editEntry(provider, item)
-  );
-  vscode.commands.registerCommand("cadb.datasource.expand", async (item) => {
+  ));
+  
+  disposables.push(vscode.commands.registerCommand("cadb.datasource.expand", async (item) => {
     const children = await (item as Datasource).expand(provider.context);
     provider.createChildren(item as Datasource, children);
     treeView.reveal(item as Datasource, { expand: true });
-  });
+  }));
   
   // 注册选择数据库命令
-  vscode.commands.registerCommand("cadb.datasource.selectDatabases", async (item: Datasource) => {
+  disposables.push(vscode.commands.registerCommand("cadb.datasource.selectDatabases", async (item: Datasource) => {
     try {
       // 确保 item 是 datasourceType 节点
       if (item.type !== 'datasourceType') {
@@ -406,10 +411,10 @@ export function registerDatasourceCommands(
         `选择数据库失败: ${error instanceof Error ? error.message : String(error)}`
       );
     }
-  });
+  }));
 
   // 注册使用数据库命令（从 TreeView collection 节点）
-  vscode.commands.registerCommand("cadb.collection.useDatabase", (item: Datasource) => {
+  disposables.push(vscode.commands.registerCommand("cadb.collection.useDatabase", (item: Datasource) => {
     try {
       // 确保 item 是 collection 节点
       if (item.type !== 'collection') {
@@ -429,7 +434,9 @@ export function registerDatasourceCommands(
         `切换数据库失败: ${error instanceof Error ? error.message : String(error)}`
       );
     }
-  });
+  }));
+  
+  return disposables;
 }
 
 export function registerDatasourceItemCommands(provider: DataSourceProvider) {
