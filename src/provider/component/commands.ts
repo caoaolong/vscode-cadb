@@ -311,9 +311,9 @@ export function registerDatasourceCommands(
     }
   }));
   
-  disposables.push(vscode.commands.registerCommand("cadb.datasource.add", (item) =>
-    addEntry(item, provider)
-  ));
+  disposables.push(vscode.commands.registerCommand("cadb.datasource.add", async (item) => {
+    await addEntry(item, provider);
+  }));
   
   disposables.push(vscode.commands.registerCommand("cadb.datasource.edit", (item) =>
     editEntry(provider, item)
