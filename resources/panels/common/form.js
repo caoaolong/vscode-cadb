@@ -10,6 +10,8 @@ class DynamicForm {
    * @param {string} options.formId 表单ID
    * @param {Function} options.onSubmit 提交回调
    * @param {Function} options.onCancel 取消回调
+   * @param {Function} options.onTest 测试连接回调
+   * @param {Object} options.testButton 测试按钮配置 { show?: string, hidden?: string, label?: string }
    */
   constructor(options) {
     this.container = $(options.container);
@@ -17,6 +19,8 @@ class DynamicForm {
     this.formId = options.formId || "dynamic-form";
     this.onSubmit = options.onSubmit;
     this.onCancel = options.onCancel;
+    this.onTest = options.onTest;
+    this.testButton = options.testButton || null;
     this.form = null;
     this.layer = null;
     this.element = null;
@@ -142,6 +146,21 @@ class DynamicForm {
     // 按钮组
     html += '<div class="form-divider"></div>';
     html += '<div class="button-group">';
+    
+    // 测试连接按钮（如果配置了）
+    if (this.testButton) {
+      const showExpression = this.testButton.show || "";
+      const hiddenExpression = this.testButton.hidden || "";
+      const showAttr = showExpression ? `data-show="${showExpression.replace(/"/g, '&quot;')}"` : "";
+      const hiddenAttr = hiddenExpression ? `data-hidden="${hiddenExpression.replace(/"/g, '&quot;')}"` : "";
+      const label = this.testButton.label || "测试连接";
+      const icon = this.testButton.icon || "layui-icon-link";
+      
+      html += `<button type="button" class="layui-btn layui-btn-test" id="testBtn" ${showAttr} ${hiddenAttr}>`;
+      html += `<i class="layui-icon ${icon}"></i> ${label}`;
+      html += "</button>";
+    }
+    
     html += '<button type="button" class="layui-btn" id="submitBtn">';
     html += '<i class="layui-icon layui-icon-ok"></i> 保存';
     html += "</button>";
@@ -1130,6 +1149,7 @@ class DynamicForm {
     const formData = this.getData();
     const $form = this.container.find("form");
     
+    // 更新字段的显示状态
     $form.find("[data-field-name]").each((index, element) => {
       const $item = $(element);
       const fieldName = $item.attr("data-field-name");
@@ -1158,6 +1178,37 @@ class DynamicForm {
         $item.hide();
       }
     });
+    
+    // 更新测试按钮的显示状态（如果配置了）
+    if (this.testButton) {
+      const $testBtn = this.container.find("#testBtn");
+      if ($testBtn.length) {
+        const showExpression = $testBtn.attr("data-show");
+        const hiddenExpression = $testBtn.attr("data-hidden");
+        
+        let shouldShow = true; // 默认显示
+        
+        // 优先检查 hidden 表达式（优先级更高）
+        if (hiddenExpression) {
+          const isHidden = this.evaluateShowExpression(hiddenExpression, formData);
+          if (isHidden) {
+            shouldShow = false;
+          }
+        }
+        
+        // 如果 hidden 表达式没有隐藏，再检查 show 表达式
+        if (shouldShow && showExpression) {
+          shouldShow = this.evaluateShowExpression(showExpression, formData);
+        }
+        
+        // 更新显示状态
+        if (shouldShow) {
+          $testBtn.show();
+        } else {
+          $testBtn.hide();
+        }
+      }
+    }
   }
 
   /**
@@ -1509,6 +1560,19 @@ class DynamicForm {
           self.onCancel();
         }
       });
+
+    // 测试连接按钮（如果配置了）
+    if (this.testButton && this.onTest) {
+      this.container
+        .find("#testBtn")
+        .off("click")
+        .on("click", function () {
+          const data = self.getData();
+          if (self.onTest) {
+            self.onTest(data);
+          }
+        });
+    }
 
     // 监听所有字段变化，更新条件显示
     const $form = this.container.find("form");

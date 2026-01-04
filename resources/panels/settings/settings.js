@@ -107,6 +107,12 @@ function initDatasourceForm(data = {}) {
     formId: "datasource-form",
     onSubmit: handleDatasourceSave,
     onCancel: handleCancel,
+    onTest: handleTest,
+    testButton: {
+      label: "测试连接",
+      icon: "layui-icon-link",
+      show: "true", // 默认显示，可以根据需要配置表达式
+    },
   });
 
   dynamicForm.load(filteredData);
@@ -118,9 +124,6 @@ function initDatasourceForm(data = {}) {
     currentData.dbType = selectedType;
     initDatasourceForm(currentData);
   });
-
-  // 添加测试连接按钮
-  addTestButton();
 }
 
 /**
@@ -168,21 +171,6 @@ function initUserForm(data = {}) {
 }
 
 // ==================== 事件处理 ====================
-
-/**
- * 添加测试连接按钮（仅用于数据库连接配置）
- */
-function addTestButton() {
-  const $buttonGroup = $(".button-group");
-  if ($buttonGroup.find("#testBtn").length === 0) {
-    $buttonGroup.prepend(`
-      <button type="button" id="testBtn" class="layui-btn layui-btn-test">
-        <i class="layui-icon layui-icon-link"></i> 测试连接
-      </button>
-    `);
-    $("#testBtn").on("click", handleTest);
-  }
-}
 
 /**
  * 处理数据库连接配置保存

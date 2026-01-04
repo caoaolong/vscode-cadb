@@ -470,6 +470,17 @@ body {
   font-size: 16px;
 }
 
+/* 测试连接按钮样式 */
+.layui-btn-test {
+  background-color: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border: 1px solid var(--vscode-border);
+}
+
+.layui-btn-test:hover {
+  background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
 /* 状态消息 */
 .status-message {
   margin-top: 20px;
