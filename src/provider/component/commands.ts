@@ -435,6 +435,95 @@ export function registerDatasourceCommands(
       );
     }
   }));
+
+  // 注册复制连接地址命令（仅连接地址：host:port）
+  disposables.push(vscode.commands.registerCommand("cadb.datasource.copyConnectionAddress", async (item: Datasource) => {
+    try {
+      if (item.type !== 'datasource' || !item.data) {
+        vscode.window.showWarningMessage('请在数据源节点上执行此操作');
+        return;
+      }
+
+      const host = item.data.host || 'localhost';
+      const port = item.data.port || 3306;
+      const address = `${host}:${port}`;
+      
+      await vscode.env.clipboard.writeText(address);
+      vscode.window.showInformationMessage(`已复制连接地址: ${address}`);
+    } catch (error) {
+      vscode.window.showErrorMessage(
+        `复制失败: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }));
+
+  // 注册复制用户名密码命令（仅用户名密码：username@password）
+  disposables.push(vscode.commands.registerCommand("cadb.datasource.copyCredentials", async (item: Datasource) => {
+    try {
+      if (item.type !== 'datasource' || !item.data) {
+        vscode.window.showWarningMessage('请在数据源节点上执行此操作');
+        return;
+      }
+
+      const username = item.data.username || '';
+      const password = item.data.password || '';
+      const credentials = `${username}@${password}`;
+      
+      await vscode.env.clipboard.writeText(credentials);
+      vscode.window.showInformationMessage('已复制用户名密码');
+    } catch (error) {
+      vscode.window.showErrorMessage(
+        `复制失败: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }));
+
+  // 注册复制完整连接命令（JDBC URL）
+  disposables.push(vscode.commands.registerCommand("cadb.datasource.copyFullConnection", async (item: Datasource) => {
+    try {
+      if (item.type !== 'datasource' || !item.data) {
+        vscode.window.showWarningMessage('请在数据源节点上执行此操作');
+        return;
+      }
+
+      const dbType = item.data.dbType || 'mysql';
+      const host = item.data.host || 'localhost';
+      const port = item.data.port || 3306;
+      const username = item.data.username || '';
+      const password = item.data.password || '';
+      const database = item.data.database || '';
+
+      let jdbcUrl = '';
+      
+      if (dbType === 'mysql') {
+        // MySQL JDBC URL: jdbc:mysql://host:port/database?user=username&password=password
+        const params = new URLSearchParams();
+        if (username) params.append('user', username);
+        if (password) params.append('password', password);
+        const queryString = params.toString();
+        jdbcUrl = `jdbc:mysql://${host}:${port}${database ? `/${database}` : ''}${queryString ? `?${queryString}` : ''}`;
+      } else if (dbType === 'redis') {
+        // Redis URL: redis://username:password@host:port
+        if (username && password) {
+          jdbcUrl = `redis://${username}:${password}@${host}:${port}`;
+        } else if (password) {
+          jdbcUrl = `redis://:${password}@${host}:${port}`;
+        } else {
+          jdbcUrl = `redis://${host}:${port}`;
+        }
+      } else {
+        // 其他数据库类型，使用通用格式
+        jdbcUrl = `${dbType}://${host}:${port}${database ? `/${database}` : ''}`;
+      }
+      
+      await vscode.env.clipboard.writeText(jdbcUrl);
+      vscode.window.showInformationMessage('已复制完整连接地址');
+    } catch (error) {
+      vscode.window.showErrorMessage(
+        `复制失败: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }));
   
   return disposables;
 }

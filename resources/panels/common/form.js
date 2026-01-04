@@ -72,12 +72,12 @@ class DynamicForm {
     Object.keys(this.fieldMapping).forEach((fieldName) => {
       const config = this.fieldMapping[fieldName];
       if (config.type === "hidden" && !fields.includes(fieldName)) {
-        // 如果配置了 value 或 default，也要生成隐藏字段
-        if (config.value !== undefined || config.default !== undefined) {
+        // 如果配置了 value，也要生成隐藏字段
+        if (config.value !== undefined) {
           hiddenFields.push({ name: fieldName, config });
           // 确保在 currentData 中有这个字段，以便 fillFormData 能处理
           if (!this.currentData[fieldName]) {
-            this.currentData[fieldName] = config.value !== undefined ? config.value : "";
+            this.currentData[fieldName] = config.value;
           }
         }
       }
@@ -99,9 +99,6 @@ class DynamicForm {
 
     // 初始化字段显示状态
     this.updateAllFieldsVisibility();
-
-    // 更新默认值
-    this.updateDefaultValues();
 
     // 绑定事件
     this.bindEvents();
@@ -312,13 +309,8 @@ class DynamicForm {
    * @returns {string} 隐藏字段HTML
    */
   generateHiddenField(fieldName, config) {
-    // 获取值：优先使用配置中的 value，其次使用数据中的值，最后使用默认值
-    let value = config.value !== undefined ? config.value : (this.currentData[fieldName] || "");
-    
-    // 如果配置了默认值表达式，评估它
-    if (config.default !== undefined && (value === null || value === undefined || value === "")) {
-      value = this.evaluateDefaultValue(fieldName, config.default, this.currentData);
-    }
+    // 获取值：优先使用配置中的 value，其次使用数据中的值
+    const value = config.value !== undefined ? config.value : (this.currentData[fieldName] || "");
     
     return `<input type="hidden" name="${fieldName}" value="${String(value).replace(/"/g, '&quot;')}" />`;
   }
@@ -725,49 +717,6 @@ class DynamicForm {
 
       if (!$field.length) {
         return;
-      }
-
-      // 如果字段有默认值配置，检查是否需要评估
-      if (config.default !== undefined) {
-        // 如果值为空或未定义，应用默认值
-        if (value === null || value === undefined || value === "") {
-          value = this.evaluateDefaultValue(fieldName, config.default, data);
-        }
-        // 如果值是字符串，检查是否是表达式字符串
-        else if (typeof value === 'string' && typeof config.default === 'string') {
-          const trimmedValue = value.trim();
-          
-          // 检查值是否包含表达式特征（运算符、三元运算符、括号、字段引用等）
-          const hasExpressionFeatures = /[=!<>?&|()]/.test(trimmedValue) || 
-                                         trimmedValue.includes('?') ||
-                                         trimmedValue.includes(':') ||
-                                         trimmedValue.includes('dbType') ||
-                                         trimmedValue.includes('==') ||
-                                         trimmedValue.includes('!=');
-          
-          // 如果值看起来像表达式字符串，使用配置中的默认值表达式进行评估
-          if (hasExpressionFeatures) {
-            try {
-              const evaluated = this.evaluateDefaultValue(fieldName, config.default, data);
-              
-              // 如果评估结果是数字或非空字符串，使用评估结果
-              if (evaluated !== null && evaluated !== undefined) {
-                // 对于数字类型，确保结果是数字
-                if (config.type === "number") {
-                  const numValue = typeof evaluated === 'number' ? evaluated : parseFloat(String(evaluated));
-                  if (!isNaN(numValue) && isFinite(numValue)) {
-                    value = numValue;
-                  }
-                } else {
-                  value = evaluated;
-                }
-              }
-            } catch (e) {
-              // 评估失败，使用原值
-              // 静默处理错误
-            }
-          }
-        }
       }
 
       switch (config.type) {
@@ -1225,6 +1174,30 @@ class DynamicForm {
         $item.show();
       } else {
         $item.hide();
+        // 当字段被隐藏时，清空其值
+        const $field = $item.find(`[name="${fieldName}"]`);
+        if ($field.length) {
+          const config = this.getFieldConfig(fieldName);
+          switch (config.type) {
+            case "checkbox":
+            case "switch":
+              $field.prop("checked", false);
+              if (this.form) {
+                this.form.render("checkbox");
+              }
+              break;
+            case "select":
+            case "date":
+            case "time":
+            case "datetime":
+            case "number":
+            case "password":
+            case "text":
+            default:
+              $field.val("");
+              break;
+          }
+        }
       }
     });
     
@@ -1260,319 +1233,6 @@ class DynamicForm {
     }
   }
 
-  /**
-   * 评估默认值表达式
-   * @param {string} fieldName 字段名
-   * @param {string|any} defaultValue 默认值（可以是表达式或静态值）
-   * @param {Object} formData 表单数据
-   * @returns {any} 评估后的默认值
-   */
-  evaluateDefaultValue(fieldName, defaultValue, formData) {
-    // 如果不是字符串，直接返回
-    if (typeof defaultValue !== 'string') {
-      return defaultValue;
-    }
-
-    // 如果为空字符串，返回空
-    if (!defaultValue || !defaultValue.trim()) {
-      return defaultValue;
-    }
-
-    try {
-      // 检查是否是表达式（包含运算符或三元运算符）
-      const trimmed = defaultValue.trim();
-      
-      // 如果是简单的字符串字面量（用引号包裹），直接解析
-      if ((trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-          (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
-        return this.parseValue(trimmed);
-      }
-
-      // 检查是否包含三元运算符
-      if (trimmed.includes('?')) {
-        return this.evaluateTernaryExpression(trimmed, formData);
-      }
-
-      // 检查是否包含运算符（可能是表达式）
-      const hasOperator = /[=!<>?&|]/.test(trimmed);
-      if (hasOperator) {
-        // 可能是表达式，尝试评估
-        const result = this.parseAndEvaluateExpression(trimmed, formData);
-        // 如果结果是布尔值，可能需要转换为值
-        return result;
-      }
-
-      // 否则作为普通值解析
-      return this.parseValue(trimmed);
-    } catch (error) {
-      console.error('评估默认值表达式失败:', fieldName, defaultValue, error);
-      return defaultValue; // 出错时返回原值
-    }
-  }
-
-  /**
-   * 评估三元表达式（condition ? trueValue : falseValue）
-   * @param {string} expression 三元表达式
-   * @param {Object} formData 表单数据
-   * @returns {any} 评估后的值
-   */
-  evaluateTernaryExpression(expression, formData) {
-    // 找到问号的位置（考虑字符串字面量）
-    let questionIndex = -1;
-    let inString = false;
-    let quoteChar = null;
-    let depth = 0; // 括号深度
-
-    for (let i = 0; i < expression.length; i++) {
-      const char = expression[i];
-      
-      // 处理字符串字面量
-      if ((char === '"' || char === "'") && (i === 0 || expression[i - 1] !== '\\')) {
-        if (!inString) {
-          inString = true;
-          quoteChar = char;
-        } else if (char === quoteChar) {
-          inString = false;
-          quoteChar = null;
-        }
-        continue;
-      }
-
-      if (!inString) {
-        if (char === '(') depth++;
-        else if (char === ')') depth--;
-        else if (char === '?' && depth === 0) {
-          questionIndex = i;
-          break;
-        }
-      }
-    }
-
-    if (questionIndex === -1) {
-      // 没有找到问号，作为普通表达式处理
-      return this.parseAndEvaluateExpression(expression, formData);
-    }
-
-    // 找到冒号的位置（在问号之后）
-    let colonIndex = -1;
-    inString = false;
-    quoteChar = null;
-    depth = 0;
-
-    for (let i = questionIndex + 1; i < expression.length; i++) {
-      const char = expression[i];
-      
-      if ((char === '"' || char === "'") && expression[i - 1] !== '\\') {
-        if (!inString) {
-          inString = true;
-          quoteChar = char;
-        } else if (char === quoteChar) {
-          inString = false;
-          quoteChar = null;
-        }
-        continue;
-      }
-
-      if (!inString) {
-        if (char === '(') depth++;
-        else if (char === ')') depth--;
-        else if (char === ':' && depth === 0) {
-          colonIndex = i;
-          break;
-        }
-      }
-    }
-
-    if (colonIndex === -1) {
-      // 没有找到冒号，作为普通表达式处理
-      return this.parseAndEvaluateExpression(expression, formData);
-    }
-
-    // 分割条件、真值和假值
-    const condition = expression.substring(0, questionIndex).trim();
-    let trueValue = expression.substring(questionIndex + 1, colonIndex).trim();
-    let falseValue = expression.substring(colonIndex + 1).trim();
-
-    // 移除外层括号（如果存在）
-    if (trueValue.startsWith('(') && trueValue.endsWith(')')) {
-      trueValue = trueValue.substring(1, trueValue.length - 1).trim();
-    }
-    if (falseValue.startsWith('(') && falseValue.endsWith(')')) {
-      falseValue = falseValue.substring(1, falseValue.length - 1).trim();
-    }
-
-    // 评估条件
-    const conditionResult = this.parseAndEvaluateExpression(condition, formData);
-    
-    // 根据条件结果返回对应的值
-    // 如果 trueValue 或 falseValue 也是表达式，需要递归评估
-    let resultValue;
-    if (conditionResult) {
-      // trueValue 可能是嵌套的三元表达式或其他表达式
-      if (trueValue.includes('?') || /[=!<>?&|]/.test(trueValue)) {
-        resultValue = this.evaluateDefaultValue('', trueValue, formData);
-      } else {
-        resultValue = this.parseValue(trueValue);
-      }
-    } else {
-      // falseValue 可能是嵌套的三元表达式或其他表达式
-      if (falseValue.includes('?') || /[=!<>?&|]/.test(falseValue)) {
-        resultValue = this.evaluateDefaultValue('', falseValue, formData);
-      } else {
-        resultValue = this.parseValue(falseValue);
-      }
-    }
-    
-    return resultValue;
-  }
-
-  /**
-   * 检查默认值是否是动态表达式（依赖其他字段）
-   * @param {string|any} defaultValue 默认值
-   * @returns {boolean} 是否是动态表达式
-   */
-  isDynamicDefaultValue(defaultValue) {
-    if (typeof defaultValue !== 'string') {
-      return false;
-    }
-    
-    const trimmed = defaultValue.trim();
-    
-    // 如果是简单的字符串字面量，不是动态的
-    if ((trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-        (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
-      return false;
-    }
-    
-    // 如果包含运算符或三元运算符，可能是动态表达式
-    return /[=!<>?&|]/.test(trimmed) || trimmed.includes('?');
-  }
-
-  /**
-   * 更新所有字段的默认值
-   */
-  updateDefaultValues() {
-    const formData = this.getData();
-    const $form = this.container.find("form");
-    
-    $form.find("[data-field-name]").each((index, element) => {
-      const $item = $(element);
-      const fieldName = $item.attr("data-field-name");
-      const config = this.getFieldConfig(fieldName);
-      
-      // 如果字段有默认值配置
-      if (config.default !== undefined) {
-        const $field = $item.find(`[name="${fieldName}"]`);
-        
-        if ($field.length) {
-          // 如果字段正在被编辑（有焦点），跳过更新，避免覆盖用户输入
-          if ($field.is(':focus')) {
-            return;
-          }
-          
-          // 获取当前值
-          let currentValue = null;
-          
-          switch (config.type) {
-            case "checkbox":
-            case "switch":
-              currentValue = $field.prop("checked");
-              break;
-            case "select":
-            case "date":
-            case "time":
-            case "datetime":
-            case "number":
-            case "password":
-            case "text":
-            default:
-              currentValue = $field.val();
-              break;
-          }
-          
-          // 评估默认值
-          const defaultValue = this.evaluateDefaultValue(fieldName, config.default, formData);
-          
-          // 判断是否需要更新
-          let shouldUpdate = false;
-          const isDynamic = this.isDynamicDefaultValue(config.default);
-          
-          // 检查当前值是否是表达式字符串
-          let isExpressionString = false;
-          if (typeof currentValue === 'string') {
-            const trimmedValue = currentValue.trim();
-            isExpressionString = /[=!<>?&|()]/.test(trimmedValue) || 
-                                 trimmedValue.includes('?') ||
-                                 trimmedValue.includes(':') ||
-                                 trimmedValue.includes('dbType') ||
-                                 trimmedValue.includes('==') ||
-                                 trimmedValue.includes('!=');
-          }
-          
-          // 如果当前值是表达式字符串，需要更新
-          if (isExpressionString) {
-            shouldUpdate = true;
-          }
-          // 如果当前值为空或未定义，应用默认值
-          // 对于 number 类型，需要特别处理：空字符串、null、undefined 都视为空值
-          else {
-            let isEmpty = false;
-            if (config.type === "number") {
-              isEmpty = currentValue === null || currentValue === undefined || currentValue === "" || 
-                       (typeof currentValue === "string" && currentValue.trim() === "");
-            } else if (config.type === "checkbox" || config.type === "switch") {
-              isEmpty = !currentValue;
-            } else {
-              isEmpty = currentValue === null || currentValue === undefined || currentValue === "";
-            }
-            
-            if (isEmpty) {
-              // 字段为空，需要应用默认值
-              shouldUpdate = true;
-            }
-            // 注意：如果字段已经有值（非空且不是表达式字符串），不自动更新
-            // 这样可以避免覆盖用户手动输入的值
-            // 只有当字段为空或值是表达式字符串时，才应用默认值
-          }
-          
-          if (shouldUpdate) {
-            // 对于 number 类型，0 也是有效值，所以只检查 null 和 undefined
-            if (config.type === "number") {
-              if (defaultValue !== null && defaultValue !== undefined) {
-                $field.val(defaultValue);
-              }
-            } else if (defaultValue !== null && defaultValue !== undefined && defaultValue !== "") {
-              switch (config.type) {
-                case "checkbox":
-                case "switch":
-                  const checked = defaultValue === "Y" || defaultValue === true || defaultValue === 1 || defaultValue === "1";
-                  $field.prop("checked", checked);
-                  // 重新渲染
-                  // switch 也是 checkbox，只需要渲染 checkbox
-                  if (this.form) {
-                    this.form.render("checkbox");
-                  }
-                  break;
-                case "select":
-                  $field.val(defaultValue);
-                  break;
-                case "date":
-                case "time":
-                case "datetime":
-                  $field.val(defaultValue);
-                  break;
-                case "password":
-                case "text":
-                default:
-                  $field.val(defaultValue);
-                  break;
-              }
-            }
-          }
-        }
-      }
-    });
-  }
 
   /**
    * 绑定事件
@@ -1627,7 +1287,6 @@ class DynamicForm {
       // 使用 setTimeout 确保值已更新
       setTimeout(() => {
         self.updateAllFieldsVisibility();
-        self.updateDefaultValues();
       }, 0);
     });
 
@@ -1643,7 +1302,6 @@ class DynamicForm {
       this.form.on("checkbox", function(data) {
         setTimeout(() => {
           self.updateAllFieldsVisibility();
-          self.updateDefaultValues();
         }, 0);
       });
     }

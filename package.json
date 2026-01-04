@@ -79,6 +79,22 @@
       {
         "command": "cadb.collection.useDatabase",
         "title": "使用数据库"
+      },
+      {
+        "command": "cadb.datasource.copyConnection",
+        "title": "复制连接地址"
+      },
+      {
+        "command": "cadb.datasource.copyConnectionAddress",
+        "title": "仅连接地址"
+      },
+      {
+        "command": "cadb.datasource.copyCredentials",
+        "title": "仅用户名密码"
+      },
+      {
+        "command": "cadb.datasource.copyFullConnection",
+        "title": "完整连接"
       }
     ],
     "menus": {
@@ -119,9 +135,31 @@
           "command": "cadb.collection.useDatabase",
           "when": "view == datasource && viewItem == collection",
           "group": "context"
+        },
+        {
+          "submenu": "cadb.datasource.copyConnectionSubmenu",
+          "when": "view == datasource && viewItem == datasource",
+          "group": "context"
+        }
+      ],
+      "cadb.datasource.copyConnectionSubmenu": [
+        {
+          "command": "cadb.datasource.copyConnectionAddress"
+        },
+        {
+          "command": "cadb.datasource.copyCredentials"
+        },
+        {
+          "command": "cadb.datasource.copyFullConnection"
         }
       ]
-    }
+    },
+    "submenus": [
+      {
+        "id": "cadb.datasource.copyConnectionSubmenu",
+        "label": "复制连接地址"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
