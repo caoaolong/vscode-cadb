@@ -59,7 +59,6 @@
       label: "密码",
       category: "base",
       placeholder: "数据库密码",
-      show: "dbType != 'redis'", // 当数据库类型不是 redis 时显示
     },
     database: {
       type: "text",
