@@ -1416,6 +1416,11 @@ class DynamicForm {
         const $field = $item.find(`[name="${fieldName}"]`);
         
         if ($field.length) {
+          // 如果字段正在被编辑（有焦点），跳过更新，避免覆盖用户输入
+          if ($field.is(':focus')) {
+            return;
+          }
+          
           // 获取当前值
           let currentValue = null;
           
@@ -1475,22 +1480,10 @@ class DynamicForm {
             if (isEmpty) {
               // 字段为空，需要应用默认值
               shouldUpdate = true;
-            } else if (isDynamic) {
-              // 字段有值，但默认值是动态表达式，需要检查是否需要更新
-              // 将当前值转换为可比较的格式
-              let currentValueToCompare = currentValue;
-              if (config.type === "number") {
-                currentValueToCompare = parseFloat(currentValue);
-                if (isNaN(currentValueToCompare)) {
-                  currentValueToCompare = currentValue;
-                }
-              }
-              
-              // 如果评估的默认值与当前值不同，则更新
-              if (String(currentValueToCompare) !== String(defaultValue)) {
-                shouldUpdate = true;
-              }
             }
+            // 注意：如果字段已经有值（非空且不是表达式字符串），不自动更新
+            // 这样可以避免覆盖用户手动输入的值
+            // 只有当字段为空或值是表达式字符串时，才应用默认值
           }
           
           if (shouldUpdate) {
