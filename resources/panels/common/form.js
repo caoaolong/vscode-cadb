@@ -670,22 +670,24 @@ class DynamicForm {
         if (value === null || value === undefined || value === "") {
           value = this.evaluateDefaultValue(fieldName, config.default, data);
         }
-        // 如果值是字符串，且看起来像表达式（包含运算符或三元运算符），尝试评估
+        // 如果值是字符串，检查是否是表达式字符串
         else if (typeof value === 'string' && typeof config.default === 'string') {
           const trimmedValue = value.trim();
-          const trimmedDefault = config.default.trim();
           
-          // 检查值是否包含表达式特征（运算符、三元运算符、括号等）
-          const looksLikeExpression = /[=!<>?&|()]/.test(trimmedValue) || trimmedValue.includes('?');
+          // 检查值是否包含表达式特征（运算符、三元运算符、括号、字段引用等）
+          const hasExpressionFeatures = /[=!<>?&|()]/.test(trimmedValue) || 
+                                         trimmedValue.includes('?') ||
+                                         trimmedValue.includes(':') ||
+                                         trimmedValue.includes('dbType') ||
+                                         trimmedValue.includes('==') ||
+                                         trimmedValue.includes('!=');
           
-          // 如果值看起来像表达式，或者值等于默认值表达式（可能不完全匹配，比如有空格差异）
-          if (looksLikeExpression || 
-              trimmedValue.includes('dbType') || 
-              trimmedValue.includes('?') ||
-              trimmedValue.includes(':')) {
-            // 使用配置中的默认值表达式进行评估（而不是评估值本身）
+          // 如果值看起来像表达式字符串，使用配置中的默认值表达式进行评估
+          if (hasExpressionFeatures) {
             try {
               const evaluated = this.evaluateDefaultValue(fieldName, config.default, data);
+              console.log(`[fillFormData] 字段 ${fieldName}: 原值="${trimmedValue}", 评估结果=`, evaluated, 'formData=', data);
+              
               // 如果评估结果是数字或非空字符串，使用评估结果
               if (evaluated !== null && evaluated !== undefined) {
                 // 对于数字类型，确保结果是数字
@@ -693,14 +695,20 @@ class DynamicForm {
                   const numValue = typeof evaluated === 'number' ? evaluated : parseFloat(String(evaluated));
                   if (!isNaN(numValue) && isFinite(numValue)) {
                     value = numValue;
+                    console.log(`[fillFormData] 字段 ${fieldName}: 使用评估后的数字值`, numValue);
+                  } else {
+                    console.warn(`[fillFormData] 字段 ${fieldName}: 评估结果不是有效数字`, evaluated);
                   }
                 } else {
                   value = evaluated;
+                  console.log(`[fillFormData] 字段 ${fieldName}: 使用评估后的值`, evaluated);
                 }
+              } else {
+                console.warn(`[fillFormData] 字段 ${fieldName}: 评估结果为 null 或 undefined`);
               }
             } catch (e) {
               // 评估失败，使用原值
-              console.warn('评估默认值失败，使用原值:', fieldName, value, e);
+              console.error(`[fillFormData] 评估默认值失败，字段=${fieldName}, 原值=${value}, 错误=`, e);
             }
           }
         }
@@ -1369,35 +1377,54 @@ class DynamicForm {
           let shouldUpdate = false;
           const isDynamic = this.isDynamicDefaultValue(config.default);
           
-          // 如果当前值为空或未定义，应用默认值
-          // 对于 number 类型，需要特别处理：空字符串、null、undefined 都视为空值
-          let isEmpty = false;
-          if (config.type === "number") {
-            isEmpty = currentValue === null || currentValue === undefined || currentValue === "" || 
-                     (typeof currentValue === "string" && currentValue.trim() === "");
-          } else if (config.type === "checkbox" || config.type === "switch") {
-            isEmpty = !currentValue;
-          } else {
-            isEmpty = currentValue === null || currentValue === undefined || currentValue === "";
+          // 检查当前值是否是表达式字符串
+          let isExpressionString = false;
+          if (typeof currentValue === 'string') {
+            const trimmedValue = currentValue.trim();
+            isExpressionString = /[=!<>?&|()]/.test(trimmedValue) || 
+                                 trimmedValue.includes('?') ||
+                                 trimmedValue.includes(':') ||
+                                 trimmedValue.includes('dbType') ||
+                                 trimmedValue.includes('==') ||
+                                 trimmedValue.includes('!=');
           }
           
-          if (isEmpty) {
-            // 字段为空，需要应用默认值
+          // 如果当前值是表达式字符串，需要更新
+          if (isExpressionString) {
             shouldUpdate = true;
-          } else if (isDynamic) {
-            // 字段有值，但默认值是动态表达式，需要检查是否需要更新
-            // 将当前值转换为可比较的格式
-            let currentValueToCompare = currentValue;
+            console.log(`[updateDefaultValues] 字段 ${fieldName}: 检测到表达式字符串 "${currentValue}", 将更新为`, defaultValue);
+          }
+          // 如果当前值为空或未定义，应用默认值
+          // 对于 number 类型，需要特别处理：空字符串、null、undefined 都视为空值
+          else {
+            let isEmpty = false;
             if (config.type === "number") {
-              currentValueToCompare = parseFloat(currentValue);
-              if (isNaN(currentValueToCompare)) {
-                currentValueToCompare = currentValue;
-              }
+              isEmpty = currentValue === null || currentValue === undefined || currentValue === "" || 
+                       (typeof currentValue === "string" && currentValue.trim() === "");
+            } else if (config.type === "checkbox" || config.type === "switch") {
+              isEmpty = !currentValue;
+            } else {
+              isEmpty = currentValue === null || currentValue === undefined || currentValue === "";
             }
             
-            // 如果评估的默认值与当前值不同，则更新
-            if (String(currentValueToCompare) !== String(defaultValue)) {
+            if (isEmpty) {
+              // 字段为空，需要应用默认值
               shouldUpdate = true;
+            } else if (isDynamic) {
+              // 字段有值，但默认值是动态表达式，需要检查是否需要更新
+              // 将当前值转换为可比较的格式
+              let currentValueToCompare = currentValue;
+              if (config.type === "number") {
+                currentValueToCompare = parseFloat(currentValue);
+                if (isNaN(currentValueToCompare)) {
+                  currentValueToCompare = currentValue;
+                }
+              }
+              
+              // 如果评估的默认值与当前值不同，则更新
+              if (String(currentValueToCompare) !== String(defaultValue)) {
+                shouldUpdate = true;
+              }
             }
           }
           
