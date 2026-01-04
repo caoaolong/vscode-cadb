@@ -78,6 +78,9 @@ class DynamicForm {
     // 初始化字段显示状态
     this.updateAllFieldsVisibility();
 
+    // 更新默认值
+    this.updateDefaultValues();
+
     // 绑定事件
     this.bindEvents();
   }
@@ -247,12 +250,12 @@ class DynamicForm {
         break;
     }
 
-    html += "</div>";
-
-    // 添加提示信息
+    // 添加提示信息（在 layui-form-item 内部）
     if (config.hint) {
       html += `<div class="form-hint">${config.hint}</div>`;
     }
+
+    html += "</div>";
 
     return html;
   }
@@ -654,11 +657,17 @@ class DynamicForm {
   fillFormData(data) {
     Object.keys(data).forEach((fieldName) => {
       const config = this.getFieldConfig(fieldName);
-      const value = data[fieldName];
+      let value = data[fieldName];
       const $field = $(`[name="${fieldName}"]`);
 
       if (!$field.length) {
         return;
+      }
+
+      // 如果值为空或未定义，尝试应用默认值
+      // 注意：这里使用 data 作为 formData，因为默认值表达式可能依赖于其他字段的值
+      if ((value === null || value === undefined || value === "") && config.default !== undefined) {
+        value = this.evaluateDefaultValue(fieldName, config.default, data);
       }
 
       switch (config.type) {
@@ -1115,6 +1124,228 @@ class DynamicForm {
   }
 
   /**
+   * 评估默认值表达式
+   * @param {string} fieldName 字段名
+   * @param {string|any} defaultValue 默认值（可以是表达式或静态值）
+   * @param {Object} formData 表单数据
+   * @returns {any} 评估后的默认值
+   */
+  evaluateDefaultValue(fieldName, defaultValue, formData) {
+    // 如果不是字符串，直接返回
+    if (typeof defaultValue !== 'string') {
+      return defaultValue;
+    }
+
+    // 如果为空字符串，返回空
+    if (!defaultValue || !defaultValue.trim()) {
+      return defaultValue;
+    }
+
+    try {
+      // 检查是否是表达式（包含运算符或三元运算符）
+      const trimmed = defaultValue.trim();
+      
+      // 如果是简单的字符串字面量（用引号包裹），直接解析
+      if ((trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+          (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+        return this.parseValue(trimmed);
+      }
+
+      // 检查是否包含三元运算符
+      if (trimmed.includes('?')) {
+        return this.evaluateTernaryExpression(trimmed, formData);
+      }
+
+      // 检查是否包含运算符（可能是表达式）
+      const hasOperator = /[=!<>?&|]/.test(trimmed);
+      if (hasOperator) {
+        // 可能是表达式，尝试评估
+        const result = this.parseAndEvaluateExpression(trimmed, formData);
+        // 如果结果是布尔值，可能需要转换为值
+        return result;
+      }
+
+      // 否则作为普通值解析
+      return this.parseValue(trimmed);
+    } catch (error) {
+      console.error('评估默认值表达式失败:', fieldName, defaultValue, error);
+      return defaultValue; // 出错时返回原值
+    }
+  }
+
+  /**
+   * 评估三元表达式（condition ? trueValue : falseValue）
+   * @param {string} expression 三元表达式
+   * @param {Object} formData 表单数据
+   * @returns {any} 评估后的值
+   */
+  evaluateTernaryExpression(expression, formData) {
+    // 找到问号的位置（考虑字符串字面量）
+    let questionIndex = -1;
+    let inString = false;
+    let quoteChar = null;
+    let depth = 0; // 括号深度
+
+    for (let i = 0; i < expression.length; i++) {
+      const char = expression[i];
+      
+      // 处理字符串字面量
+      if ((char === '"' || char === "'") && (i === 0 || expression[i - 1] !== '\\')) {
+        if (!inString) {
+          inString = true;
+          quoteChar = char;
+        } else if (char === quoteChar) {
+          inString = false;
+          quoteChar = null;
+        }
+        continue;
+      }
+
+      if (!inString) {
+        if (char === '(') depth++;
+        else if (char === ')') depth--;
+        else if (char === '?' && depth === 0) {
+          questionIndex = i;
+          break;
+        }
+      }
+    }
+
+    if (questionIndex === -1) {
+      // 没有找到问号，作为普通表达式处理
+      return this.parseAndEvaluateExpression(expression, formData);
+    }
+
+    // 找到冒号的位置（在问号之后）
+    let colonIndex = -1;
+    inString = false;
+    quoteChar = null;
+    depth = 0;
+
+    for (let i = questionIndex + 1; i < expression.length; i++) {
+      const char = expression[i];
+      
+      if ((char === '"' || char === "'") && expression[i - 1] !== '\\') {
+        if (!inString) {
+          inString = true;
+          quoteChar = char;
+        } else if (char === quoteChar) {
+          inString = false;
+          quoteChar = null;
+        }
+        continue;
+      }
+
+      if (!inString) {
+        if (char === '(') depth++;
+        else if (char === ')') depth--;
+        else if (char === ':' && depth === 0) {
+          colonIndex = i;
+          break;
+        }
+      }
+    }
+
+    if (colonIndex === -1) {
+      // 没有找到冒号，作为普通表达式处理
+      return this.parseAndEvaluateExpression(expression, formData);
+    }
+
+    // 分割条件、真值和假值
+    const condition = expression.substring(0, questionIndex).trim();
+    const trueValue = expression.substring(questionIndex + 1, colonIndex).trim();
+    const falseValue = expression.substring(colonIndex + 1).trim();
+
+    // 评估条件
+    const conditionResult = this.parseAndEvaluateExpression(condition, formData);
+    
+    // 根据条件结果返回对应的值
+    if (conditionResult) {
+      return this.parseValue(trueValue);
+    } else {
+      return this.parseValue(falseValue);
+    }
+  }
+
+  /**
+   * 更新所有字段的默认值
+   */
+  updateDefaultValues() {
+    const formData = this.getData();
+    const $form = this.container.find("form");
+    
+    $form.find("[data-field-name]").each((index, element) => {
+      const $item = $(element);
+      const fieldName = $item.attr("data-field-name");
+      const config = this.getFieldConfig(fieldName);
+      
+      // 如果字段有默认值配置
+      if (config.default !== undefined) {
+        const $field = $item.find(`[name="${fieldName}"]`);
+        
+        if ($field.length) {
+          // 获取当前值
+          let currentValue = null;
+          
+          switch (config.type) {
+            case "checkbox":
+            case "switch":
+              currentValue = $field.prop("checked");
+              break;
+            case "select":
+            case "date":
+            case "time":
+            case "datetime":
+            case "number":
+            case "password":
+            case "text":
+            default:
+              currentValue = $field.val();
+              break;
+          }
+          
+          // 如果当前值为空或未定义，应用默认值
+          if (currentValue === null || currentValue === undefined || currentValue === "" || 
+              (config.type === "checkbox" || config.type === "switch") && !currentValue) {
+            const defaultValue = this.evaluateDefaultValue(fieldName, config.default, formData);
+            
+            if (defaultValue !== null && defaultValue !== undefined && defaultValue !== "") {
+              switch (config.type) {
+                case "checkbox":
+                case "switch":
+                  const checked = defaultValue === "Y" || defaultValue === true || defaultValue === 1 || defaultValue === "1";
+                  $field.prop("checked", checked);
+                  // 重新渲染
+                  if (this.form) {
+                    this.form.render("checkbox");
+                    this.form.render("switch");
+                  }
+                  break;
+                case "select":
+                  $field.val(defaultValue);
+                  break;
+                case "date":
+                case "time":
+                case "datetime":
+                  $field.val(defaultValue);
+                  break;
+                case "number":
+                  $field.val(defaultValue);
+                  break;
+                case "password":
+                case "text":
+                default:
+                  $field.val(defaultValue);
+                  break;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  /**
    * 绑定事件
    */
   bindEvents() {
@@ -1154,6 +1385,7 @@ class DynamicForm {
       // 使用 setTimeout 确保值已更新
       setTimeout(() => {
         self.updateAllFieldsVisibility();
+        self.updateDefaultValues();
       }, 0);
     });
 
@@ -1166,12 +1398,14 @@ class DynamicForm {
       this.form.on("checkbox", function(data) {
         setTimeout(() => {
           self.updateAllFieldsVisibility();
+          self.updateDefaultValues();
         }, 0);
       });
       
       this.form.on("switch", function(data) {
         setTimeout(() => {
           self.updateAllFieldsVisibility();
+          self.updateDefaultValues();
         }, 0);
       });
     }
