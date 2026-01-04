@@ -43,6 +43,9 @@
       label: "端口",
       category: "base",
       placeholder: "3306",
+			config: {
+				default: "dbType == 'mysql' ? 3306 : (dbType == 'redis' ? 6379 : 5432)"
+			},
       min: 1,
       max: 65535,
       hidden: "dbType == 'sqlite'", // 当数据库类型是 sqlite 时隐藏（hidden 优先级高于 show）
