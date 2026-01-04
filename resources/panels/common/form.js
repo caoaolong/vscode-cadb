@@ -1305,11 +1305,26 @@ class DynamicForm {
           }
           
           // 如果当前值为空或未定义，应用默认值
-          if (currentValue === null || currentValue === undefined || currentValue === "" || 
-              (config.type === "checkbox" || config.type === "switch") && !currentValue) {
+          // 对于 number 类型，需要特别处理：空字符串、null、undefined 都视为空值
+          let isEmpty = false;
+          if (config.type === "number") {
+            isEmpty = currentValue === null || currentValue === undefined || currentValue === "" || 
+                     (typeof currentValue === "string" && currentValue.trim() === "");
+          } else if (config.type === "checkbox" || config.type === "switch") {
+            isEmpty = !currentValue;
+          } else {
+            isEmpty = currentValue === null || currentValue === undefined || currentValue === "";
+          }
+          
+          if (isEmpty) {
             const defaultValue = this.evaluateDefaultValue(fieldName, config.default, formData);
             
-            if (defaultValue !== null && defaultValue !== undefined && defaultValue !== "") {
+            // 对于 number 类型，0 也是有效值，所以只检查 null 和 undefined
+            if (config.type === "number") {
+              if (defaultValue !== null && defaultValue !== undefined) {
+                $field.val(defaultValue);
+              }
+            } else if (defaultValue !== null && defaultValue !== undefined && defaultValue !== "") {
               switch (config.type) {
                 case "checkbox":
                 case "switch":
@@ -1327,9 +1342,6 @@ class DynamicForm {
                 case "date":
                 case "time":
                 case "datetime":
-                  $field.val(defaultValue);
-                  break;
-                case "number":
                   $field.val(defaultValue);
                   break;
                 case "password":
