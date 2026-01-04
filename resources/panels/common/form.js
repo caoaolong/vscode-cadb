@@ -686,7 +686,6 @@ class DynamicForm {
           if (hasExpressionFeatures) {
             try {
               const evaluated = this.evaluateDefaultValue(fieldName, config.default, data);
-              console.log(`[fillFormData] 字段 ${fieldName}: 原值="${trimmedValue}", 评估结果=`, evaluated, 'formData=', data);
               
               // 如果评估结果是数字或非空字符串，使用评估结果
               if (evaluated !== null && evaluated !== undefined) {
@@ -695,20 +694,14 @@ class DynamicForm {
                   const numValue = typeof evaluated === 'number' ? evaluated : parseFloat(String(evaluated));
                   if (!isNaN(numValue) && isFinite(numValue)) {
                     value = numValue;
-                    console.log(`[fillFormData] 字段 ${fieldName}: 使用评估后的数字值`, numValue);
-                  } else {
-                    console.warn(`[fillFormData] 字段 ${fieldName}: 评估结果不是有效数字`, evaluated);
                   }
                 } else {
                   value = evaluated;
-                  console.log(`[fillFormData] 字段 ${fieldName}: 使用评估后的值`, evaluated);
                 }
-              } else {
-                console.warn(`[fillFormData] 字段 ${fieldName}: 评估结果为 null 或 undefined`);
               }
             } catch (e) {
               // 评估失败，使用原值
-              console.error(`[fillFormData] 评估默认值失败，字段=${fieldName}, 原值=${value}, 错误=`, e);
+              // 静默处理错误
             }
           }
         }
@@ -1297,18 +1290,40 @@ class DynamicForm {
 
     // 分割条件、真值和假值
     const condition = expression.substring(0, questionIndex).trim();
-    const trueValue = expression.substring(questionIndex + 1, colonIndex).trim();
-    const falseValue = expression.substring(colonIndex + 1).trim();
+    let trueValue = expression.substring(questionIndex + 1, colonIndex).trim();
+    let falseValue = expression.substring(colonIndex + 1).trim();
+
+    // 移除外层括号（如果存在）
+    if (trueValue.startsWith('(') && trueValue.endsWith(')')) {
+      trueValue = trueValue.substring(1, trueValue.length - 1).trim();
+    }
+    if (falseValue.startsWith('(') && falseValue.endsWith(')')) {
+      falseValue = falseValue.substring(1, falseValue.length - 1).trim();
+    }
 
     // 评估条件
     const conditionResult = this.parseAndEvaluateExpression(condition, formData);
     
     // 根据条件结果返回对应的值
+    // 如果 trueValue 或 falseValue 也是表达式，需要递归评估
+    let resultValue;
     if (conditionResult) {
-      return this.parseValue(trueValue);
+      // trueValue 可能是嵌套的三元表达式或其他表达式
+      if (trueValue.includes('?') || /[=!<>?&|]/.test(trueValue)) {
+        resultValue = this.evaluateDefaultValue('', trueValue, formData);
+      } else {
+        resultValue = this.parseValue(trueValue);
+      }
     } else {
-      return this.parseValue(falseValue);
+      // falseValue 可能是嵌套的三元表达式或其他表达式
+      if (falseValue.includes('?') || /[=!<>?&|]/.test(falseValue)) {
+        resultValue = this.evaluateDefaultValue('', falseValue, formData);
+      } else {
+        resultValue = this.parseValue(falseValue);
+      }
     }
+    
+    return resultValue;
   }
 
   /**
@@ -1392,7 +1407,6 @@ class DynamicForm {
           // 如果当前值是表达式字符串，需要更新
           if (isExpressionString) {
             shouldUpdate = true;
-            console.log(`[updateDefaultValues] 字段 ${fieldName}: 检测到表达式字符串 "${currentValue}", 将更新为`, defaultValue);
           }
           // 如果当前值为空或未定义，应用默认值
           // 对于 number 类型，需要特别处理：空字符串、null、undefined 都视为空值
