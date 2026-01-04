@@ -72,8 +72,8 @@ class DynamicForm {
     this.initDateFields();
 
     // 重新渲染表单
+    // switch 也是 checkbox，只需要渲染 checkbox
     this.form.render("checkbox");
-    this.form.render("switch");
 
     // 初始化字段显示状态
     this.updateAllFieldsVisibility();
@@ -710,9 +710,9 @@ class DynamicForm {
     });
 
     // 重新渲染表单
+    // switch 也是 checkbox，只需要渲染 checkbox
     if (this.form) {
       this.form.render("checkbox");
-      this.form.render("switch");
     }
     
     // 更新字段显示状态
@@ -1331,9 +1331,9 @@ class DynamicForm {
                   const checked = defaultValue === "Y" || defaultValue === true || defaultValue === 1 || defaultValue === "1";
                   $field.prop("checked", checked);
                   // 重新渲染
+                  // switch 也是 checkbox，只需要渲染 checkbox
                   if (this.form) {
                     this.form.render("checkbox");
-                    this.form.render("switch");
                   }
                   break;
                 case "select":
@@ -1402,19 +1402,15 @@ class DynamicForm {
     });
 
     // 监听复选框和开关变化（使用 layui 的表单事件）
+    // switch 也是 checkbox，所以只需要监听 checkbox 事件
     if (this.form) {
-      // 移除旧的事件监听器
-      this.form.off("checkbox switch");
+      // 移除旧的事件监听器（如果方法存在）
+      if (typeof this.form.off === 'function') {
+        this.form.off("checkbox");
+      }
       
-      // 监听复选框和开关变化
+      // 监听复选框和开关变化（switch 也会触发 checkbox 事件）
       this.form.on("checkbox", function(data) {
-        setTimeout(() => {
-          self.updateAllFieldsVisibility();
-          self.updateDefaultValues();
-        }, 0);
-      });
-      
-      this.form.on("switch", function(data) {
         setTimeout(() => {
           self.updateAllFieldsVisibility();
           self.updateDefaultValues();
@@ -1429,9 +1425,9 @@ class DynamicForm {
   reset() {
     const $form = this.container.find("form");
     $form[0].reset();
+    // switch 也是 checkbox，只需要渲染 checkbox
     if (this.form) {
       this.form.render("checkbox");
-      this.form.render("switch");
     }
   }
 
