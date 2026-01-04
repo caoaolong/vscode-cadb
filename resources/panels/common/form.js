@@ -52,10 +52,13 @@ class DynamicForm {
     // 分类字段
     const baseFields = [];
     const advanceFields = [];
+    const hiddenFields = [];
 
+    // 处理数据中的字段
     fields.forEach((fieldName) => {
       const config = this.getFieldConfig(fieldName);
       if (config.type === "hidden") {
+        hiddenFields.push({ name: fieldName, config });
         return;
       }
       if (config.category === "advance") {
@@ -65,8 +68,23 @@ class DynamicForm {
       }
     });
 
+    // 处理配置中定义但数据中不存在的隐藏字段（用于传递固定值）
+    Object.keys(this.fieldMapping).forEach((fieldName) => {
+      const config = this.fieldMapping[fieldName];
+      if (config.type === "hidden" && !fields.includes(fieldName)) {
+        // 如果配置了 value 或 default，也要生成隐藏字段
+        if (config.value !== undefined || config.default !== undefined) {
+          hiddenFields.push({ name: fieldName, config });
+          // 确保在 currentData 中有这个字段，以便 fillFormData 能处理
+          if (!this.currentData[fieldName]) {
+            this.currentData[fieldName] = config.value !== undefined ? config.value : "";
+          }
+        }
+      }
+    });
+
     // 生成表单HTML
-    const formHtml = this.generateFormHtml(baseFields, advanceFields);
+    const formHtml = this.generateFormHtml(baseFields, advanceFields, hiddenFields);
     this.container.html(formHtml);
 
     // 填充数据
@@ -119,10 +137,18 @@ class DynamicForm {
    * 生成表单HTML
    * @param {Array} baseFields 基础字段
    * @param {Array} advanceFields 高级字段
+   * @param {Array} hiddenFields 隐藏字段
    * @returns {string} 表单HTML
    */
-  generateFormHtml(baseFields, advanceFields) {
+  generateFormHtml(baseFields, advanceFields, hiddenFields = []) {
     let html = `<form class="layui-form" lay-filter="${this.formId}">`;
+
+    // 隐藏字段（不显示，但会包含在表单中）
+    if (hiddenFields && hiddenFields.length > 0) {
+      hiddenFields.forEach((field) => {
+        html += this.generateHiddenField(field.name, field.config);
+      });
+    }
 
     // 基础字段
     if (baseFields.length > 0) {
@@ -277,6 +303,24 @@ class DynamicForm {
     html += "</div>";
 
     return html;
+  }
+
+  /**
+   * 生成隐藏字段
+   * @param {string} fieldName 字段名
+   * @param {Object} config 字段配置
+   * @returns {string} 隐藏字段HTML
+   */
+  generateHiddenField(fieldName, config) {
+    // 获取值：优先使用配置中的 value，其次使用数据中的值，最后使用默认值
+    let value = config.value !== undefined ? config.value : (this.currentData[fieldName] || "");
+    
+    // 如果配置了默认值表达式，评估它
+    if (config.default !== undefined && (value === null || value === undefined || value === "")) {
+      value = this.evaluateDefaultValue(fieldName, config.default, this.currentData);
+    }
+    
+    return `<input type="hidden" name="${fieldName}" value="${String(value).replace(/"/g, '&quot;')}" />`;
   }
 
   /**
@@ -751,6 +795,10 @@ class DynamicForm {
           // 密码字段直接设置值
           $field.val(value || "");
           break;
+        case "hidden":
+          // 隐藏字段直接设置值
+          $field.val(value !== null && value !== undefined ? value : "");
+          break;
         default:
           // 处理 Buffer 类型（如 SSL 字段）
           if (value && value.type === "Buffer" && value.data) {
@@ -804,6 +852,7 @@ class DynamicForm {
           }
           break;
         case "password":
+        case "hidden":
           formData[fieldName] = $element.val();
           break;
         default:
