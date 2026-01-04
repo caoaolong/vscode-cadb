@@ -664,10 +664,32 @@ class DynamicForm {
         return;
       }
 
-      // 如果值为空或未定义，尝试应用默认值
-      // 注意：这里使用 data 作为 formData，因为默认值表达式可能依赖于其他字段的值
-      if ((value === null || value === undefined || value === "") && config.default !== undefined) {
-        value = this.evaluateDefaultValue(fieldName, config.default, data);
+      // 如果字段有默认值配置，检查是否需要评估
+      if (config.default !== undefined) {
+        // 如果值为空或未定义，应用默认值
+        if (value === null || value === undefined || value === "") {
+          value = this.evaluateDefaultValue(fieldName, config.default, data);
+        }
+        // 如果值是字符串，且看起来像表达式（包含运算符或三元运算符），尝试评估
+        else if (typeof value === 'string' && typeof config.default === 'string') {
+          const trimmedValue = value.trim();
+          const trimmedDefault = config.default.trim();
+          // 如果值等于默认值表达式，或者值包含表达式特征（运算符、三元运算符），则评估
+          if (trimmedValue === trimmedDefault || 
+              (/[=!<>?&|]/.test(trimmedValue) || trimmedValue.includes('?'))) {
+            // 尝试评估，如果评估失败或结果不合理，使用原值
+            try {
+              const evaluated = this.evaluateDefaultValue(fieldName, config.default, data);
+              // 如果评估结果与原始值不同，使用评估结果
+              if (String(evaluated) !== trimmedValue) {
+                value = evaluated;
+              }
+            } catch (e) {
+              // 评估失败，使用原值
+              console.warn('评估默认值失败，使用原值:', fieldName, value, e);
+            }
+          }
+        }
       }
 
       switch (config.type) {
