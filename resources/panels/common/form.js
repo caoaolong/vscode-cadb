@@ -1268,6 +1268,28 @@ class DynamicForm {
   }
 
   /**
+   * 检查默认值是否是动态表达式（依赖其他字段）
+   * @param {string|any} defaultValue 默认值
+   * @returns {boolean} 是否是动态表达式
+   */
+  isDynamicDefaultValue(defaultValue) {
+    if (typeof defaultValue !== 'string') {
+      return false;
+    }
+    
+    const trimmed = defaultValue.trim();
+    
+    // 如果是简单的字符串字面量，不是动态的
+    if ((trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+        (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+      return false;
+    }
+    
+    // 如果包含运算符或三元运算符，可能是动态表达式
+    return /[=!<>?&|]/.test(trimmed) || trimmed.includes('?');
+  }
+
+  /**
    * 更新所有字段的默认值
    */
   updateDefaultValues() {
@@ -1304,6 +1326,13 @@ class DynamicForm {
               break;
           }
           
+          // 评估默认值
+          const defaultValue = this.evaluateDefaultValue(fieldName, config.default, formData);
+          
+          // 判断是否需要更新
+          let shouldUpdate = false;
+          const isDynamic = this.isDynamicDefaultValue(config.default);
+          
           // 如果当前值为空或未定义，应用默认值
           // 对于 number 类型，需要特别处理：空字符串、null、undefined 都视为空值
           let isEmpty = false;
@@ -1317,8 +1346,26 @@ class DynamicForm {
           }
           
           if (isEmpty) {
-            const defaultValue = this.evaluateDefaultValue(fieldName, config.default, formData);
+            // 字段为空，需要应用默认值
+            shouldUpdate = true;
+          } else if (isDynamic) {
+            // 字段有值，但默认值是动态表达式，需要检查是否需要更新
+            // 将当前值转换为可比较的格式
+            let currentValueToCompare = currentValue;
+            if (config.type === "number") {
+              currentValueToCompare = parseFloat(currentValue);
+              if (isNaN(currentValueToCompare)) {
+                currentValueToCompare = currentValue;
+              }
+            }
             
+            // 如果评估的默认值与当前值不同，则更新
+            if (String(currentValueToCompare) !== String(defaultValue)) {
+              shouldUpdate = true;
+            }
+          }
+          
+          if (shouldUpdate) {
             // 对于 number 类型，0 也是有效值，所以只检查 null 和 undefined
             if (config.type === "number") {
               if (defaultValue !== null && defaultValue !== undefined) {
