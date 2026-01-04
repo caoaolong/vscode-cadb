@@ -674,15 +674,29 @@ class DynamicForm {
         else if (typeof value === 'string' && typeof config.default === 'string') {
           const trimmedValue = value.trim();
           const trimmedDefault = config.default.trim();
-          // 如果值等于默认值表达式，或者值包含表达式特征（运算符、三元运算符），则评估
-          if (trimmedValue === trimmedDefault || 
-              (/[=!<>?&|]/.test(trimmedValue) || trimmedValue.includes('?'))) {
-            // 尝试评估，如果评估失败或结果不合理，使用原值
+          
+          // 检查值是否包含表达式特征（运算符、三元运算符、括号等）
+          const looksLikeExpression = /[=!<>?&|()]/.test(trimmedValue) || trimmedValue.includes('?');
+          
+          // 如果值看起来像表达式，或者值等于默认值表达式（可能不完全匹配，比如有空格差异）
+          if (looksLikeExpression || 
+              trimmedValue.includes('dbType') || 
+              trimmedValue.includes('?') ||
+              trimmedValue.includes(':')) {
+            // 使用配置中的默认值表达式进行评估（而不是评估值本身）
             try {
               const evaluated = this.evaluateDefaultValue(fieldName, config.default, data);
-              // 如果评估结果与原始值不同，使用评估结果
-              if (String(evaluated) !== trimmedValue) {
-                value = evaluated;
+              // 如果评估结果是数字或非空字符串，使用评估结果
+              if (evaluated !== null && evaluated !== undefined) {
+                // 对于数字类型，确保结果是数字
+                if (config.type === "number") {
+                  const numValue = typeof evaluated === 'number' ? evaluated : parseFloat(String(evaluated));
+                  if (!isNaN(numValue) && isFinite(numValue)) {
+                    value = numValue;
+                  }
+                } else {
+                  value = evaluated;
+                }
               }
             } catch (e) {
               // 评估失败，使用原值
