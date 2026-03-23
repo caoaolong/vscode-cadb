@@ -3,7 +3,7 @@
   "displayName": "vscode-cadb",
   "publisher": "codingsoul",
   "description": "Powerful database management VSCode plugin!",
-  "version": "0.0.9",
+  "version": "0.0.4",
   "engines": {
     "vscode": "^1.104.0"
   },
@@ -192,6 +192,26 @@
         "icon": "$(play)"
       },
       {
+        "command": "cadb.sql.runCurrent",
+        "title": "运行当前语句",
+        "icon": "$(debug-step-over)"
+      },
+      {
+        "command": "cadb.sql.runLine",
+        "title": "运行当前行",
+        "icon": "$(play)"
+      },
+      {
+        "command": "cadb.sql.runSelection",
+        "title": "运行选中 SQL",
+        "icon": "$(run-selection)"
+      },
+      {
+        "command": "cadb.sql.runAll",
+        "title": "运行全部 SQL",
+        "icon": "$(play-circle)"
+      },
+      {
         "command": "cadb.sql.explain",
         "title": "解释 SQL",
         "icon": "$(search)"
@@ -274,6 +294,11 @@
           "group": "inline"
         },
         {
+          "command": "cadb.datasource.rename",
+          "when": "view == datasource && viewItem == datasource",
+          "group": "inline"
+        },
+        {
           "command": "cadb.datasource.add",
           "when": "view == datasource && (viewItem =~ /Type$/ || viewItem == folder)",
           "group": "inline"
@@ -327,6 +352,40 @@
           "command": "cadb.delete",
           "when": "view == datasource && !(viewItem =~ /Type$/) && viewItem != file",
           "group": "context"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "cadb.sql.runCurrent",
+          "when": "resourceLangId == sql",
+          "group": "navigation@1"
+        },
+        {
+          "command": "cadb.sql.runSelection",
+          "when": "resourceLangId == sql && editorHasSelection",
+          "group": "navigation@2"
+        },
+        {
+          "command": "cadb.sql.runAll",
+          "when": "resourceLangId == sql",
+          "group": "navigation@3"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "cadb.sql.runCurrent",
+          "when": "resourceLangId == sql",
+          "group": "navigation@1"
+        },
+        {
+          "command": "cadb.sql.runSelection",
+          "when": "resourceLangId == sql && editorHasSelection",
+          "group": "navigation@2"
+        },
+        {
+          "command": "cadb.sql.runAll",
+          "when": "resourceLangId == sql",
+          "group": "navigation@3"
         }
       ],
       "cadb.datasource.copyConnectionSubmenu": [
@@ -404,26 +463,56 @@
           "maximum": 3,
           "description": "SQL Notebook 编辑器行高"
         },
-        "cadb.sqlNotebook.autoFormat": {
-          "type": "boolean",
-          "default": false,
-          "description": "保存 SQL Notebook（.jsql）时自动格式化所有 SQL 单元格"
-        },
         "cadb.grid.pageSize": {
           "type": "number",
           "default": 2000,
           "minimum": 1,
           "maximum": 10000,
-          "description": "表格每页查询条数；亦为 SELECT 自动追加 LIMIT 时的默认条数"
-        },
-        "cadb.query.autoAppendSelectLimit": {
-          "type": "boolean",
-          "default": true,
-          "description": "执行 SELECT/WITH 时若语句末尾未写 LIMIT，则自动追加 LIMIT（条数见 cadb.grid.pageSize）"
+          "description": "表格每页查询条数（上一页/下一页按此数量翻页，单次查询最多返回该条数）"
         }
       }
     },
     "keybindings": [
+      {
+        "command": "cadb.sql.runLine",
+        "key": "ctrl+alt+enter",
+        "when": "editorTextFocus && editorLangId == sql && !notebookEditorFocused && !editorHasSelection"
+      },
+      {
+        "command": "cadb.sql.runLine",
+        "key": "cmd+alt+enter",
+        "when": "editorTextFocus && editorLangId == sql && !notebookEditorFocused && !editorHasSelection"
+      },
+      {
+        "command": "notebook.cell.execute",
+        "key": "ctrl+alt+enter",
+        "when": "notebookEditorFocused && notebookType == cadb.sqlNotebook"
+      },
+      {
+        "command": "notebook.cell.execute",
+        "key": "cmd+alt+enter",
+        "when": "notebookEditorFocused && notebookType == cadb.sqlNotebook"
+      },
+      {
+        "command": "cadb.sql.runSelection",
+        "key": "ctrl+alt+enter",
+        "when": "editorTextFocus && editorLangId == sql && editorHasSelection"
+      },
+      {
+        "command": "cadb.sql.runSelection",
+        "key": "cmd+alt+enter",
+        "when": "editorTextFocus && editorLangId == sql && editorHasSelection"
+      },
+      {
+        "command": "cadb.sql.runAll",
+        "key": "ctrl+shift+enter",
+        "when": "editorTextFocus && editorLangId == sql"
+      },
+      {
+        "command": "cadb.sql.runAll",
+        "key": "cmd+shift+enter",
+        "when": "editorTextFocus && editorLangId == sql"
+      },
       {
         "command": "cadb.datasource.search",
         "key": "ctrl+f",
@@ -471,7 +560,7 @@
     "mysql": "^2.18.1",
     "mysql2": "^3.15.3",
     "redis": "^5.10.0",
-    "sql-formatter": "^15.6.2",
+    "sql-formatter": "^15.7.2",
     "tabulator-tables": "^6.3.1"
   }
 }
