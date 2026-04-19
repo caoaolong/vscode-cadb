@@ -143,14 +143,18 @@ export class Datasource extends vscode.TreeItem {
             value: c.label?.toString() || "",
           }));
           const panel = host.createWebview("settings", "创建数据库");
-          panel.webview.postMessage({
+          const createDbLoadMessage = {
             command: "load",
             configType: "database",
             data: {},
             options: { collation: options },
-          });
+          };
           panel.webview.onDidReceiveMessage(
             async (message: { command: string; payload?: any }) => {
+              if (message.command === "ready") {
+                panel.webview.postMessage(createDbLoadMessage);
+                return;
+              }
               switch (message.command) {
                 case "save":
                   try {

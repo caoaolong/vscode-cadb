@@ -884,69 +884,23 @@ async function editEntry(
     return;
   }
 
-  let data: FormResult | undefined = undefined;
-  try {
-    data = await item.edit();
-  } catch (error) {
-    console.error("加载编辑数据失败:", error);
-    vscode.window.showErrorMessage(
-      `加载编辑数据失败: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    );
-    return;
-  }
   const settingsPanel = panel!;
-  if (configType === "database") {
-    const databaseData = data?.rowData?.[0] || {};
-    let collations: Datasource[] = [];
-    try {
-      collations = item.dataloader
-        ? await item.dataloader.listCollations(item)
-        : [];
-    } catch {
-      collations = [];
-    }
-    const options = collations.map((c) => ({
-      label: c.label?.toString() || "",
-      value: c.label?.toString() || "",
-    }));
+  let settingsLoadMessage: Record<string, unknown> | null = null;
+  let settingsWebviewReady = false;
 
-    settingsPanel.webview.postMessage({
-      command: "load",
-      configType: configType,
-      data: {
-        ...databaseData,
-        _mode: "edit",
-        _originalName: databaseData?.name || item.label?.toString() || "",
-      },
-      options: { collation: options },
-    });
-  } else {
-    settingsPanel.webview.postMessage({
-      command: "load",
-      configType: configType,
-      data: data,
-      driverOptions:
-        item.type === "datasource"
-          ? getDriverOptionsForEditConnection(
-              provider.context,
-              item.data?.dbType,
-            )
-          : undefined,
-      groupOptions:
-        item.type === "datasource"
-          ? getConnectionGroupFormOptions(
-              provider.context,
-              provider.getConnections(),
-              data?.rowData?.[0]?.group ?? item.data?.group,
-            )
-          : undefined,
-    });
-  }
+  const postSettingsLoadWhenReady = () => {
+    if (!settingsWebviewReady || !settingsLoadMessage) {
+      return;
+    }
+    settingsPanel.webview.postMessage(settingsLoadMessage);
+  };
 
   settingsPanel.webview.onDidReceiveMessage(async (message) => {
     switch (message.command) {
+      case "ready":
+        settingsWebviewReady = true;
+        postSettingsLoadWhenReady();
+        return;
       case "save":
         await handleSettingsSaveMessage(
           provider,
@@ -965,6 +919,69 @@ async function editEntry(
         break;
     }
   });
+
+  let data: FormResult | undefined = undefined;
+  try {
+    data = await item.edit();
+  } catch (error) {
+    console.error("加载编辑数据失败:", error);
+    vscode.window.showErrorMessage(
+      `加载编辑数据失败: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    return;
+  }
+
+  if (configType === "database") {
+    const databaseData = data?.rowData?.[0] || {};
+    let collations: Datasource[] = [];
+    try {
+      collations = item.dataloader
+        ? await item.dataloader.listCollations(item)
+        : [];
+    } catch {
+      collations = [];
+    }
+    const options = collations.map((c) => ({
+      label: c.label?.toString() || "",
+      value: c.label?.toString() || "",
+    }));
+
+    settingsLoadMessage = {
+      command: "load",
+      configType: configType,
+      data: {
+        ...databaseData,
+        _mode: "edit",
+        _originalName: databaseData?.name || item.label?.toString() || "",
+      },
+      options: { collation: options },
+    };
+  } else {
+    settingsLoadMessage = {
+      command: "load",
+      configType: configType,
+      data: data,
+      driverOptions:
+        item.type === "datasource"
+          ? getDriverOptionsForEditConnection(
+              provider.context,
+              item.data?.dbType,
+            )
+          : undefined,
+      groupOptions:
+        item.type === "datasource"
+          ? getConnectionGroupFormOptions(
+              provider.context,
+              provider.getConnections(),
+              data?.rowData?.[0]?.group ?? item.data?.group,
+            )
+          : undefined,
+    };
+  }
+
+  postSettingsLoadWhenReady();
 }
 
 /**
@@ -1189,20 +1206,24 @@ export function registerDatasourceCommands(
         return;
       }
       const panel = createWebview(provider, "settings", "数据库连接配置");
-      // 发送初始化消息，指定为 datasource 类型的新建模式
-      panel.webview.postMessage({
-        command: "load",
-        configType: "datasource",
-        data: null,
-        driverOptions,
-        groupOptions: getConnectionGroupFormOptions(
-          provider.context,
-          provider.getConnections(),
-        ),
-      });
+      const sendNewDatasourceLoad = () => {
+        panel.webview.postMessage({
+          command: "load",
+          configType: "datasource",
+          data: null,
+          driverOptions,
+          groupOptions: getConnectionGroupFormOptions(
+            provider.context,
+            provider.getConnections(),
+          ),
+        });
+      };
 
       panel.webview.onDidReceiveMessage(async (message) => {
         switch (message.command) {
+          case "ready":
+            sendNewDatasourceLoad();
+            return;
           case "save":
             {
               try {
@@ -1871,8 +1892,11 @@ export function registerDatasourceCommands(
           previewPlugins: getPreviewPluginsManagementPayload(provider.context),
         });
       };
-      sendLoad();
       panel.webview.onDidReceiveMessage(async (message) => {
+        if (message.command === "ready") {
+          sendLoad();
+          return;
+        }
         if (message.command === "setDriverEnabled") {
           const id = String((message as { id?: string }).id ?? "").trim();
           const enabled = !!(message as { enabled?: boolean }).enabled;
@@ -1938,8 +1962,11 @@ export function registerDatasourceCommands(
             ),
           });
         };
-        sendLoad();
         panel.webview.onDidReceiveMessage(async (message) => {
+          if (message.command === "ready") {
+            sendLoad();
+            return;
+          }
           if (message.command === "saveConnectionGroups") {
             const lines = Array.isArray(
               (message as { groups?: unknown }).groups,
