@@ -126,6 +126,11 @@
                 "icon": "$(cursor)"
             },
             {
+                "command": "cadb.datasource.viewTableStructure",
+                "title": "查看表结构",
+                "icon": "$(symbol-structure)"
+            },
+            {
                 "command": "cadb.datasource.toggleConnection",
                 "title": "打开/关闭 连接",
                 "icon": "$(plug)"
@@ -329,6 +334,11 @@
                     "command": "cadb.collection.useDatabase",
                     "when": "view =~ /datasource/ && viewItem == collection",
                     "group": "context"
+                },
+                {
+                    "command": "cadb.datasource.viewTableStructure",
+                    "when": "view =~ /datasource/ && viewItem == document",
+                    "group": "context@2"
                 },
                 {
                     "command": "cadb.redis.pubsub",

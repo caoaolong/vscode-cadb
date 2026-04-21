@@ -261,6 +261,8 @@ export function activate(context: vscode.ExtensionContext) {
     treeDataProvider: provider,
     showCollapseAll: true,
     dragAndDropController: new CadbDragAndDropController(),
+    /** 支持 Ctrl/Cmd 点选与 Shift 范围多选 */
+    canSelectMany: true,
   });
   context.subscriptions.push(treeView);
   treeView.onDidExpandElement((e) => provider.addExpandedNode(e.element));

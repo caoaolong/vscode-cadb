@@ -58,7 +58,8 @@
   };
 
   /** 同步 document.title（仅表名）与分页区表名标签（悬停全路径：连接 / 数据库 / 表） */
-  function applyGridDocumentTitle(meta) {
+  function applyGridDocumentTitle(meta, opts) {
+    const structureView = !!(opts && opts.structureView);
     const c = meta && String(meta.connectionName ?? "").trim();
     const d = meta && String(meta.databaseName ?? "").trim();
     const t = meta && String(meta.tableName ?? "").trim();
@@ -67,18 +68,23 @@
       ".grid-toolbar__table-name-text",
     );
     if (c && d && t) {
-      document.title = t;
+      document.title = structureView ? "表结构 · " + t : t;
       if (labelEl) {
         if (labelTextEl) {
-          labelTextEl.textContent = t;
+          labelTextEl.textContent = structureView ? "表结构 · " + t : t;
         } else {
-          labelEl.textContent = t;
+          labelEl.textContent = structureView ? "表结构 · " + t : t;
         }
         const fullPath = `${c} / ${d} / ${t}`;
         /* 不用原生 title（系统延迟长），全路径由 CSS attr(data-path) 即时提示 */
         labelEl.removeAttribute("title");
         labelEl.setAttribute("data-path", fullPath);
-        labelEl.setAttribute("aria-label", `当前表 ${t}，全路径 ${fullPath}`);
+        labelEl.setAttribute(
+          "aria-label",
+          structureView
+            ? `表结构 ${t}，全路径 ${fullPath}`
+            : `当前表 ${t}，全路径 ${fullPath}`,
+        );
       }
     } else {
       document.title = "数据表格";
@@ -891,12 +897,14 @@
     }
 
     if (command === "load") {
+      const structureView = !!payload?.structureView;
+      document.body.classList.toggle("grid-mode-structure", structureView);
       tableMeta = {
         connectionName: payload?.connectionName ?? "",
         databaseName: payload?.databaseName ?? "",
         tableName: payload?.tableName ?? "",
       };
-      applyGridDocumentTitle(tableMeta);
+      applyGridDocumentTitle(tableMeta, { structureView });
       const hasMeta =
         tableMeta.connectionName &&
         tableMeta.databaseName &&
@@ -911,10 +919,16 @@
       const columnDefs = payload?.columnDefs;
       const rowData = Array.isArray(payload?.rowData) ? payload.rowData : [];
       if (!columnDefs?.length) return;
-      const options =
-        payload?.pageSize != null
-          ? { pageSize: payload.pageSize, offset: payload.offset ?? 0 }
-          : undefined;
+      let options;
+      if (payload?.pageSize != null) {
+        options = {
+          pageSize: payload.pageSize,
+          offset: payload.offset ?? 0,
+        };
+      }
+      if (payload?.readOnly) {
+        options = Object.assign({}, options || {}, { readOnly: true });
+      }
       dbTable.init(columnDefs, rowData, payload?.queryTime ?? 0, options);
       dbTable.updatePaginationUI?.();
       userColumnVisibility = new Map();

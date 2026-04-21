@@ -1046,6 +1046,16 @@
     outline-offset: 1px;
 }
 
+/* ---------- 只读表结构视图（grid-mode-structure）---------- */
+.grid-mode-structure .grid-toolbar__actions button[data-action="save"],
+.grid-mode-structure .grid-toolbar__actions button[data-action="add"],
+.grid-mode-structure .grid-toolbar__actions button[data-action="delete"],
+.grid-mode-structure .grid-toolbar__export button[data-action="upload"],
+.grid-mode-structure .grid-toolbar__export button[data-action="download"],
+.grid-mode-structure .grid-toolbar__export button[data-action="export-csv"] {
+    display: none !important;
+}
+
 /* ---------- 无障碍 ---------- */
 .sr-only {
     position: absolute !important;
