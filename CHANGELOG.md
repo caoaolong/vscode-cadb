@@ -1,5 +1,19 @@
 # 更新日志
 
+## [0.3.8]
+
+### 新增
+
+- **查看表结构**：数据源树对表节点提供 **「查看表结构」**（`cadb.datasource.viewTableStructure`），在只读 Grid 中打开字段定义；结构模式下禁止编辑，并隐藏增删改等工具栏操作；文档标题同步为结构视图说明。树相关命令支持多选等交互优化（见 `commands.ts`）。
+
+### 变更
+
+- **查询结果面板**：**不再**将结果 Tab 写入 `globalState`（`cadb.queryHistory`）；Webview **`ready`** 时清除旧版可能残留的该键；**`onDidDispose`** 时再次清除并重置结果序号，保证下次打开为**空白欢迎页**。前端移除 `saveHistory` / `restoreHistory` 消息路径；欢迎页与右键菜单文案改为「关闭面板后不持久保存」「清除全部结果标签」。
+
+### 修复
+
+- **AI 数据库助手**：一条助手消息内渲染**多张** Markdown 表格时，各表格「复制」按钮因 `for (var …)` 闭包共享同一 `table` 引用，点击均复制**最后一张**表；`wrapMarkdownTablesCollapsible` 改为 `let` / `const` 按表绑定，复制内容与按钮一一对应。
+
 ## [0.3.7]
 
 ### 修复
