@@ -12,6 +12,7 @@ import { Datasource, type DatasourceInputData } from "../entity/datasource";
 import path from "path";
 import { readFileSync } from "fs";
 import {
+  type ColDef,
   FormResult,
   type ListDataSortCol,
   type TableResult,
@@ -884,69 +885,23 @@ async function editEntry(
     return;
   }
 
-  let data: FormResult | undefined = undefined;
-  try {
-    data = await item.edit();
-  } catch (error) {
-    console.error("加载编辑数据失败:", error);
-    vscode.window.showErrorMessage(
-      `加载编辑数据失败: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    );
-    return;
-  }
   const settingsPanel = panel!;
-  if (configType === "database") {
-    const databaseData = data?.rowData?.[0] || {};
-    let collations: Datasource[] = [];
-    try {
-      collations = item.dataloader
-        ? await item.dataloader.listCollations(item)
-        : [];
-    } catch {
-      collations = [];
-    }
-    const options = collations.map((c) => ({
-      label: c.label?.toString() || "",
-      value: c.label?.toString() || "",
-    }));
+  let settingsLoadMessage: Record<string, unknown> | null = null;
+  let settingsWebviewReady = false;
 
-    settingsPanel.webview.postMessage({
-      command: "load",
-      configType: configType,
-      data: {
-        ...databaseData,
-        _mode: "edit",
-        _originalName: databaseData?.name || item.label?.toString() || "",
-      },
-      options: { collation: options },
-    });
-  } else {
-    settingsPanel.webview.postMessage({
-      command: "load",
-      configType: configType,
-      data: data,
-      driverOptions:
-        item.type === "datasource"
-          ? getDriverOptionsForEditConnection(
-              provider.context,
-              item.data?.dbType,
-            )
-          : undefined,
-      groupOptions:
-        item.type === "datasource"
-          ? getConnectionGroupFormOptions(
-              provider.context,
-              provider.getConnections(),
-              data?.rowData?.[0]?.group ?? item.data?.group,
-            )
-          : undefined,
-    });
-  }
+  const postSettingsLoadWhenReady = () => {
+    if (!settingsWebviewReady || !settingsLoadMessage) {
+      return;
+    }
+    settingsPanel.webview.postMessage(settingsLoadMessage);
+  };
 
   settingsPanel.webview.onDidReceiveMessage(async (message) => {
     switch (message.command) {
+      case "ready":
+        settingsWebviewReady = true;
+        postSettingsLoadWhenReady();
+        return;
       case "save":
         await handleSettingsSaveMessage(
           provider,
@@ -965,6 +920,69 @@ async function editEntry(
         break;
     }
   });
+
+  let data: FormResult | undefined = undefined;
+  try {
+    data = await item.edit();
+  } catch (error) {
+    console.error("加载编辑数据失败:", error);
+    vscode.window.showErrorMessage(
+      `加载编辑数据失败: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    return;
+  }
+
+  if (configType === "database") {
+    const databaseData = data?.rowData?.[0] || {};
+    let collations: Datasource[] = [];
+    try {
+      collations = item.dataloader
+        ? await item.dataloader.listCollations(item)
+        : [];
+    } catch {
+      collations = [];
+    }
+    const options = collations.map((c) => ({
+      label: c.label?.toString() || "",
+      value: c.label?.toString() || "",
+    }));
+
+    settingsLoadMessage = {
+      command: "load",
+      configType: configType,
+      data: {
+        ...databaseData,
+        _mode: "edit",
+        _originalName: databaseData?.name || item.label?.toString() || "",
+      },
+      options: { collation: options },
+    };
+  } else {
+    settingsLoadMessage = {
+      command: "load",
+      configType: configType,
+      data: data,
+      driverOptions:
+        item.type === "datasource"
+          ? getDriverOptionsForEditConnection(
+              provider.context,
+              item.data?.dbType,
+            )
+          : undefined,
+      groupOptions:
+        item.type === "datasource"
+          ? getConnectionGroupFormOptions(
+              provider.context,
+              provider.getConnections(),
+              data?.rowData?.[0]?.group ?? item.data?.group,
+            )
+          : undefined,
+    };
+  }
+
+  postSettingsLoadWhenReady();
 }
 
 /**
@@ -1068,6 +1086,124 @@ async function updateDatabaseConfig(
   });
 }
 
+/** descTable 在 MySQL 实现中可能附带 indexes（与 FormResult 扩展字段一致） */
+type TableDescWithIndexes = FormResult & {
+  indexes?: Array<{
+    id: string;
+    name: string;
+    type: string;
+    fields: string[];
+    unique: boolean;
+  }>;
+};
+
+function formatStructureGridTabTitle(tableName: string): string {
+  const t = String(tableName ?? "").trim();
+  return t ? `表结构 · ${t}` : "表结构";
+}
+
+/** 将 descTable（如 SHOW FULL COLUMNS）结果转为 grid.html 所需的 TableResult */
+function descTableFormToStructureGridTableResult(
+  form: TableDescWithIndexes,
+  tableLabel: string,
+): TableResult {
+  const rows = form.rowData ?? [];
+  if (rows.length === 0) {
+    return { title: tableLabel, columnDefs: [], rowData: [], queryTime: 0 };
+  }
+  const preferredOrder = [
+    "Field",
+    "Type",
+    "Collation",
+    "Null",
+    "Key",
+    "Default",
+    "Extra",
+    "Comment",
+    "Privileges",
+  ];
+  const first = rows[0];
+  const keySet = new Set(Object.keys(first));
+  const keys = [
+    ...preferredOrder.filter((k) => keySet.has(k)),
+    ...Object.keys(first).filter((k) => !preferredOrder.includes(k)),
+  ];
+  const columnDefs: ColDef[] = keys.map((k) => ({
+    field: k,
+    editable: false,
+  }));
+  return {
+    title: tableLabel,
+    columnDefs,
+    rowData: rows,
+    queryTime: 0,
+  };
+}
+
+async function loadTableStructureGridPayload(tableNode: Datasource): Promise<{
+  tableResult: TableResult;
+  connectionName: string;
+  databaseName: string;
+  tableName: string;
+} | null> {
+  const tableName = tableNode.label?.toString() ?? "";
+  const databaseName = tableNode.parent?.parent?.label?.toString() ?? "";
+  const connectionName =
+    tableNode.dataloader?.rootNode().label?.toString() ?? "";
+  if (!tableName || !databaseName || !connectionName) {
+    vscode.window.showWarningMessage("无法解析数据库或表名");
+    return null;
+  }
+  if (!tableNode.dataloader) {
+    vscode.window.showWarningMessage("连接未就绪，无法读取表结构");
+    return null;
+  }
+  let raw: FormResult | undefined;
+  try {
+    raw = await tableNode.dataloader.descTable(tableNode);
+  } catch (e) {
+    vscode.window.showErrorMessage(`读取表结构失败：${toErrorMessage(e)}`);
+    return null;
+  }
+  if (!raw) {
+    vscode.window.showWarningMessage(
+      "未获取到表结构，当前连接类型可能不支持",
+    );
+    return null;
+  }
+  const extended = raw as TableDescWithIndexes;
+  if (
+    (extended.rowData?.length ?? 0) === 0 &&
+    !(extended.indexes && extended.indexes.length > 0)
+  ) {
+    vscode.window.showWarningMessage("未获取到表结构（无列信息）");
+    return null;
+  }
+  const tableResult = descTableFormToStructureGridTableResult(
+    extended,
+    tableName,
+  );
+  if (!tableResult.columnDefs.length) {
+    vscode.window.showWarningMessage("未获取到表结构（无列信息）");
+    return null;
+  }
+  return { tableResult, connectionName, databaseName, tableName };
+}
+
+/**
+ * 解析树命令作用节点：右键项若属于当前多选则对整组多选生效，否则仅作用于右键项（与侧栏资源管理器一致）
+ */
+function nodesForTreeCommand(
+  treeView: vscode.TreeView<Datasource>,
+  item?: Datasource,
+): Datasource[] {
+  const sel = treeView.selection;
+  if (item !== undefined) {
+    return sel.includes(item) ? [...sel] : [item];
+  }
+  return sel.length ? [...sel] : [];
+}
+
 export function registerDatasourceCommands(
   provider: DataSourceProvider,
   treeView: vscode.TreeView<Datasource>,
@@ -1098,17 +1234,23 @@ export function registerDatasourceCommands(
     vscode.commands.registerCommand(
       "cadb.datasource.copyTreeItemName",
       async (item?: Datasource) => {
-        const node = item ?? treeView.selection[0];
-        if (!node) {
+        const nodes = nodesForTreeCommand(treeView, item);
+        if (nodes.length === 0) {
           vscode.window.showWarningMessage("请先选择要复制的树节点");
           return;
         }
-        const text = treeItemLabelAsText(node.label).trim();
-        if (!text) {
-          vscode.window.showWarningMessage("该节点没有可复制的名称");
+        const lines: string[] = [];
+        for (const node of nodes) {
+          const text = treeItemLabelAsText(node.label).trim();
+          if (text) {
+            lines.push(text);
+          }
+        }
+        if (lines.length === 0) {
+          vscode.window.showWarningMessage("所选节点没有可复制的名称");
           return;
         }
-        await vscode.env.clipboard.writeText(text);
+        await vscode.env.clipboard.writeText(lines.join("\n"));
       },
     ),
   );
@@ -1117,15 +1259,19 @@ export function registerDatasourceCommands(
     vscode.commands.registerCommand(
       "cadb.datasource.toggleConnection",
       async (item?: Datasource) => {
-        const node = item ?? treeView.selection[0];
-        if (!node || node.type !== "datasource") {
+        const nodes = nodesForTreeCommand(treeView, item).filter(
+          (n) => n.type === "datasource",
+        );
+        if (nodes.length === 0) {
           vscode.window.showWarningMessage("请选择数据源连接节点");
           return;
         }
-        if (node.connectionOpen) {
-          await provider.closeDatasourceConnection(node);
-        } else {
-          await provider.openDatasourceConnection(node);
+        for (const node of nodes) {
+          if (node.connectionOpen) {
+            await provider.closeDatasourceConnection(node);
+          } else {
+            await provider.openDatasourceConnection(node);
+          }
         }
       },
     ),
@@ -1189,20 +1335,24 @@ export function registerDatasourceCommands(
         return;
       }
       const panel = createWebview(provider, "settings", "数据库连接配置");
-      // 发送初始化消息，指定为 datasource 类型的新建模式
-      panel.webview.postMessage({
-        command: "load",
-        configType: "datasource",
-        data: null,
-        driverOptions,
-        groupOptions: getConnectionGroupFormOptions(
-          provider.context,
-          provider.getConnections(),
-        ),
-      });
+      const sendNewDatasourceLoad = () => {
+        panel.webview.postMessage({
+          command: "load",
+          configType: "datasource",
+          data: null,
+          driverOptions,
+          groupOptions: getConnectionGroupFormOptions(
+            provider.context,
+            provider.getConnections(),
+          ),
+        });
+      };
 
       panel.webview.onDidReceiveMessage(async (message) => {
         switch (message.command) {
+          case "ready":
+            sendNewDatasourceLoad();
+            return;
           case "save":
             {
               try {
@@ -1729,6 +1879,24 @@ export function registerDatasourceCommands(
     ),
   );
 
+  disposables.push(
+    vscode.commands.registerCommand(
+      "cadb.datasource.viewTableStructure",
+      async (item?: Datasource) => {
+        const nodes = nodesForTreeCommand(treeView, item).filter(
+          (n) => n.type === "document",
+        );
+        if (nodes.length === 0) {
+          vscode.window.showWarningMessage("请在树上选择数据表");
+          return;
+        }
+        for (const node of nodes) {
+          await openTableStructureGridView(node, provider, outputChannel);
+        }
+      },
+    ),
+  );
+
   // 注册复制连接地址命令（仅连接地址：host:port）
   disposables.push(
     vscode.commands.registerCommand(
@@ -1871,8 +2039,11 @@ export function registerDatasourceCommands(
           previewPlugins: getPreviewPluginsManagementPayload(provider.context),
         });
       };
-      sendLoad();
       panel.webview.onDidReceiveMessage(async (message) => {
+        if (message.command === "ready") {
+          sendLoad();
+          return;
+        }
         if (message.command === "setDriverEnabled") {
           const id = String((message as { id?: string }).id ?? "").trim();
           const enabled = !!(message as { enabled?: boolean }).enabled;
@@ -1938,8 +2109,11 @@ export function registerDatasourceCommands(
             ),
           });
         };
-        sendLoad();
         panel.webview.onDidReceiveMessage(async (message) => {
+          if (message.command === "ready") {
+            sendLoad();
+            return;
+          }
           if (message.command === "saveConnectionGroups") {
             const lines = Array.isArray(
               (message as { groups?: unknown }).groups,
@@ -2626,6 +2800,264 @@ async function sqlResultView(
       }
     }
   });
+}
+
+/**
+ * 使用 grid.html（datasourceTable）只读展示 SHOW FULL COLUMNS 等得到的表结构
+ */
+async function openTableStructureGridView(
+  tableNode: Datasource,
+  provider: DataSourceProvider,
+  outputChannel: vscode.OutputChannel,
+): Promise<void> {
+  const first = await loadTableStructureGridPayload(tableNode);
+  if (!first) {
+    return;
+  }
+  let { tableResult, connectionName, databaseName, tableName } = first;
+
+  outputChannel.appendLine(
+    `[CADB REVEAL] openTableStructureGridView connection=${connectionName} database=${databaseName} table=${tableName}`,
+  );
+  void vscode.commands.executeCommand("cadb.datasource.revealByPath", {
+    connectionName,
+    databaseName,
+    tableName,
+  });
+
+  const panelKey = `${connectionName}|${databaseName}|${tableName}|structure`;
+
+  const postStructureLoad = (
+    tr: TableResult,
+    conn: string,
+    db: string,
+    tbl: string,
+  ) => ({
+    command: "load" as const,
+    data: {
+      ...tr,
+      connectionName: conn,
+      databaseName: db,
+      tableName: tbl,
+      structureView: true,
+      readOnly: true,
+    },
+  });
+
+  const existing = openTablePanels.get(panelKey);
+  if (existing) {
+    existing.reveal();
+    existing.title = formatStructureGridTabTitle(tableName);
+    triggerRevealForTablePanel(
+      { connectionName, databaseName, tableName },
+      outputChannel,
+      "existingTableStructureReveal",
+    );
+    setTimeout(() => refreshDatasourceTableGridFocusContext(), 0);
+    setTimeout(async () => {
+      const again = await loadTableStructureGridPayload(tableNode);
+      if (!again) {
+        return;
+      }
+      ({ tableResult, connectionName, databaseName, tableName } = again);
+      existing.webview.postMessage(
+        postStructureLoad(tableResult, connectionName, databaseName, tableName),
+      );
+    }, 150);
+    const ts = new Date();
+    const stamp = `${ts.getFullYear()}-${String(ts.getMonth() + 1).padStart(2, "0")}-${String(ts.getDate()).padStart(2, "0")} ${String(ts.getHours()).padStart(2, "0")}:${String(ts.getMinutes()).padStart(2, "0")}:${String(ts.getSeconds()).padStart(2, "0")}`;
+    outputChannel.appendLine(`[${stamp}] [表结构] ${databaseName}.${tableName}`);
+    return;
+  }
+
+  const panel = createWebview(
+    provider,
+    "datasourceTable",
+    formatStructureGridTabTitle(tableName),
+  );
+  openTablePanels.set(panelKey, panel);
+  attachTablePanelRevealTracking(
+    panel,
+    { connectionName, databaseName, tableName },
+    outputChannel,
+  );
+  panel.onDidDispose(() => {
+    openTablePanels.delete(panelKey);
+    if (lastActiveDatasourceTablePanel === panel) {
+      lastActiveDatasourceTablePanel = undefined;
+    }
+    refreshDatasourceTableGridFocusContext();
+  });
+  attachDatasourceTablePanelFocusTracking(panel);
+
+  const reloadAndPost = async () => {
+    const again = await loadTableStructureGridPayload(tableNode);
+    if (!again) {
+      return;
+    }
+    panel.webview.postMessage(
+      postStructureLoad(
+        again.tableResult,
+        again.connectionName,
+        again.databaseName,
+        again.tableName,
+      ),
+    );
+  };
+
+  /** 首次 ready 复用已拉取的 descTable，避免重复查询 */
+  let structureGridInitialReadyDone = false;
+
+  panel.webview.onDidReceiveMessage(async (message) => {
+    if (message.command === "gridPanelDomFocus") {
+      markDatasourceTableGridDomFocused(panel);
+      return;
+    }
+    if (message.command === "writeClipboard") {
+      const t = message.text != null ? String(message.text) : "";
+      await vscode.env.clipboard.writeText(t);
+      return;
+    }
+    if (message.command === "ready") {
+      if (!structureGridInitialReadyDone) {
+        structureGridInitialReadyDone = true;
+        panel.webview.postMessage(
+          postStructureLoad(
+            tableResult,
+            connectionName,
+            databaseName,
+            tableName,
+          ),
+        );
+        return;
+      }
+      await reloadAndPost();
+      return;
+    }
+    if (message.command === "refresh") {
+      await reloadAndPost();
+      return;
+    }
+    if (message.command === "loadPage") {
+      return;
+    }
+    if (message.command === "showMessage") {
+      const msg = message.message ?? "";
+      if (message.type === "error") {
+        vscode.window.showErrorMessage(msg);
+      } else {
+        vscode.window.showWarningMessage(msg);
+      }
+      return;
+    }
+    if (message.command === "cellPreview") {
+      postDatasourceTableCellPreviewReply(
+        provider.context,
+        panel,
+        message as {
+          pluginId?: string;
+          rawValue?: string;
+          columnField?: string;
+        },
+      );
+      return;
+    }
+    if (message.command === "switchToTableEdit") {
+      const conn = message.connectionName ?? connectionName;
+      const db = message.databaseName ?? databaseName;
+      const tbl = message.tableName ?? tableName;
+      const tableDs = await resolveTableDatasource(
+        provider,
+        provider.context,
+        conn,
+        db,
+        tbl,
+      );
+      if (tableDs) {
+        await editEntry(provider, tableDs, outputChannel);
+      }
+      return;
+    }
+    if (message.command === "quickQuery") {
+      const conn = message.connectionName ?? connectionName;
+      const db = message.databaseName ?? databaseName;
+      const tbl = message.tableName ?? tableName;
+      if (conn && db && tbl) {
+        vscode.commands.executeCommand("cadb.quickQuery", conn, db, tbl);
+      }
+      return;
+    }
+    if (message.command === "copyTableDdl") {
+      const conn = message.connectionName ?? connectionName;
+      const db = message.databaseName ?? databaseName;
+      const tbl = message.tableName ?? tableName;
+      try {
+        const connectionData = provider
+          .getConnections()
+          .find((ds) => ds.name === conn);
+        if (!connectionData) {
+          postWebviewStatus(panel.webview, {
+            success: false,
+            message: "数据源不存在",
+          });
+          return;
+        }
+        const dbEsc = "`" + String(db).replace(/`/g, "``") + "`";
+        const tblEsc = "`" + String(tbl).replace(/`/g, "``") + "`";
+        const showSql = `SHOW CREATE TABLE ${dbEsc}.${tblEsc}`;
+        const ddl = await withMysqlSession(
+          connectionData as DatasourceInputData,
+          String(db),
+          async (connection) => {
+            return await new Promise<string>((resolve, reject) => {
+              connection.query(showSql, (err: unknown, results: unknown) => {
+                if (err) {
+                  reject(err);
+                  return;
+                }
+                const rows = results as Record<string, string>[] | undefined;
+                const row = rows?.[0];
+                if (!row) {
+                  reject(new Error("未返回 DDL"));
+                  return;
+                }
+                const createSql =
+                  row["Create Table"] ?? row["create table"] ?? "";
+                if (!createSql) {
+                  reject(new Error("结果中无 Create Table 字段"));
+                  return;
+                }
+                resolve(createSql);
+              });
+            });
+          },
+        );
+        await vscode.env.clipboard.writeText(ddl);
+        postWebviewStatus(panel.webview, {
+          success: true,
+          message: "已复制表 DDL 到剪贴板",
+        });
+      } catch (e) {
+        postWebviewStatus(panel.webview, {
+          success: false,
+          message: `复制 DDL 失败: ${toErrorMessage(e)}`,
+        });
+      }
+      return;
+    }
+    if (message.command === "save") {
+      panel.webview.postMessage({
+        command: "status",
+        success: false,
+        message: "当前为只读表结构视图，无法保存行数据",
+      });
+      return;
+    }
+  });
+
+  const ts = new Date();
+  const stamp = `${ts.getFullYear()}-${String(ts.getMonth() + 1).padStart(2, "0")}-${String(ts.getDate()).padStart(2, "0")} ${String(ts.getHours()).padStart(2, "0")}:${String(ts.getMinutes()).padStart(2, "0")}:${String(ts.getSeconds()).padStart(2, "0")}`;
+  outputChannel.appendLine(`[${stamp}] [表结构] ${databaseName}.${tableName}`);
 }
 
 async function keyValueResultView(

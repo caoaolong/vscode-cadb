@@ -111,6 +111,8 @@ class DatabaseTableData {
     this.columns = columns;
     this.tableData = data || [];
     this.queryTime = queryTime || 0;
+    /** 表结构只读视图等：禁止单元格编辑 */
+    this.readOnlyGrid = !!(options && options.readOnly);
     if (options && options.pageSize != null) {
       this.serverPagination = true;
       this.pageSize = options.pageSize;
@@ -260,7 +262,7 @@ class DatabaseTableData {
         filterParams: {
           buttons: ["apply", "clear"]
         },
-        editable: true,
+        editable: !this.readOnlyGrid,
         valueFormatter: (params) => {
           const v = params.value;
           if (v == null) return "";

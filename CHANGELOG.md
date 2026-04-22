@@ -1,6 +1,17 @@
 # 更新日志
 
-## [0.3.5]
+## [0.3.7]
+
+### 修复
+
+- **Webview 静态资源 404 / `ReferenceError: $ is not defined`**：配置管理、数据表格、查询结果、键值数据、表结构编辑、Redis 发布订阅等面板仍经 `node_modules` 的 Webview URI 加载 **jQuery、Layui、jsoneditor** 时，与 Codicons / AI 助手同类问题，安装版或新版 VS Code 下易出现 **404**，导致脚本未加载、Layui 表单空白或 `$` 未定义。现通过 `scripts/copy-webview-vendor.cjs` 在 `copy-layui-modules` 之后将上述依赖复制到 `resources/panels/common/vendor/`（Layui 为完整 `dist`，含 `modules`；jsoneditor 含 `img`）；各 HTML 改为经 `{{resources-uri}}/common/vendor/...` 引用；`webview_helper` 与 `result_provider` 的 `localResourceRoots` 不再包含 `node_modules`。`postinstall` / `compile` / `watch` / `package` 已串联 `copy-webview-vendor`。
+
+## [0.3.6]
+
+### 修复
+
+- **配置管理 / 表结构编辑 Webview 空白**：Layui 的 npm 包与官方 `layui-v*.zip` 均不含 `dist/modules/*.js`，`layui.use(['form','layer',…])` 会按 `layui.js` 同级目录动态加载上述脚本，缺失时表单与编辑页逻辑无法执行，表现为整页无内容。现通过 `scripts/copy-layui-modules.cjs`（`postinstall` / `compile` / `watch` / `package` 前执行）从与依赖版本一致的 **GitHub 标签源码包** `layui-*/src/modules/*.js` 解压到 `node_modules/layui/dist/modules/`；新增 devDependency `adm-zip`；Windows 使用 PowerShell、其它平台使用 `curl` 下载源码包。
+- **Webview 首包 `load` 丢失**：新建数据源、管理驱动、管理连接分组、编辑连接/用户/数据库、树内「创建数据库」等路径改为在收到 Webview **`ready`** 后再下发 **`load`**；编辑类表单同时等待 `ready` 与 `item.edit()` 完成后再下发，避免扩展先于脚本注册监听而丢消息。
 
 ### 新增
 

@@ -3,7 +3,7 @@
     "displayName": "vscode-cadb",
     "publisher": "codingsoul",
     "description": "Powerful database management VSCode plugin!",
-    "version": "0.3.5",
+    "version": "0.3.7",
     "engines": {
         "vscode": "^1.104.0"
     },
@@ -124,6 +124,11 @@
                 "command": "cadb.collection.useDatabase",
                 "title": "使用",
                 "icon": "$(cursor)"
+            },
+            {
+                "command": "cadb.datasource.viewTableStructure",
+                "title": "查看表结构",
+                "icon": "$(symbol-structure)"
             },
             {
                 "command": "cadb.datasource.toggleConnection",
@@ -329,6 +334,11 @@
                     "command": "cadb.collection.useDatabase",
                     "when": "view =~ /datasource/ && viewItem == collection",
                     "group": "context"
+                },
+                {
+                    "command": "cadb.datasource.viewTableStructure",
+                    "when": "view =~ /datasource/ && viewItem == document",
+                    "group": "context@2"
                 },
                 {
                     "command": "cadb.redis.pubsub",
@@ -557,10 +567,12 @@
     "scripts": {
         "vscode:prepublish": "npm run package",
         "copy-ai-chat-vendor": "node scripts/copy-ai-chat-vendor.cjs",
-        "postinstall": "node scripts/copy-ai-chat-vendor.cjs",
-        "compile": "npm run copy-ai-chat-vendor && webpack",
-        "watch": "npm run copy-ai-chat-vendor && webpack --watch",
-        "package": "npm run copy-ai-chat-vendor && webpack --mode production --devtool hidden-source-map",
+        "postinstall": "node scripts/copy-ai-chat-vendor.cjs && node scripts/copy-layui-modules.cjs && node scripts/copy-webview-vendor.cjs",
+        "compile": "npm run copy-ai-chat-vendor && npm run copy-layui-modules && npm run copy-webview-vendor && webpack",
+        "watch": "npm run copy-ai-chat-vendor && npm run copy-layui-modules && npm run copy-webview-vendor && webpack --watch",
+        "package": "npm run copy-ai-chat-vendor && npm run copy-layui-modules && npm run copy-webview-vendor && webpack --mode production --devtool hidden-source-map",
+        "copy-layui-modules": "node scripts/copy-layui-modules.cjs",
+        "copy-webview-vendor": "node scripts/copy-webview-vendor.cjs",
         "compile-tests": "tsc -p . --outDir out",
         "watch-tests": "tsc -p . -w --outDir out",
         "pretest": "npm run compile-tests && npm run compile && npm run lint",
@@ -573,6 +585,7 @@
         "@types/vscode": "^1.104.0",
         "@vscode/test-cli": "^0.0.12",
         "@vscode/test-electron": "^2.5.2",
+        "adm-zip": "^0.5.16",
         "eslint": "^9.39.1",
         "ts-loader": "^9.5.4",
         "typescript": "^5.9.3",

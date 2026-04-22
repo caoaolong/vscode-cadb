@@ -20,17 +20,11 @@ export function createWebview(
         vscode.Uri.file(
           path.join(provider.context.extensionPath, "resources", "panels")
         ),
-        vscode.Uri.file(
-          path.join(provider.context.extensionPath, "node_modules")
-        ),
       ],
     }
   );
   const resourcesUri = panel.webview.asWebviewUri(
     vscode.Uri.joinPath(provider.context.extensionUri, "resources", "panels")
-  );
-  const nodeResourcesUri = panel.webview.asWebviewUri(
-    vscode.Uri.joinPath(provider.context.extensionUri, "node_modules")
   );
   const nonce = generateNonce();
   panel.webview.html = provider.panels[viewType]
@@ -46,7 +40,6 @@ export function createWebview(
     worker-src ${panel.webview.cspSource} blob:;
   `.trim()
     )
-    .replace(/{{node-resources-uri}}/g, nodeResourcesUri.toString())
     .replace(/{{resources-uri}}/g, resourcesUri.toString())
     .replace(/{{resource-nonce}}/g, nonce);
   const faviconPath = path.join(

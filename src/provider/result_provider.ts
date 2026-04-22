@@ -172,7 +172,6 @@ export class ResultWebviewProvider implements vscode.WebviewViewProvider {
         vscode.Uri.file(
           path.join(this.context.extensionPath, "resources", "panels")
         ),
-        vscode.Uri.file(path.join(this.context.extensionPath, "node_modules")),
       ],
     };
 
@@ -387,9 +386,6 @@ export class ResultWebviewProvider implements vscode.WebviewViewProvider {
     const resourcesUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this.context.extensionUri, "resources", "panels")
     );
-    const nodeResourcesUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.context.extensionUri, "node_modules")
-    );
     const nonce = generateNonce();
 
     return this.htmlTemplate
@@ -404,7 +400,6 @@ export class ResultWebviewProvider implements vscode.WebviewViewProvider {
     connect-src ${webview.cspSource};
   `.trim()
       )
-      .replace(/{{node-resources-uri}}/g, nodeResourcesUri.toString())
       .replace(/{{resources-uri}}/g, resourcesUri.toString())
       .replace(/{{resource-nonce}}/g, nonce);
   }
