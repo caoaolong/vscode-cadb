@@ -654,8 +654,9 @@
   function wrapMarkdownTablesCollapsible(root) {
     if (!root) return;
     var tables = root.querySelectorAll("table");
-    for (var i = 0; i < tables.length; i++) {
-      var table = tables[i];
+    // 必须用 let/const：var + 闭包会导致所有「复制」按钮都引用循环结束后的同一张 table（最后一张）
+    for (let i = 0; i < tables.length; i++) {
+      const table = tables[i];
       if (table.closest(".md-table-fold")) continue;
       var parent = table.parentNode;
       if (!parent) continue;

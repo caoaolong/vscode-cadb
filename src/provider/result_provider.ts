@@ -3,8 +3,7 @@ import path from "path";
 import { readFileSync } from "fs";
 import { generateNonce } from "./utils";
 
-const MAX_HISTORY_TABS = 30;
-const MAX_ROWS_PER_HISTORY = 200;
+const QUERY_HISTORY_GLOBAL_KEY = "cadb.queryHistory";
 
 function sanitizeExportBaseName(name: string): string {
   const t = (name || "query-result").trim() || "query-result";
@@ -130,7 +129,7 @@ function resolveExportFields(
 /**
  * 查询结果 Webview Provider
  * 显示在 VSCode 底部面板（与终端、输出等一起）
- * 支持历史记录保存与 Tab 切换
+ * 查询 Tab 仅在当前 Webview 生命周期内保留，关闭面板即丢弃，不写入 globalState。
  */
 export class ResultWebviewProvider implements vscode.WebviewViewProvider {
   private webviewView?: vscode.WebviewView;
@@ -139,7 +138,6 @@ export class ResultWebviewProvider implements vscode.WebviewViewProvider {
   private isWebviewReady: boolean = false;
   private pendingMessages: any[] = [];
   private resultCounter: number = 0; // 查询结果编号计数器
-  private historyTabs: any[] = [];
 
   constructor(context: vscode.ExtensionContext) {
     this.context = context;
@@ -185,19 +183,16 @@ export class ResultWebviewProvider implements vscode.WebviewViewProvider {
       if (message.command === "ready") {
         this.isWebviewReady = true;
 
-        // 先恢复历史记录
-        this.restoreHistory();
+        // 不再恢复历史；并清除旧版本可能已写入的持久化键，保证本次会话从空面板开始
+        this.clearPersistedQueryHistory();
 
         // 发送所有待处理的消息
         this.pendingMessages.forEach((msg) => {
           this.webviewView?.webview.postMessage(msg);
         });
         this.pendingMessages = [];
-      } else if (message.command === "saveHistory") {
-        this.saveHistoryTab(message);
       } else if (message.command === "clearHistory") {
-        this.historyTabs = [];
-        this.context.globalState.update("cadb.queryHistory", undefined);
+        this.clearPersistedQueryHistory();
       } else if (message.command === "exportQueryResult") {
         void this.handleExportQueryResult(message);
       }
@@ -221,7 +216,14 @@ export class ResultWebviewProvider implements vscode.WebviewViewProvider {
       this.webviewView = undefined;
       this.isWebviewReady = false;
       this.pendingMessages = [];
+      this.resultCounter = 0;
+      this.clearPersistedQueryHistory();
     });
+  }
+
+  /** 删除可能存在的持久化查询历史（旧版本），本扩展不再写入该键 */
+  private clearPersistedQueryHistory(): void {
+    void this.context.globalState.update(QUERY_HISTORY_GLOBAL_KEY, undefined);
   }
 
   /**
@@ -318,48 +320,6 @@ export class ResultWebviewProvider implements vscode.WebviewViewProvider {
       id: `result-${Date.now()}`,
       pinned: false,
     };
-  }
-
-  /**
-   * 保存单个标签到历史（供下次恢复）
-   */
-  private saveHistoryTab(msg: any): void {
-    const tab: any = { id: msg.tabId, pinned: msg.pinned || false };
-    if (msg.columns && msg.data) {
-      tab.type = "result";
-      tab.title = msg.title;
-      tab.columns = msg.columns;
-      tab.data = Array.isArray(msg.data)
-        ? msg.data.slice(0, MAX_ROWS_PER_HISTORY)
-        : [];
-    } else if (msg.text !== undefined) {
-      tab.type = "message";
-      tab.title = msg.title;
-      tab.text = msg.text;
-      tab.messageType = msg.type || "info";
-    } else {
-      return;
-    }
-    this.historyTabs = this.historyTabs.filter((t) => t.id !== tab.id);
-    this.historyTabs.push(tab);
-    if (this.historyTabs.length > MAX_HISTORY_TABS) {
-      this.historyTabs = this.historyTabs.slice(-MAX_HISTORY_TABS);
-    }
-    this.context.globalState.update("cadb.queryHistory", this.historyTabs);
-  }
-
-  /**
-   * 恢复历史记录到 webview
-   */
-  private restoreHistory(): void {
-    const saved = this.context.globalState.get<any[]>("cadb.queryHistory");
-    if (saved && saved.length > 0) {
-      this.historyTabs = saved;
-      this.webviewView?.webview.postMessage({
-        command: "restoreHistory",
-        tabs: this.historyTabs,
-      });
-    }
   }
 
   /**
