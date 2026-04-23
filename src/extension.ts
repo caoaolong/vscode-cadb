@@ -248,7 +248,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.globalState.get<boolean>(
       CADB_GLOBAL_DATASOURCE_SIDEBAR_LAST_VISIBLE_KEY,
     ) === true;
-
+    
   if (!shouldAutoShowDatasourceSidebar) {
     void context.workspaceState.update(
       CADB_WORKSPACE_OPEN_TABLE_PANELS_KEY,
