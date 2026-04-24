@@ -260,9 +260,18 @@ body {
   position: relative;
 }
 .msg-row.assistant .msg-bubble {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   background: var(--vscode-editorWidget-background, var(--vscode-sideBar-background));
   border: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border, #333));
   border-top-left-radius: 3px;
+}
+.msg-row.assistant .msg-bubble-tools {
+  flex-shrink: 0;
+}
+.msg-row.assistant .msg-bubble-md {
+  min-height: 0;
 }
 .msg-row.user .msg-bubble {
   background: var(--vscode-button-background);
@@ -621,69 +630,224 @@ body {
   background: var(--vscode-sideBar-background, var(--vscode-editor-background));
 }
 
-/* 快速查询模式条（上方开关 + ChatArea openTipTag） */
-.chat-mode-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
-  padding: 0 2px;
-  flex-wrap: wrap;
-}
-.quick-mode-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  user-select: none;
+/* ===== 主编排：执行计划 + Subagent 调用轨迹 ===== */
+.agent-orchestration-panel {
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-widget-border, rgba(127,127,127,.2));
+  background: var(--vscode-editor-inactiveSelectionBackground, rgba(127,127,127,.08));
   font-size: 12px;
+  line-height: 1.45;
+}
+.orc-plan-title {
+  font-weight: 600;
+  margin-bottom: 6px;
   color: var(--vscode-foreground);
 }
-.quick-mode-toggle input {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-  pointer-events: none;
+.orc-plan-intent {
+  color: var(--vscode-descriptionForeground);
+  margin-bottom: 8px;
+  word-break: break-word;
 }
-.quick-mode-toggle-track {
-  position: relative;
-  width: 36px;
-  height: 20px;
-  border-radius: 10px;
-  background: var(--vscode-input-background);
-  border: 1px solid var(--vscode-input-border, rgba(127,127,127,.45));
+.orc-plan-steps {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  color: var(--vscode-foreground);
+}
+.orc-plan-step {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-bottom: 6px;
+}
+.orc-step-icon-wrap {
   flex-shrink: 0;
-  transition: background .2s, border-color .2s;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
 }
-.quick-mode-toggle-track::after {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 14px;
-  height: 14px;
+/* 计划步骤状态：彩色圆点（未开始 / 执行中 / 已完成） */
+.orc-state-dot {
+  display: block;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background: var(--vscode-foreground);
-  opacity: 0.55;
-  transition: transform .2s, opacity .2s;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
-.quick-mode-toggle input:checked + .quick-mode-toggle-track {
-  background: var(--vscode-button-background);
-  border-color: var(--vscode-button-background);
+.orc-state-dot.orc-state-pending {
+  border: 2px solid var(--vscode-descriptionForeground, #969696);
+  background: transparent;
+  opacity: 0.9;
 }
-.quick-mode-toggle input:checked + .quick-mode-toggle-track::after {
-  transform: translateX(16px);
-  background: var(--vscode-button-foreground);
-  opacity: 1;
+.orc-state-dot.orc-state-running {
+  border: 2px solid var(--vscode-textLink-foreground, #3794ff);
+  background: var(--vscode-textLink-foreground, #3794ff);
+  /* 外圈高光，不依赖 color-mix 以兼容旧版 WebView */
+  box-shadow: 0 0 0 2px rgba(55, 148, 255, 0.22);
+  animation: orc-plan-dot-pulse 1.1s ease-in-out infinite;
 }
-.quick-mode-toggle-text {
+.orc-state-dot.orc-state-done {
+  border: 2px solid var(--vscode-testing-iconPassed, #73c991);
+  background: var(--vscode-testing-iconPassed, #73c991);
+}
+@keyframes orc-plan-dot-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 0.88;
+  }
+}
+.orc-step-body {
+  flex: 1;
+  min-width: 0;
+}
+.orc-step-num {
   font-weight: 600;
+  color: var(--vscode-descriptionForeground);
+  margin-right: 6px;
 }
-.quick-mode-desc {
+.orc-subagent-log {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--vscode-widget-border, rgba(127,127,127,.25));
+}
+.orc-subagent-log-title {
+  font-weight: 600;
+  margin-bottom: 6px;
   font-size: 11px;
   color: var(--vscode-descriptionForeground);
+}
+.orc-subagent-row {
+  padding: 4px 0;
+  border-left: 3px solid var(--vscode-textLink-foreground, #3794ff);
+  padding-left: 8px;
+  margin-bottom: 4px;
+  background: var(--vscode-editor-background);
+}
+.orc-subagent-name {
+  font-weight: 600;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 11px;
+}
+.orc-subagent-desc {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  margin-top: 2px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 72px;
+  overflow: hidden;
+}
+
+/* ===== Layui 时间线 + 折叠：主编排计划与子 Agent 输出 ===== */
+.agent-layui-orchestration {
+  margin: 0 0 10px;
+  padding: 10px 12px 8px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.35));
+  background: var(--vscode-sideBar-background, rgba(127, 127, 127, 0.08));
+}
+.agent-layui-orchestration .orc-plan-intent-line {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  margin-bottom: 8px;
+  line-height: 1.45;
+}
+
+/* 时间线主体：UL 自身画一条贯穿的竖线，避免「单条目时 last-child 把竖线吃掉」 */
+.agent-layui-orchestration .orch-plan-timeline {
+  position: relative;
+  margin: 0;
+  padding: 4px 0 0 16px;
+  list-style: none;
+}
+.agent-layui-orchestration .orch-plan-timeline::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 8px;
+  bottom: 4px;
+  width: 2px;
+  background: var(--vscode-textLink-foreground, #3794ff);
+  opacity: 0.55;
+  border-radius: 1px;
+}
+
+.agent-layui-orchestration .layui-timeline-item {
+  position: relative;
+  padding: 0 0 14px 0;
+  border: none;
+}
+.agent-layui-orchestration .layui-timeline-item:last-child {
+  padding-bottom: 0;
+}
+
+/* 圆点：相对 li 定位，刚好覆盖 UL 的竖线 */
+.agent-layui-orchestration .layui-timeline-axis,
+.agent-layui-orchestration .orch-tl-axis {
+  position: absolute;
+  left: -16px;
+  top: 4px;
+  width: 10px;
+  height: 10px;
+  line-height: 10px;
+  text-align: center;
+  font-size: 0;
+  background: var(--vscode-textLink-foreground, #3794ff);
+  border: 2px solid var(--vscode-editor-background, #1e1e1e);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--vscode-textLink-foreground, #3794ff);
+  box-sizing: content-box;
+}
+
+.agent-layui-orchestration .layui-timeline-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+  margin: 0 0 6px;
   line-height: 1.4;
+}
+.agent-layui-orchestration .layui-timeline-content {
+  padding-left: 0;
+}
+.agent-layui-orchestration .orch-step-collapse {
+  margin-top: 2px;
+  border: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.35));
+  border-radius: 4px;
+  overflow: hidden;
+}
+.agent-layui-orchestration .layui-colla-title {
+  font-size: 12px !important;
+  line-height: 1.4 !important;
+  height: auto !important;
+  padding: 8px 10px !important;
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background)) !important;
+  color: var(--vscode-foreground) !important;
+  border: none !important;
+}
+.agent-layui-orchestration .layui-colla-content {
+  border: none !important;
+  padding: 8px 10px !important;
+  background: var(--vscode-editor-background) !important;
+  color: var(--vscode-editor-foreground) !important;
+}
+.agent-layui-orchestration .orch-sub-md {
+  font-size: var(--vscode-font-size, 13px);
+  line-height: 1.5;
+}
+.agent-layui-orchestration .orch-sub-md pre {
+  max-height: 320px;
+  overflow: auto;
 }
 
 /* ===== 数据库选择屏 ===== */

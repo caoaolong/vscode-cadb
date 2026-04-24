@@ -1,0 +1,50 @@
+---
+description: deepagents 带 subagents 时 stream chunk 如何区分主编排与子 agent
+alwaysApply: true
+---
+
+# DeepAgents 流式 chunk 与 Subagent 归属
+
+`agent.stream(..., { streamMode: ["updates", "messages"] })` 下，每个 chunk 为二元组 **`[mode, payload]`**（落盘为 JSON Lines 时每行一个数组）。
+
+## 1. 先分清「主图模型」还是「task 子图里的模型」
+
+对 **`mode === "messages"`** 的分片：`payload` 为 **`[messageChunk, bundleMetadata]`**。
+
+- 看 **`bundleMetadata.checkpoint_ns`**（或 **`langgraph_checkpoint_ns`**，二者在本流里一致）。
+- **以 `tools:` 开头**（常见形态 `tools:<uuid>|model_request:<uuid>`）→ 当前 LLM token 来自 **Task 工具内部的子图**（即 **某次 subagent 执行**里的 `model_request` 节点）。
+- **仅为 `model_request:<uuid>`**（整段字符串**没有** `tools:` 前缀）→ 来自 **顶层主编排**的 `model_request` 节点。
+
+参考样本：若仓库中有历史保存的 `test/agent-stream.txt`（JSON Lines），其中常见形态为第 17 行起 `tools:...|model_request:...`，第 53 行起回到纯 `model_request:...`（行号随样本长度变化，以 `checkpoint_ns` 形态为准）。
+
+## 2. 「是哪个 subagent」要靠 `updates` 里的 `task` 与状态机
+
+**`messages` 分片的元数据里通常不会直接写 `hello_agent` 等名字**，需要与 **`mode === "updates"`** 对齐：
+
+1. 在 **`updates`** 里找到 **`model_request`**（与 LangGraph 节点一致；若代码里曾用 `model` 键，应与 `model_request` 二选一或同时兼容）下 **`messages`** 中带 **`tool_calls`** 的 AI 消息。
+2. 对 **`name === "task"`** 的 tool call，解析 **`args.subagent_type`**（及 `description`）→ 即本次委派的 **subagent 类型名**。
+3. **随后**出现的、带 **`tools:`** 前缀的 `checkpoint_ns` 的 **`messages`** 分片，直到下一次 **`updates`** 中出现 **`tools`** 节点且内含对应 **`ToolMessage`**（`name: "task"`）→ 视为 **该 `subagent_type` 这一次调用的模型流式输出**；`ToolMessage.content` 为子 agent 的汇总结果。
+
+## 3. 小结（实现时可用的判别规则）
+
+| 目标 | 判别方式 |
+|------|-----------|
+| 是否 subagent 的 token | `messages` 且元数据 `checkpoint_ns` **以 `tools:` 开头** |
+| 是否主编排的 token | `messages` 且 `checkpoint_ns` **不以 `tools:` 开头** |
+| 具体 subagent 名称 | 从**时间上在前**的 `updates.model_request`（或等价键）里 **`task` tool_call 的 `args.subagent_type`** 读取，并与当前 `tools:` 命名空间的一次调用绑定 |
+
+框架版本变更时，应以 **`checkpoint_ns` / `langgraph_checkpoint_ns` 的形态** 与 **`updates` 的键名** 为准做回归验证。
+
+## 4. 从 stream chunk 汇总本次会话 Token 用量
+
+参考 `test/agent-stream.txt`：用量出现在 **`messages`** 分片里 AI chunk 的 **`kwargs.usage_metadata`**（`input_tokens` / `output_tokens` / `total_tokens`）及末尾的 **`kwargs.response_metadata.usage`**；**`updates.model_request`** 内 AI 消息也可能带相同字段。
+
+**原则**
+
+1. **按一次模型 completion 去重**：用消息上的 **`kwargs.id`**（如 `chatcmpl-…`）为键，每个 id **只计一次**；同一 id 在流式末尾多次出现相近数据时，保留最后一次写入即可。
+2. **优先 `usage_metadata`**：同 id 下若 `usage_metadata` 与 `response_metadata.usage` 数值不一致（样本中 `usage_metadata.input_tokens` 与 `usage.prompt_tokens` 可差一倍），**以 `usage_metadata` 为会话统计依据**；无 `usage_metadata` 时再退回 `prompt_tokens` / `completion_tokens`。
+3. **勿把空 `{}` 的 usage 当零累加**：仅当存在有效 `total_tokens`（或成对的 input/output）时再更新该 id 的记录。
+4. **会话总量**：对所有已记录 id 的 `input_tokens`、`output_tokens`（或 `total_tokens`）**求和**，即主编排与各 subagent 各次 LLM 调用的合计。
+5. **按角色拆分**：对含用量的那条 `messages` 分片，用 **`checkpoint_ns` 是否以 `tools:` 开头** 区分 main / subagent，并与 `task` 的 `subagent_type` 状态机对齐后，将**该 id 的用量**记入对应桶再分别求和。
+
+更细的步骤与边界说明见 **`resources/ai-skills/main/deepagent-stream-token-usage/SKILL.md`**。

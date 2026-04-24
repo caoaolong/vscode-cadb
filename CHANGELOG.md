@@ -1,5 +1,29 @@
 # 更新日志
 
+## [0.4.0]
+
+### 新增
+
+- **AI 助手 · 多 Agent 编排可视化**：基于 deepagents 的主编排 + 多个子 Agent（schema/sql/validator/repair/execution/visualization/analysis 等）已贯通流式展示。AI 回复气泡内通过 **Layui 时间线 + 折叠面板** 渲染主编排「执行计划」与各子 Agent 的输出：时间线标题为 subagent 名称，折叠标题为该步骤任务描述，面板正文为子 Agent 的 Markdown 输出。
+- **聊天记录按 Agent 归属持久化与回放**：会话记录新增 `intent` / `plan[]` / `agents[]` 字段（`StoredChatMessage`），保存了主编排意图、计划步骤与每个子 Agent（按 `delegationId`）的完整输出文本。重新打开扩展后从历史回放时，会复用同一套时间线 + 折叠面板渲染路径，与实时调用时视觉/交互完全一致。
+- **DeepAgents stream chunk 解读规则**：新增工作区规则 `.cursor/rules/deepagent-stream-subagents.mdc` 与技能 `resources/ai-skills/main/deepagent-stream-token-usage/SKILL.md`，记录如何根据 `checkpoint_ns` / `langgraph_checkpoint_ns` 区分主/子 Agent 的 stream chunk 归属，以及如何从 `usage_metadata` / `response_metadata.usage` 汇总本次会话的 Token 总用量（按 `chatcmpl-*` 去重）。
+
+### 变更
+
+- **AI 助手流式协议**：`stream-chunk` 增加 `stream` / `subagentType` / `delegationId` 字段；`agent-trace` 增加 `kind: "subagent"` 事件，并在主编排发出 `task` 工具调用时上抛 `delegationId`。前后端基于该结构在 `pipeStream` 中按 `checkpoint_ns` 路由 token 到对应的子 Agent 缓冲区，避免主/子流式内容互相串扰。
+- **删除当前会话**：聊天侧边栏「删除当前会话」按钮新增二次确认对话框；最后一个会话时提示文本与多会话场景区分（清空 vs 删除）。
+
+### 修复
+
+- **AI 助手 · 多张 Markdown 表格复制错乱**：上一版仅修了 `for (var …)` 闭包共享，发现还存在「点击哪张表都复制最后一张」的残留问题。`wrapMarkdownTablesCollapsible` 中 click 回调改为基于 `event.currentTarget` 起跳到 `closest(".md-table-fold")` 再找当前表，并将循环局部变量统一改为 `let` / `const`，与闭包变量彻底解耦；多表场景每个复制按钮严格对应自身的表格。
+- **MySQL `Table 'mysql.DB' doesn't exist`**：`mysql_dataloader.ts` 中 `listUsers` 用了大写 `mysql.DB`，在 `lower_case_table_names=0`（Linux 默认）的服务器上表名大小写敏感，会报上述错误。改为正确的小写 `mysql.db`，并将数据库名从字符串拼接改为占位符传参，顺带修掉潜在的 SQL 注入风险与含特殊字符库名的问题。
+- **查询结果面板 JSON 列显示为 `[object Object]`**：AG Grid 默认对单元格走 `String(value)`，对 MySQL `JSON` 列（驱动会自动 `JSON.parse` 成 JS 对象）、`Date`、`Buffer`、`BigInt` 等会渲染为 `[object Object]` 或不可读形态。结果面板新增统一的 `formatCellValue`，挂在每列的 `valueFormatter` / `tooltipValueGetter` 上：对象/数组 → `JSON.stringify`，`Date` → ISO 字符串，Node `Buffer` 透传体（`{ type:"Buffer", data:[…] }`）→ `0xHEX`，`BigInt` → 数字字面量字符串，`null/undefined` → 空串；与导出 CSV/TSV/JSON 表现保持一致。
+- **OSS 类数据源 Bucket 文件列表加载卡死**：`OssDataLoader.listTables` 之前是「一次性把整个 Bucket 的所有对象拉完，在内存里构造完整目录树后塞给 TreeView」，对象数过大时会发起数千次 API 调用并阻塞渲染。重写为「**按层懒加载**」：bucket 节点与 folder 节点展开时各自只取**当前层**（`Delimiter:"/"` + `CommonPrefixes` + `Contents`），folder 节点的 prefix 通过沿父链拼接得到，无需修改 `DatasourceInputData` 接口；单层硬上限 5000 项，超出时附加只读「已截断…」节点；加载期间用 `window.withProgress` 在状态栏给出反馈，异常时弹错而不再静默吞错。
+
+### 内部
+
+- **AI Agent 调试日志清理**：移除 `pipeStream` 完成后的 `[CADB] Agent 完整文本回复（messages 流式 token 拼接，与面板正文一致）` 调试日志及未再使用的 `logToDebugConsole` 实现，连带移除其依赖的 `vscode` / `node:util` 引用，避免 Extension Host 输出冗余且消除死代码。
+
 ## [0.3.8]
 
 ### 新增

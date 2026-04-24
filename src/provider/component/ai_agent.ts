@@ -1,9 +1,24 @@
+import * as path from "path";
 import { z } from "zod";
-import { AIMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
-import { createAgent, tool } from "langchain";
+import { tool } from "langchain";
 import { ChatOpenAI } from "@langchain/openai";
+import {
+  createDeepAgent,
+  FilesystemBackend,
+  type SubAgent,
+} from "deepagents";
 import type { DatasourceInputData } from "../entity/datasource";
 import { withMysqlSession } from "../mysql/pool_registry";
+import {
+  DATA_ANALYSIS_AGENT_PROMPT,
+  EXECUTION_AGENT_PROMPT,
+  MAIN_AGENT_PROMPT,
+  REPAIR_AGENT_PROMPT,
+  SCHEMA_AGENT_PROMPT,
+  SQL_AGENT_PROMPT,
+  SQL_VALIDATOR_AGENT_PROMPT,
+  VISUALIZATION_AGENT_PROMPT,
+} from "./ai_prompts";
 
 /** Agent 执行配置 */
 export interface AgentRunConfig {
@@ -14,17 +29,47 @@ export interface AgentRunConfig {
   connName: string;
   databaseName: string;
   tableNames: string[];
-  /** true：单次 function calling，仅强制调用 execute_sql 一次，不走多步 ReAct */
-  quickSqlMode?: boolean;
+  /** 插件 extensionPath，用于定位 resources/ai-skills */
+  extensionPath: string;
 }
+
+/** 主编排输出的单步计划（与 publish_execution_plan 工具一致） */
+export interface ExecutionPlanStep {
+  step: number;
+  agent: string;
+  input?: Record<string, unknown>;
+}
+
+export interface ExecutionPlanPayload {
+  intent: string;
+  plan: ExecutionPlanStep[];
+}
+
+/** 流式 token 归属：主编排模型 vs task 子图内 subagent（与 checkpoint_ns 一致） */
+export type AgentTokenStreamMeta =
+  | { stream: "main" }
+  | { stream: "subagent"; subagentType: string; delegationId: number };
 
 /** 流式回调 */
 export interface AgentStreamCallbacks {
-  onToken: (token: string) => void;
+  onToken: (token: string, meta?: AgentTokenStreamMeta) => void;
   onToolStart: (toolName: string, input: string) => void;
   onToolEnd: (toolName: string, output: string) => void;
+  /** 主编排通过 publish_execution_plan 同步的计划，用于聊天界面展示 */
+  onExecutionPlan?: (payload: ExecutionPlanPayload) => void;
+  /** 主 agent 调用 deepagents 的 task 工具委派 subagent 时回调 */
+  onSubagentTask?: (payload: {
+    subagentType: string;
+    description: string;
+    delegationId: number;
+  }) => void;
   onError: (err: string) => void;
   onEnd: () => void;
+}
+
+interface ChatMessage {
+  role: "system" | "user" | "assistant";
+  content: string;
 }
 
 function querySql(
@@ -93,6 +138,7 @@ function toMarkdownTable(
   return result;
 }
 
+/** 构造连接到当前数据库会话的工具集（execute_sql / list_tables / describe_table） */
 function buildTools(connData: DatasourceInputData, databaseName: string) {
   const executeSql = tool(
     async ({ sql }) => {
@@ -174,152 +220,348 @@ function buildTools(connData: DatasourceInputData, databaseName: string) {
     },
   );
 
-  return [executeSql, listTables, describeTable];
+  const explainSql = tool(
+    async ({ sql }) => {
+      const trimmed = sql.trim();
+      if (!/^explain\s+/i.test(trimmed)) {
+        return "拒绝：本工具仅允许以 EXPLAIN 开头的只读诊断语句（例如 EXPLAIN SELECT …）。";
+      }
+      try {
+        const { rows, rowCount } = await querySql(
+          connData,
+          databaseName,
+          sql,
+        );
+        if (rows.length > 0) {
+          return toMarkdownTable(rows, rowCount, 40);
+        }
+        return "(EXPLAIN 无行结果)";
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return `EXPLAIN 执行失败: ${msg}`;
+      }
+    },
+    {
+      name: "explain_sql",
+      description:
+        "仅执行 EXPLAIN … 形式的只读诊断，返回 Markdown 表格。用于 SQL 校验前预估执行计划。",
+      schema: z.object({
+        sql: z.string().describe("必须以 EXPLAIN 开头的 SQL"),
+      }),
+    },
+  );
+
+  return { executeSql, listTables, describeTable, explainSql };
 }
 
-function buildQuickSqlSystemPrompt(cfg: AgentRunConfig): string {
-  let prompt =
-    "你是 MySQL 数据库助手，处于「快速查询」模式。\n" +
-    "当前连接信息：\n" +
-    `- 连接: ${cfg.connName}\n` +
-    `- 数据库: ${cfg.databaseName}\n`;
+const executionPlanStepSchema = z.object({
+  step: z.number(),
+  agent: z.string(),
+  input: z.record(z.string(), z.unknown()).optional(),
+});
 
+/** 主编排将计划同步到 UI（由插件转发到 webview） */
+function buildPublishExecutionPlanTool(callbacks: AgentStreamCallbacks) {
+  return tool(
+    async (input: { intent: string; plan: z.infer<typeof executionPlanStepSchema>[] }) => {
+      callbacks.onExecutionPlan?.({
+        intent: input.intent,
+        plan: input.plan,
+      });
+      return "执行计划已同步到聊天界面，请继续通过 task 工具委派各 subagent。";
+    },
+    {
+      name: "publish_execution_plan",
+      description:
+        "将主编排生成的执行计划同步到用户聊天界面。在确定 intent 与 plan 步骤后、开始调用 task 委派之前必须调用一次。",
+      schema: z.object({
+        intent: z.string().describe("用户意图简述"),
+        plan: z
+          .array(executionPlanStepSchema)
+          .describe("步骤列表，与系统要求 JSON 中 plan 字段一致"),
+      }),
+    },
+  );
+}
+
+function parseToolCallArgs(args: unknown): Record<string, unknown> | null {
+  if (args == null) {
+    return null;
+  }
+  if (typeof args === "string") {
+    try {
+      return JSON.parse(args) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+  }
+  if (typeof args === "object") {
+    return args as Record<string, unknown>;
+  }
+  return null;
+}
+
+/** 主 agent 系统提示中追加的当前数据库上下文（与 db-orchestrator/SKILL.md 配合） */
+function buildContextPrompt(cfg: AgentRunConfig): string {
+  let ctx =
+    "\n\n## Current Database Context\n" +
+    `- Connection: ${cfg.connName}\n` +
+    `- Database: ${cfg.databaseName}\n`;
   if (cfg.tableNames.length > 0) {
-    prompt += `- 当前库中的表名（不完整时仍可用 information_schema 推断）: ${cfg.tableNames.join(", ")}\n`;
+    ctx += `- Known tables: ${cfg.tableNames.join(", ")}\n`;
   }
-
-  prompt +=
-    "\n**本模式下你必须遵守：**\n" +
-    "1. 你将通过接口「function calling」被强制调用唯一工具 execute_sql 恰好一次。\n" +
-    "2. 这一次调用里的 `sql` 必须是能直接回答用户问题的**最终可执行语句**（以 SELECT 为主；若用户明确要求写操作且安全，也可用 INSERT/UPDATE/DELETE）。\n" +
-    "3. 禁止依赖多步探索：不要假设还能再次 describe 或列表；请根据已知表名、常见业务字段与 information_schema 一次性写对或写保守（不确定时加 LIMIT、避免危险更新）。\n" +
-    "4. SELECT 默认带 LIMIT 100（若用户已指定 LIMIT 则尊重用户）。\n" +
-    "5. 不要输出自然语言解释，只产生工具调用所需的参数。\n";
-
-  return prompt;
+  ctx +=
+    "\n## Orchestration UI\n" +
+    "- After you finalize the deterministic plan (intent + plan steps), you MUST call the tool `publish_execution_plan` exactly once with the same structure.\n" +
+    "- Then delegate each step using the `task` tool: set `subagent_type` to one of: schema_agent, sql_agent, sql_validator_agent, execution_agent, data_analysis_agent, visualization_agent, repair_agent (and general-purpose if needed).\n" +
+    "\n## Output Convention\n" +
+    "- Reply in 中文.\n" +
+    "- 工具返回的 Markdown 表格本身就是数据结论；不要在正文里逐行复述。\n" +
+    "- 对最终的 SELECT 结果，正文一两句话收尾即可。\n" +
+    "- Markdown 表格：表头行必须以 `|` 开头（同一行不要写 `1.`、`•`、`- ` 等序号或项目符号）；表格前必须有空行；不要把 Markdown 表格放进 ``` 代码围栏内。\n" +
+    "- 不要把 SQL、JSON 与中文说明混在一个代码块里；SQL 用 ```sql 单独围栏。\n";
+  return ctx;
 }
 
-function buildSystemPrompt(cfg: AgentRunConfig): string {
-  let prompt =
-    "你是一个专业的数据库 AI 助手，可以直接在用户的 MySQL 数据库上执行 SQL。\n" +
-    "当前连接信息：\n" +
-    `- 连接: ${cfg.connName}\n` +
-    `- 数据库: ${cfg.databaseName}\n`;
-
-  if (cfg.tableNames.length > 0) {
-    prompt += `- 已知表: ${cfg.tableNames.join(", ")}\n`;
-  }
-
-  prompt +=
-    "\n你可以使用以下工具：\n" +
-    "- execute_sql: 执行任意 SQL（返回 Markdown 表格）\n" +
-    "- list_tables: 列出所有表\n" +
-    "- describe_table: 查看表结构\n" +
-    "\n**回复格式规范：**\n" +
-    "1. 如果用户要求查询数据，先用 list_tables / describe_table 了解表结构，再写 SQL\n" +
-    "2. SELECT 查询默认加 LIMIT 100 避免返回过多数据\n" +
-    "3. 对于 INSERT/UPDATE/DELETE 等写操作，先确认用户意图\n" +
-    "4. 展示你执行的 SQL 时用 ```sql 代码块\n" +
-    "5. 工具返回的 Markdown 表格中通常已带有「共 N 行」等说明。**不要在正文里再逐行复述、讲解表格内容**（不要列举各行列值、不要长篇描述「结果如下几人」），表格本身就是数据结论。\n" +
-    "6. 对于回答用户问题的**最后一次 execute_sql**（多为最终 SELECT）：正文用一两句话收尾即可，例如点明执行了哪类查询、空集时说明无数据；**禁止**再用大段文字重复概括表格里已有信息。\n" +
-    "7. 中间步骤（describe_table、list_tables、为确认字段而执行的 SQL）：正文最多一两句说明意图或下一步即可，同样避免把整张中间表用文字复述一遍。\n" +
-    "8. 若要在回复中展示数据集，直接使用与工具一致的 Markdown 表格，不要凭记忆编造行数据；**表格首行前必须有空行**（「共 N 行。」单独一行，下一行再起表头），不要把句号与 `|` 表头写在同一行，否则无法渲染为表格。\n" +
-    "9. 用中文回复\n";
-
-  return prompt;
-}
-
-interface ChatMessage {
-  role: "system" | "user" | "assistant";
-  content: string;
-}
-
-function historyToLcMessages(
-  systemText: string,
-  history: ChatMessage[],
-): (SystemMessage | HumanMessage | AIMessage)[] {
-  const msgs: (SystemMessage | HumanMessage | AIMessage)[] = [
-    new SystemMessage(systemText),
-  ];
-  for (const m of history) {
-    if (m.role === "system") continue;
-    if (m.role === "user") msgs.push(new HumanMessage(m.content));
-    else if (m.role === "assistant") msgs.push(new AIMessage(m.content));
-  }
-  return msgs;
-}
-
-/** 快速查询：OpenAI 兼容 function calling，强制单次 execute_sql */
-async function runQuickSqlFunctionCalling(
-  cfg: AgentRunConfig,
-  history: ChatMessage[],
-  callbacks: AgentStreamCallbacks,
-): Promise<void> {
-  const llm = new ChatOpenAI({
+/** 构造 ChatOpenAI 实例 */
+function buildModel(cfg: AgentRunConfig, streaming: boolean): ChatOpenAI {
+  return new ChatOpenAI({
     apiKey: cfg.apiKey,
     configuration: { baseURL: cfg.baseUrl.replace(/\/+$/, "") },
     model: cfg.model,
-    streaming: false,
+    streaming,
   });
+}
 
-  const allTools = buildTools(cfg.connData, cfg.databaseName);
-  const executeSqlTool = allTools[0];
-  const runExecuteSql = executeSqlTool as {
-    invoke: (input: { sql: string }) => Promise<string>;
-  };
-  const systemPrompt = buildQuickSqlSystemPrompt(cfg);
-  const messages = historyToLcMessages(systemPrompt, history);
+/** 把对话历史转换为 createDeepAgent 接受的简单消息数组 */
+function buildMessages(
+  systemAppendix: string,
+  history: ChatMessage[],
+): { role: string; content: string }[] {
+  const filtered = history.filter((m) => m.role !== "system");
+  if (!systemAppendix) return filtered;
+  return [{ role: "system", content: systemAppendix }, ...filtered];
+}
 
-  const aiMsg = await llm.invoke(messages, {
-    tools: [executeSqlTool],
-    tool_choice: "required",
-    parallel_tool_calls: false,
-  });
+/**
+ * 解析 deepagents 流事件并转发到 webview 回调；返回已发往 UI 的助手文本拼接（用于调试日志）
+ *
+ * Subagent 归属（与 README「DeepAgents 流式 chunk」及 `.cursor/rules/deepagent-stream-subagents.mdc` 一致）：
+ * - messages 分片元数据 checkpoint_ns 以 `tools:` 开头 → Task 子图内（subagent）模型 token。
+ * - 仅 `model_request:<uuid>` → 主编排模型 token；具体 subagent 名需结合 updates 里 task 的 args.subagent_type。
+ */
+async function pipeStream(
+  stream: AsyncIterable<unknown>,
+  callbacks: AgentStreamCallbacks,
+): Promise<string> {
+  let fullAssistantText = "";
+  /** 当前 task 子图内模型流归属（由 updates.model_request 里 task 设置，tools 里 task 结束清除） */
+  let pendingSubagentType: string | null = null;
+  let activeDelegationId = -1;
+  let delegationCounter = 0;
 
-  if (!(aiMsg instanceof AIMessage)) {
-    callbacks.onError("模型响应异常");
-    callbacks.onEnd();
-    return;
+  for await (const chunk of stream) {
+    const [mode, data] = chunk as [string, unknown];
+
+    if (mode === "messages") {
+      const parts = data as unknown[];
+      const msg = parts[0] as { content?: string | unknown[] } | undefined;
+      const bundle = parts[1] as Record<string, unknown> | undefined;
+      const nsRaw =
+        bundle && typeof bundle.checkpoint_ns === "string"
+          ? bundle.checkpoint_ns
+          : bundle && typeof bundle.langgraph_checkpoint_ns === "string"
+            ? bundle.langgraph_checkpoint_ns
+            : "";
+      const inSubagentTools =
+        typeof nsRaw === "string" &&
+        nsRaw.startsWith("tools:") &&
+        pendingSubagentType != null &&
+        activeDelegationId >= 0;
+
+      const emitToken = (text: string) => {
+        if (!text) {
+          return;
+        }
+        fullAssistantText += text;
+        if (inSubagentTools) {
+          callbacks.onToken(text, {
+            stream: "subagent",
+            subagentType: pendingSubagentType!,
+            delegationId: activeDelegationId,
+          });
+        } else {
+          callbacks.onToken(text, { stream: "main" });
+        }
+      };
+
+      if (msg && typeof msg.content === "string" && msg.content) {
+        emitToken(msg.content);
+      } else if (Array.isArray(msg?.content)) {
+        for (const block of msg.content) {
+          if (
+            block &&
+            typeof block === "object" &&
+            "type" in block &&
+            (block as Record<string, unknown>).type === "text"
+          ) {
+            const text = (block as { text?: string }).text;
+            if (text) {
+              emitToken(text);
+            }
+          }
+        }
+      }
+    }
+
+    if (mode === "updates") {
+      const upd = data as Record<
+        string,
+        { messages?: unknown[] } | undefined
+      >;
+      const toolsNode = upd?.tools;
+      if (toolsNode?.messages) {
+        for (const tmsg of toolsNode.messages) {
+          const tm = tmsg as { name?: string; content?: string };
+          if (tm.name === "task") {
+            pendingSubagentType = null;
+            activeDelegationId = -1;
+          }
+          if (tm.name && tm.content !== undefined) {
+            callbacks.onToolEnd(
+              tm.name,
+              typeof tm.content === "string"
+                ? tm.content.slice(0, 2000)
+                : JSON.stringify(tm.content).slice(0, 2000),
+            );
+          }
+        }
+      }
+
+      // LangGraph 节点名多为 model_request；与落盘 JSON 样本一致，兼容旧键 model
+      const modelNode = upd?.model_request ?? upd?.model;
+      if (modelNode?.messages) {
+        for (const mmsg of modelNode.messages) {
+          const am = mmsg as {
+            tool_calls?: { name: string; args: unknown }[];
+          };
+          if (am.tool_calls) {
+            for (const tc of am.tool_calls) {
+              const argStr =
+                typeof tc.args === "string"
+                  ? tc.args
+                  : JSON.stringify(tc.args);
+              if (tc.name === "task") {
+                const parsed = parseToolCallArgs(tc.args);
+                const subagentType =
+                  typeof parsed?.subagent_type === "string"
+                    ? parsed.subagent_type
+                    : "";
+                const description =
+                  typeof parsed?.description === "string"
+                    ? parsed.description
+                    : "";
+                if (subagentType) {
+                  delegationCounter += 1;
+                  activeDelegationId = delegationCounter;
+                  pendingSubagentType = subagentType;
+                  callbacks.onSubagentTask?.({
+                    subagentType,
+                    description,
+                    delegationId: delegationCounter,
+                  });
+                }
+              }
+              callbacks.onToolStart(tc.name, argStr);
+            }
+          }
+        }
+      }
+    }
   }
+  return fullAssistantText;
+}
 
-  const calls = aiMsg.tool_calls;
-  if (!calls?.length) {
-    callbacks.onError("快速查询模式下模型未返回 SQL 工具调用");
-    callbacks.onEnd();
-    return;
-  }
+/** 构造 7 个 subagent，各自挂载与职责匹配的数据库工具 */
+function buildSubagents(
+  _cfg: AgentRunConfig,
+  skillsRoot: string,
+  tools: ReturnType<typeof buildTools>,
+): SubAgent[] {
+  const subModel = buildModel(_cfg, true);
+  const skill = (group: string) => `${skillsRoot}/${group}`;
+  const readSchema = [tools.listTables, tools.describeTable];
+  const readSchemaExplain = [
+    tools.listTables,
+    tools.describeTable,
+    tools.explainSql,
+  ];
+  const readWriteQuery = [
+    tools.executeSql,
+    tools.listTables,
+    tools.describeTable,
+  ];
 
-  const first = calls[0];
-  if (first.name !== "execute_sql") {
-    callbacks.onError(`快速查询仅支持 execute_sql，收到: ${first.name}`);
-    callbacks.onEnd();
-    return;
-  }
-  const args = first.args as { sql?: string };
-  const sql = typeof args?.sql === "string" ? args.sql.trim() : "";
-  if (!sql) {
-    callbacks.onError("模型返回的 SQL 为空");
-    callbacks.onEnd();
-    return;
-  }
-
-  let toolOutput: string;
-  try {
-    toolOutput = await runExecuteSql.invoke({ sql });
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    toolOutput = `SQL 执行失败: ${msg}`;
-  }
-
-  const assistantMd =
-    "（快速查询：已一次性生成并执行 SQL）\n\n" +
-    "```sql\n" +
-    sql +
-    "\n```\n\n" +
-    toolOutput;
-
-  callbacks.onToken(assistantMd);
-  callbacks.onEnd();
+  return [
+    {
+      name: "schema_agent",
+      description:
+        "Agent responsible for understanding the database schema and mapping user queries to relevant tables and fields.",
+      systemPrompt: SCHEMA_AGENT_PROMPT,
+      skills: [skill("schema")],
+      tools: readSchema,
+      model: subModel,
+    },
+    {
+      name: "sql_agent",
+      description: "Agent responsible for generating SQL queries.",
+      systemPrompt: SQL_AGENT_PROMPT,
+      skills: [skill("sql")],
+      tools: readSchema,
+      model: subModel,
+    },
+    {
+      name: "sql_validator_agent",
+      description: "Agent responsible for validating SQL queries.",
+      systemPrompt: SQL_VALIDATOR_AGENT_PROMPT,
+      skills: [skill("validator")],
+      tools: readSchemaExplain,
+      model: subModel,
+    },
+    {
+      name: "execution_agent",
+      description:
+        "Agent responsible for executing SQL against the database and returning raw results.",
+      systemPrompt: EXECUTION_AGENT_PROMPT,
+      skills: [skill("execution")],
+      tools: [tools.executeSql],
+      model: subModel,
+    },
+    {
+      name: "data_analysis_agent",
+      description: "Agent responsible for analyzing data.",
+      systemPrompt: DATA_ANALYSIS_AGENT_PROMPT,
+      skills: [skill("analysis")],
+      tools: readWriteQuery,
+      model: subModel,
+    },
+    {
+      name: "visualization_agent",
+      description: "Agent responsible for creating visualizations.",
+      systemPrompt: VISUALIZATION_AGENT_PROMPT,
+      skills: [skill("visualization")],
+      tools: readWriteQuery,
+      model: subModel,
+    },
+    {
+      name: "repair_agent",
+      description: "Agent responsible for repairing SQL issues.",
+      systemPrompt: REPAIR_AGENT_PROMPT,
+      skills: [skill("repair")],
+      tools: readWriteQuery,
+      model: subModel,
+    },
+  ];
 }
 
 export async function runAgent(
@@ -328,107 +570,52 @@ export async function runAgent(
   callbacks: AgentStreamCallbacks,
 ): Promise<void> {
   try {
-    if (cfg.quickSqlMode) {
-      await runQuickSqlFunctionCalling(cfg, history, callbacks);
-      return;
-    }
-
-    const llm = new ChatOpenAI({
-      apiKey: cfg.apiKey,
-      configuration: { baseURL: cfg.baseUrl.replace(/\/+$/, "") },
-      model: cfg.model,
-      streaming: true,
-    });
-
     const tools = buildTools(cfg.connData, cfg.databaseName);
+    const mainModel = buildModel(cfg, true);
+    const publishPlan = buildPublishExecutionPlanTool(callbacks);
 
-    const agent = createAgent({
-      model: llm,
-      tools,
+    const skillsRootAbs = path.join(
+      cfg.extensionPath,
+      "resources",
+      "ai-skills",
+    );
+    const backend = new FilesystemBackend({
+      rootDir: skillsRootAbs,
+      virtualMode: true,
     });
 
-    const systemPrompt = buildSystemPrompt(cfg);
+    const subagents = buildSubagents(cfg, "/", tools);
 
-    const messages: { role: string; content: string }[] = [
-      { role: "system", content: systemPrompt },
-      ...history.filter((m) => m.role !== "system"),
-    ];
+    const agent = createDeepAgent({
+      model: mainModel,
+      tools: [
+        publishPlan,
+        tools.executeSql,
+        tools.listTables,
+        tools.describeTable,
+        tools.explainSql,
+      ],
+      systemPrompt: MAIN_AGENT_PROMPT + buildContextPrompt(cfg),
+      skills: ["/main"],
+      backend,
+      subagents,
+    });
+
+    const messages = buildMessages("", history);
 
     const stream = await agent.stream(
       { messages },
       { streamMode: ["updates", "messages"] },
     );
 
-    for await (const chunk of stream) {
-      const [mode, data] = chunk as [string, unknown];
-
-      if (mode === "messages") {
-        const [msg] = data as [{ content?: string | unknown[] }];
-        if (msg && typeof msg.content === "string" && msg.content) {
-          callbacks.onToken(msg.content);
-        } else if (Array.isArray(msg?.content)) {
-          for (const block of msg.content) {
-            if (
-              block &&
-              typeof block === "object" &&
-              "type" in block &&
-              (block as Record<string, unknown>).type === "text"
-            ) {
-              const text = (block as { text?: string }).text;
-              if (text) callbacks.onToken(text);
-            }
-          }
-        }
-      }
-
-      if (mode === "updates") {
-        const upd = data as Record<
-          string,
-          { messages?: unknown[] } | undefined
-        >;
-        const toolsNode = upd?.tools;
-        if (toolsNode?.messages) {
-          for (const tmsg of toolsNode.messages) {
-            const tm = tmsg as {
-              name?: string;
-              content?: string;
-            };
-            if (tm.name && tm.content !== undefined) {
-              callbacks.onToolEnd(
-                tm.name,
-                typeof tm.content === "string"
-                  ? tm.content.slice(0, 2000)
-                  : JSON.stringify(tm.content).slice(0, 2000),
-              );
-            }
-          }
-        }
-
-        const modelNode = upd?.model;
-        if (modelNode?.messages) {
-          for (const mmsg of modelNode.messages) {
-            const am = mmsg as {
-              tool_calls?: { name: string; args: unknown }[];
-            };
-            if (am.tool_calls) {
-              for (const tc of am.tool_calls) {
-                callbacks.onToolStart(
-                  tc.name,
-                  typeof tc.args === "string"
-                    ? tc.args
-                    : JSON.stringify(tc.args),
-                );
-              }
-            }
-          }
-        }
-      }
-    }
+    await pipeStream(
+      stream as AsyncIterable<unknown>,
+      callbacks,
+    );
 
     callbacks.onEnd();
   } catch (err: unknown) {
-    callbacks.onError(
-      err instanceof Error ? err.message : String(err),
-    );
+    callbacks.onError(err instanceof Error ? err.message : String(err));
+    callbacks.onEnd();
   }
 }

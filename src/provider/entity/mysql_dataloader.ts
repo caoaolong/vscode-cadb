@@ -342,12 +342,11 @@ ORDER BY INDEX_NAME, SEQ_IN_INDEX
       await this.ensureConnection();
       
       return new Promise<Datasource[]>((resolve) => {
+        // 系统权限表名为小写 mysql.db；在 lower_case_table_names=0 的服务器上大写 mysql.DB 会报「Table 'mysql.DB' doesn't exist」
+        // 同时用占位符传入数据库名，避免库名含特殊字符或被作为 SQL 注入注入
         this.pool.query(
-          `
-SELECT DISTINCT USER as name, HOST as host
-FROM mysql.DB
-WHERE db = '${this.ds.parent?.label}';
-`,
+          `SELECT DISTINCT USER AS name, HOST AS host FROM mysql.db WHERE db = ?;`,
+          [this.ds.parent?.label ?? ""],
           (err, results) => {
             if (err) {
               vscode.window.showErrorMessage(`查询数据库失败：${err.message}`);

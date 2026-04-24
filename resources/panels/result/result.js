@@ -615,6 +615,47 @@ layui.use(["tabs", "layer"], function () {
   }
 
   /**
+   * 把任意单元格值转换为可读字符串，避免 AG Grid 直接 toString 对象/数组得到 [object Object]。
+   * 兼容：JSON 列（已被驱动解析为对象）、Date、Buffer、BigInt、MySQL Decimal 字符串等。
+   */
+  function formatCellValue(value) {
+    if (value == null) {
+      return "";
+    }
+    const t = typeof value;
+    if (t === "string" || t === "number" || t === "boolean") {
+      return String(value);
+    }
+    if (t === "bigint") {
+      return value.toString();
+    }
+    if (value instanceof Date) {
+      return isNaN(value.getTime()) ? "" : value.toISOString();
+    }
+    // Node Buffer 透传时通常被序列化为 { type: 'Buffer', data: [...] }
+    if (
+      value &&
+      typeof value === "object" &&
+      value.type === "Buffer" &&
+      Array.isArray(value.data)
+    ) {
+      try {
+        return "0x" + value.data.map((b) => Number(b).toString(16).padStart(2, "0")).join("");
+      } catch (_e) {
+        // 回退到 JSON
+      }
+    }
+    if (t === "object") {
+      try {
+        return JSON.stringify(value);
+      } catch (_e) {
+        return Object.prototype.toString.call(value);
+      }
+    }
+    return String(value);
+  }
+
+  /**
    * 初始化 AG Grid
    */
   function initAgGrid(containerId, columns, data) {
@@ -623,6 +664,16 @@ layui.use(["tabs", "layer"], function () {
       console.error("容器不存在:", containerId);
       return;
     }
+
+    /**
+     * AG Grid 默认对单元格走 String(value)，对象/数组会渲染成 [object Object]。
+     * 这里统一加 valueFormatter：
+     *  - null/undefined → 空串（避免显示 "undefined"）
+     *  - 对象/数组（含 MySQL JSON 列、Date、Buffer 等） → JSON 字符串
+     *  - BigInt → 数字字面量字符串
+     *  - 其余原样
+     */
+    const cellValueFormatter = (params) => formatCellValue(params && params.value);
 
     const columnDefs = (Array.isArray(columns) ? columns : []).map((col) => {
       const field = col?.field || col?.name || col;
@@ -634,6 +685,8 @@ layui.use(["tabs", "layer"], function () {
         resizable: true,
         filter: true,
         minWidth: 80,
+        valueFormatter: cellValueFormatter,
+        tooltipValueGetter: cellValueFormatter,
       };
     });
 

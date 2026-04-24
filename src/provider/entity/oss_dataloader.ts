@@ -1,4 +1,4 @@
-import { Uri } from "vscode";
+import { Uri, window, ProgressLocation } from "vscode";
 import {
   Dataloader,
   FormResult,
@@ -27,74 +27,13 @@ function formatFileSize(bytes: number): string {
   return value % 1 === 0 ? `${value} ${unit}` : `${value.toFixed(2)} ${unit}`;
 }
 
-/** 路径树节点：文件夹或文件 */
-type OssPathFolder = { kind: "folder"; name: string; children: OssPathNode[] };
-type OssPathFile = { kind: "file"; name: string; size: number; lastModified?: Date };
-type OssPathNode = OssPathFolder | OssPathFile;
-
-function getOrCreateFolder(parent: OssPathFolder, segment: string): OssPathFolder {
-  const found = parent.children.find(
-    (c): c is OssPathFolder => c.kind === "folder" && c.name === segment
-  );
-  if (found) return found;
-  const folder: OssPathFolder = { kind: "folder", name: segment, children: [] };
-  parent.children.push(folder);
-  return folder;
-}
-
-function addFile(
-  parent: OssPathFolder,
-  segment: string,
-  size: number,
-  lastModified?: Date
-): void {
-  const existing = parent.children.find(
-    (c): c is OssPathFile => c.kind === "file" && c.name === segment
-  );
-  if (existing) {
-    existing.size = size;
-    existing.lastModified = lastModified;
-    return;
-  }
-  parent.children.push({ kind: "file", name: segment, size, lastModified });
-}
-
-/** 将路径树转换为 Datasource 树（递归） */
-function ossPathNodesToDatasource(
-  nodes: OssPathNode[],
-  parentDs: Datasource,
-  loader: OssDataLoader
-): Datasource[] {
-  return nodes.map((node) => {
-    if (node.kind === "folder") {
-      const ds = new Datasource(
-        {
-          name: node.name,
-          type: "folder",
-          tooltip: "",
-          extra: "",
-        },
-        loader,
-        parentDs
-      );
-      ds.children = ossPathNodesToDatasource(node.children, ds, loader);
-      return ds;
-    }
-    const ds = new Datasource(
-      {
-        name: node.name,
-        type: "item",
-        tooltip: node.lastModified
-          ? `${formatFileSize(node.size)} · ${node.lastModified.toISOString()}`
-          : formatFileSize(node.size),
-        extra: formatFileSize(node.size),
-      },
-      loader,
-      parentDs
-    );
-    return ds;
-  });
-}
+/**
+ * 单次目录展开最多列出多少条；超过时附加占位「更多对象未显示…」节点。
+ * 防止有的目录里有几十万对象时一次性塞给 TreeView 卡死渲染线程。
+ */
+const OSS_MAX_ENTRIES_PER_LEVEL = 5000;
+/** S3/OSS ListObjectsV2 单页上限 */
+const OSS_PAGE_SIZE = 1000;
 
 export class OssDataLoader implements Dataloader {
   private ds: Datasource;
@@ -188,57 +127,199 @@ export class OssDataLoader implements Dataloader {
     throw new Error("listColumns Method not implemented.");
   }
   /**
-   * 列出该 bucket 下所有文件（分页拉取全部对象）
+   * 列出 bucket 顶层（懒加载）：只取一层，子目录展开时再调用 listFolders 继续向下。
+   * 之前实现是「一次性把 bucket 下所有对象拉回来构造完整树」，bucket 文件多时会卡死。
    */
   async listTables(ds: Datasource): Promise<Datasource[]> {
-    const bucketName =
-      (ds.data as { bucket?: string })?.bucket ??
-      ds.label?.toString() ??
-      this.data.bucket;
+    const bucketName = this.resolveBucketName(ds);
     if (!bucketName) {
+      ds.children = [];
       return [];
     }
-    const allContents: { Key?: string; Size?: number; LastModified?: Date }[] = [];
+    ds.children = await this.loadLevelWithProgress(ds, bucketName, "");
+    return ds.children;
+  }
+
+  /** 文件夹节点（type=folder）展开时调用：从父链拼出完整 prefix，按 Delimiter 拉一层 */
+  async listFolders(ds: Datasource): Promise<Datasource[]> {
+    const bucketName = this.resolveBucketName(ds);
+    if (!bucketName) {
+      ds.children = [];
+      return [];
+    }
+    const prefix = this.buildPrefixFromAncestors(ds);
+    ds.children = await this.loadLevelWithProgress(ds, bucketName, prefix);
+    return ds.children;
+  }
+
+  /** 沿父节点向上找到 bucket（collectionType）节点的名字 */
+  private resolveBucketName(ds: Datasource): string {
+    const fromData =
+      (ds.data as { bucket?: string })?.bucket || this.data.bucket || "";
+    if (fromData && (ds.type === "collectionType" || ds.type !== "folder")) {
+      // 当前节点本身就是 bucket，data.bucket / label 都可能拿到
+      if (ds.type === "collectionType") {
+        return ds.label?.toString() || fromData;
+      }
+    }
+    let cur: Datasource | undefined = ds;
+    while (cur) {
+      if (cur.type === "collectionType") {
+        return cur.label?.toString() || (cur.data as { bucket?: string })?.bucket || "";
+      }
+      cur = cur.parent;
+    }
+    return fromData;
+  }
+
+  /**
+   * 从 folder 节点沿父链拼出 OSS Prefix，例如 a/b/c/。
+   * bucket 节点本身视为根，prefix 为空串。
+   */
+  private buildPrefixFromAncestors(ds: Datasource): string {
+    if (ds.type === "collectionType") {
+      return "";
+    }
+    const segs: string[] = [];
+    let cur: Datasource | undefined = ds;
+    while (cur && cur.type !== "collectionType") {
+      const name = cur.label?.toString() || cur.data?.name || "";
+      if (name) segs.unshift(name);
+      cur = cur.parent;
+    }
+    return segs.length ? segs.join("/") + "/" : "";
+  }
+
+  /** 用进度提示包裹一层加载，避免长时间 IO 期间用户没有反馈 */
+  private async loadLevelWithProgress(
+    parentDs: Datasource,
+    bucket: string,
+    prefix: string,
+  ): Promise<Datasource[]> {
+    const title = prefix
+      ? `加载 OSS 目录 ${bucket}/${prefix}`
+      : `加载 OSS Bucket ${bucket}`;
+    return window.withProgress(
+      {
+        location: ProgressLocation.Window,
+        title,
+        cancellable: false,
+      },
+      async () => this.loadLevel(parentDs, bucket, prefix),
+    );
+  }
+
+  /**
+   * 拉取「一层」目录内容：使用 Delimiter:"/"，返回 CommonPrefixes（子目录）+ Contents（文件）。
+   * 单层最多累计 OSS_MAX_ENTRIES_PER_LEVEL，超出时插入只读「更多对象未显示」节点。
+   */
+  private async loadLevel(
+    parentDs: Datasource,
+    bucket: string,
+    prefix: string,
+  ): Promise<Datasource[]> {
+    const folders = new Map<string, string>();
+    const files: { name: string; size: number; lastModified?: Date }[] = [];
     let continuationToken: string | undefined;
+    let total = 0;
+    let truncated = false;
     try {
       do {
         const result = await this.client.send(
           new ListObjectsV2Command({
-            Bucket: bucketName,
+            Bucket: bucket,
+            Prefix: prefix || undefined,
+            Delimiter: "/",
             ContinuationToken: continuationToken,
-            MaxKeys: 1000,
-          })
+            MaxKeys: OSS_PAGE_SIZE,
+          }),
         );
-        if (result.Contents?.length) {
-          allContents.push(...result.Contents);
+
+        if (result.CommonPrefixes?.length) {
+          for (const cp of result.CommonPrefixes) {
+            const full = cp.Prefix ?? "";
+            if (!full || full === prefix) continue;
+            const rel = full.slice(prefix.length).replace(/\/+$/, "");
+            if (!rel || folders.has(rel)) continue;
+            folders.set(rel, full);
+            total += 1;
+            if (total >= OSS_MAX_ENTRIES_PER_LEVEL) break;
+          }
+        }
+
+        if (total < OSS_MAX_ENTRIES_PER_LEVEL && result.Contents?.length) {
+          for (const obj of result.Contents) {
+            const key = obj.Key ?? "";
+            if (!key || key === prefix) continue;
+            // 跳过「目录占位对象」(以 / 结尾且大小为 0)
+            if (key.endsWith("/") && (obj.Size ?? 0) === 0) continue;
+            const rel = key.slice(prefix.length);
+            if (!rel || rel.includes("/")) continue;
+            files.push({
+              name: rel,
+              size: obj.Size ?? 0,
+              lastModified: obj.LastModified,
+            });
+            total += 1;
+            if (total >= OSS_MAX_ENTRIES_PER_LEVEL) break;
+          }
+        }
+
+        if (total >= OSS_MAX_ENTRIES_PER_LEVEL) {
+          truncated = result.IsTruncated === true || total >= OSS_MAX_ENTRIES_PER_LEVEL;
+          break;
         }
         continuationToken = result.IsTruncated ? result.NextContinuationToken : undefined;
       } while (continuationToken);
-      const root: OssPathFolder = { kind: "folder", name: "", children: [] };
-      for (const obj of allContents) {
-        const key = obj.Key ?? "";
-        const size = obj.Size ?? 0;
-        const segments = key.split("/").filter(Boolean);
-        if (segments.length === 0) continue;
-        const isFolder = key.endsWith("/") && size === 0;
-        if (isFolder) {
-          let parent = root;
-          for (const seg of segments) {
-            parent = getOrCreateFolder(parent, seg);
-          }
-        } else {
-          let parent = root;
-          for (let i = 0; i < segments.length - 1; i++) {
-            parent = getOrCreateFolder(parent, segments[i]);
-          }
-          addFile(parent, segments[segments.length - 1], size, obj.LastModified);
-        }
-      }
-      ds.children = ossPathNodesToDatasource(root.children, ds, this);
     } catch (error: any) {
-      ds.children = [];
+      window.showErrorMessage(
+        `加载 OSS 目录失败：${error?.message || String(error)}`,
+      );
+      return [];
     }
-    return ds.children;
+
+    const children: Datasource[] = [];
+    for (const [name] of folders) {
+      children.push(
+        new Datasource(
+          { name, type: "folder", tooltip: "", extra: "" },
+          this,
+          parentDs,
+        ),
+      );
+    }
+    files.sort((a, b) => a.name.localeCompare(b.name));
+    for (const f of files) {
+      children.push(
+        new Datasource(
+          {
+            name: f.name,
+            type: "item",
+            tooltip: f.lastModified
+              ? `${formatFileSize(f.size)} · ${f.lastModified.toISOString()}`
+              : formatFileSize(f.size),
+            extra: formatFileSize(f.size),
+          },
+          this,
+          parentDs,
+        ),
+      );
+    }
+    if (truncated) {
+      children.push(
+        new Datasource(
+          {
+            name: `（已截断，仅显示前 ${OSS_MAX_ENTRIES_PER_LEVEL} 项；请使用「下载」/搜索处理更多对象）`,
+            type: "item",
+            tooltip: "当前目录条目过多，已截断显示，避免阻塞 UI",
+            extra: "",
+          },
+          this,
+          parentDs,
+        ),
+      );
+    }
+    return children;
   }
 
   /** 获取对象内容（用于预览与下载） */
@@ -277,9 +358,6 @@ export class OssDataLoader implements Dataloader {
     return out;
   }
 
-  listFolders(ds: Datasource): Promise<Datasource[]> {
-    throw new Error("listFolders Method not implemented.");
-  }
   listData(ds: Datasource, _options?: ListDataOptions): Promise<TableResult> {
     throw new Error("listData Method not implemented.");
   }
