@@ -65,6 +65,7 @@ export interface DatasourceInputData {
   accessSecretKey?: string;
   bucket?: string;
   region?: string;
+  sqlitePath?: string;
 }
 
 export class Datasource extends vscode.TreeItem {
@@ -251,6 +252,21 @@ export class Datasource extends vscode.TreeItem {
 
         this.dataloader?.listFiles(this, dsPath);
         break;
+      case "collectionType": {
+        const loader = this.dataloader;
+        if (!loader) {
+          vscode.window.showWarningMessage("连接未就绪，无法创建表");
+          break;
+        }
+        if (typeof (loader as any).createTable !== "function") {
+          vscode.window.showWarningMessage(
+            "当前数据库类型不支持在侧栏新建表"
+          );
+          break;
+        }
+        await vscode.commands.executeCommand("cadb.table.create", this);
+        break;
+      }
     }
   };
 
@@ -359,6 +375,7 @@ export class Datasource extends vscode.TreeItem {
       case "file":
       case "fileType":
         this.initFileType(input);
+        break;
       case "view":
       case "viewType":
         this.initViewType(input);

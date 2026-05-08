@@ -112,13 +112,14 @@ export class DatabaseManager {
         for (const { conn, dbs } of results) {
           const connLabel = String(conn.label ?? "");
           const d = conn.data;
-          const connInfo = [
-            d.dbType ?? "",
-            d.host ? (d.port ? `${d.host}:${d.port}` : d.host) : "",
-            d.username ?? "",
-          ]
-            .filter(Boolean)
-            .join("  ·  ");
+          const connInfoParts: string[] = [d.dbType ?? ""];
+          if (d.dbType === "sqlite") {
+            connInfoParts.push(d.sqlitePath || d.database || "");
+          } else {
+            connInfoParts.push(d.host ? (d.port ? `${d.host}:${d.port}` : d.host) : "");
+            connInfoParts.push(d.username ?? "");
+          }
+          const connInfo = connInfoParts.filter(Boolean).join("  ·  ");
           for (const db of dbs) {
             const dbLabel = String(db.label ?? "");
             items.push({

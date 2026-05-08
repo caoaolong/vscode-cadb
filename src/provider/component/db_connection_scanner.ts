@@ -383,7 +383,6 @@ export async function showScanResultsInQuickPick(): Promise<void> {
   );
 
   if (connections.length === 0) {
-    vscode.window.showInformationMessage("未在工作区文件中发现数据库连接配置");
     return;
   }
 

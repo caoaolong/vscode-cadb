@@ -248,7 +248,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.globalState.get<boolean>(
       CADB_GLOBAL_DATASOURCE_SIDEBAR_LAST_VISIBLE_KEY,
     ) === true;
-    
+
   if (!shouldAutoShowDatasourceSidebar) {
     void context.workspaceState.update(
       CADB_WORKSPACE_OPEN_TABLE_PANELS_KEY,
@@ -1172,9 +1172,6 @@ export function activate(context: vscode.ExtensionContext) {
         try {
           const list = readQuickExecuteSqlHistory(context);
           if (list.length === 0) {
-            vscode.window.showInformationMessage(
-              "暂无快速执行 SQL 历史，请先使用 Ctrl+Alt+Q（macOS：Cmd+Alt+Q）执行",
-            );
             return;
           }
 

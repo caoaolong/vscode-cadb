@@ -6,11 +6,12 @@ import { DataSourceProvider } from "../database_provider";
 import { DatabaseManager } from "./database_manager";
 import { createWebview } from "../webview_helper";
 import { driverSupportsSqlExecution } from "../drivers/registry";
+import { Datasource, type DatasourceInputData } from "../entity/datasource";
 import {
-  Datasource,
-  type DatasourceInputData,
-} from "../entity/datasource";
-import { runAgent, type AgentRunConfig, type AgentStreamCallbacks } from "./ai_agent";
+  runAgent,
+  type AgentRunConfig,
+  type AgentStreamCallbacks,
+} from "./ai_agent";
 
 interface ChatMessage {
   role: "system" | "user" | "assistant";
@@ -111,9 +112,7 @@ export class AiChatProvider {
       this.panel = undefined;
     });
 
-    this.panel.webview.onDidReceiveMessage((msg) =>
-      this._handleMessage(msg),
-    );
+    this.panel.webview.onDidReceiveMessage((msg) => this._handleMessage(msg));
   }
 
   private async _handleMessage(msg: {
@@ -134,12 +133,14 @@ export class AiChatProvider {
         break;
 
       case "saveConfig":
-        await this._saveConfig(msg as {
-          command: string;
-          apiKey: string;
-          baseUrl: string;
-          model: string;
-        });
+        await this._saveConfig(
+          msg as {
+            command: string;
+            apiKey: string;
+            baseUrl: string;
+            model: string;
+          },
+        );
         break;
 
       case "persistSessions":
@@ -243,9 +244,10 @@ export class AiChatProvider {
       if (!connName || closed.has(connName)) continue;
 
       try {
-        const connNode = new Datasource(
-          { ...raw, type: "datasource" } as DatasourceInputData,
-        );
+        const connNode = new Datasource({
+          ...raw,
+          type: "datasource",
+        } as DatasourceInputData);
         if (!connNode.dataloader) continue;
 
         const top = await connNode.expand(this.context);
@@ -344,9 +346,10 @@ export class AiChatProvider {
     if (!raw || !driverSupportsSqlExecution(raw.dbType)) return [];
 
     try {
-      const connNode = new Datasource(
-        { ...raw, type: "datasource" } as DatasourceInputData,
-      );
+      const connNode = new Datasource({
+        ...raw,
+        type: "datasource",
+      } as DatasourceInputData);
       if (!connNode.dataloader) return [];
       const top = await connNode.expand(this.context);
       const dbTypeNode = top.find((o) => o.type === "datasourceType");
@@ -449,7 +452,11 @@ export class AiChatProvider {
         });
       },
       onToolStart: (toolName, input) => {
-        this.panel?.webview.postMessage({ type: "tool-start", toolName, input });
+        this.panel?.webview.postMessage({
+          type: "tool-start",
+          toolName,
+          input,
+        });
       },
       onToolEnd: (toolName, output) => {
         this.panel?.webview.postMessage({ type: "tool-end", toolName, output });
@@ -747,10 +754,12 @@ export class AiChatProvider {
   }): Promise<void> {
     const config = vscode.workspace.getConfiguration("cadb.ai");
     const target = vscode.ConfigurationTarget.Global;
-    if (msg.apiKey !== undefined) await config.update("apiKey", msg.apiKey, target);
-    if (msg.baseUrl !== undefined) await config.update("baseUrl", msg.baseUrl, target);
-    if (msg.model !== undefined) await config.update("model", msg.model, target);
-    vscode.window.showInformationMessage("AI 配置已保存");
+    if (msg.apiKey !== undefined)
+      await config.update("apiKey", msg.apiKey, target);
+    if (msg.baseUrl !== undefined)
+      await config.update("baseUrl", msg.baseUrl, target);
+    if (msg.model !== undefined)
+      await config.update("model", msg.model, target);
   }
 
   public dispose(): void {

@@ -18,6 +18,7 @@ import {
   type TableResult,
 } from "../entity/dataloader";
 import { MySQLDataloader } from "../entity/mysql_dataloader";
+import { SQLiteDataloader } from "../entity/sqlite_dataloader";
 import { OssDataLoader } from "../entity/oss_dataloader";
 import { RedisDataloader } from "../entity/redis_dataloader";
 import { DatabaseManager } from "./database_manager";
@@ -918,6 +919,27 @@ async function editEntry(
           message.payload,
         );
         break;
+      case "openFileDialog": {
+        const fieldName = String(message.fieldName || "");
+        const uris = await vscode.window.showOpenDialog({
+          canSelectFiles: true,
+          canSelectFolders: false,
+          canSelectMany: false,
+          filters: {
+            "SQLite Database": ["db", "sqlite", "sqlite3"],
+            "All Files": ["*"],
+          },
+          openLabel: "选择数据库文件",
+        });
+        if (uris && uris.length > 0) {
+          settingsPanel.webview.postMessage({
+            command: "fileSelected",
+            fieldName,
+            path: uris[0].fsPath,
+          });
+        }
+        break;
+      }
     }
   });
 
@@ -986,6 +1008,85 @@ async function editEntry(
 }
 
 /**
+ * 创建表入口：打开 tableEdit Webview，进入创建模式
+ */
+async function createTableEntry(
+  provider: DataSourceProvider,
+  item: Datasource,
+  outputChannel: vscode.OutputChannel,
+) {
+  const databaseName =
+    item.parent?.type === "collection" && item.parent?.label
+      ? item.parent.label.toString()
+      : "main";
+  const datasourceNode = findAncestorByType(item, "datasource");
+  const connectionName = datasourceNode?.label?.toString() || "";
+
+  const tableEditPanel = createWebview(provider, "tableEdit", "创建表");
+  let createHandled = false;
+
+  tableEditPanel.webview.onDidReceiveMessage(async (message) => {
+    if (message.command === "ready") {
+      tableEditPanel.webview.postMessage({
+        command: "load",
+        configType: "",
+        data: {
+          mode: "create",
+          connectionName,
+          databaseName,
+          tableName: "",
+        },
+      });
+      return;
+    }
+
+    if (message.command === "createTable") {
+      if (createHandled) return;
+      createHandled = true;
+
+      const { tableName, fields, indexes } = message;
+      const loader = item.dataloader;
+      if (!loader) {
+        tableEditPanel.webview.postMessage({
+          command: "status",
+          success: false,
+          message: "连接未就绪，无法创建表",
+        });
+        createHandled = false;
+        return;
+      }
+
+      try {
+        const startTime = Date.now();
+        await (loader as any).createTable(tableName, fields, indexes);
+        const executionTime = (Date.now() - startTime) / 1000;
+        const ts = new Date();
+        const timestamp = `${ts.getFullYear()}-${String(ts.getMonth() + 1).padStart(2, "0")}-${String(ts.getDate()).padStart(2, "0")} ${String(ts.getHours()).padStart(2, "0")}:${String(ts.getMinutes()).padStart(2, "0")}`;
+        outputChannel.appendLine(
+          `[${timestamp} ${databaseName}, ${executionTime.toFixed(3)}s] CREATE TABLE ${tableName}`,
+        );
+        outputChannel.show(true);
+        tableEditPanel.webview.postMessage({
+          command: "status",
+          success: true,
+          message: `表「${tableName}」创建成功`,
+        });
+        provider.refresh(item);
+      } catch (error) {
+        console.error("创建表失败:", error);
+        tableEditPanel.webview.postMessage({
+          command: "status",
+          success: false,
+          message: `创建失败: ${toErrorMessage(error)}`,
+        });
+        createHandled = false;
+      }
+      return;
+    }
+  });
+}
+
+/**
  * 更新非 OSS 数据源连接配置
  */
 async function updateNonOssDatasourceConfig(
@@ -997,11 +1098,15 @@ async function updateNonOssDatasourceConfig(
   if (!originalName) {
     throw new Error("未找到要更新的连接配置");
   }
+  const tooltip =
+    payload.dbType === "sqlite"
+      ? `sqlite://${payload.database || payload.sqlitePath || ""}`
+      : `${payload.dbType}://${payload.host}:${payload.port}`;
   const next = {
     ...(item.data || {}),
     ...payload,
     type: "datasource",
-    tooltip: `${payload.dbType}://${payload.host}:${payload.port}`,
+    tooltip,
   };
   await provider.updateConnectionByName(originalName, next);
   provider.refresh();
@@ -1166,9 +1271,7 @@ async function loadTableStructureGridPayload(tableNode: Datasource): Promise<{
     return null;
   }
   if (!raw) {
-    vscode.window.showWarningMessage(
-      "未获取到表结构，当前连接类型可能不支持",
-    );
+    vscode.window.showWarningMessage("未获取到表结构，当前连接类型可能不支持");
     return null;
   }
   const extended = raw as TableDescWithIndexes;
@@ -1398,6 +1501,27 @@ export function registerDatasourceCommands(
               }
             }
             break;
+          case "openFileDialog": {
+            const fieldName = String(message.fieldName || "");
+            const uris = await vscode.window.showOpenDialog({
+              canSelectFiles: true,
+              canSelectFolders: false,
+              canSelectMany: false,
+              filters: {
+                "SQLite Database": ["db", "sqlite", "sqlite3"],
+                "All Files": ["*"],
+              },
+              openLabel: "选择数据库文件",
+            });
+            if (uris && uris.length > 0) {
+              panel.webview.postMessage({
+                command: "fileSelected",
+                fieldName,
+                path: uris[0].fsPath,
+              });
+            }
+            break;
+          }
         }
       });
     }),
@@ -1410,54 +1534,98 @@ export function registerDatasourceCommands(
   );
 
   disposables.push(
+    vscode.commands.registerCommand("cadb.table.create", (item) =>
+      createTableEntry(provider, item, outputChannel),
+    ),
+  );
+
+  disposables.push(
     vscode.commands.registerCommand(
-      "cadb.datasource.rename",
+      "cadb.item.rename",
       async (item: Datasource) => {
-        if (!item || item.type !== "datasource") {
-          return;
-        }
-        const oldName = item.label?.toString()?.trim() || "";
-        if (!oldName) {
-          vscode.window.showWarningMessage("无法获取当前连接名称");
-          return;
-        }
-        const connections = provider.getConnections();
-        const newName = await vscode.window.showInputBox({
-          title: "重命名数据源连接",
-          prompt: "输入新的连接名称",
-          value: oldName,
-          validateInput: (value) => {
-            const name = value?.trim() || "";
-            if (!name) return "名称不能为空";
-            if (name === oldName) return "名称未更改";
-            if (connections.some((c) => c.name === name))
-              return "该名称已被其他连接使用";
-            return "";
-          },
-        });
-        if (
-          newName === undefined ||
-          newName.trim() === "" ||
-          newName.trim() === oldName
-        ) {
-          return;
-        }
-        const name = newName.trim();
-        if (connections.some((c) => c.name === name)) {
-          vscode.window.showWarningMessage("该名称已被其他连接使用");
-          return;
-        }
-        try {
-          await provider.renameConnectionRecord(oldName, name);
-        } catch (error) {
-          vscode.window.showErrorMessage(
-            `未找到要重命名的连接: ${toErrorMessage(error)}`,
+        if (!item) return;
+
+        // ——— 重命名连接 ———
+        if (item.type === "datasource") {
+          const oldName = item.label?.toString()?.trim() || "";
+          if (!oldName) {
+            vscode.window.showWarningMessage("无法获取当前连接名称");
+            return;
+          }
+          const connections = provider.getConnections();
+          const newName = await vscode.window.showInputBox({
+            title: "重命名数据源连接",
+            prompt: "输入新的连接名称",
+            value: oldName,
+            validateInput: (value) => {
+              const name = value?.trim() || "";
+              if (!name) return "名称不能为空";
+              if (name === oldName) return "名称未更改";
+              if (connections.some((c) => c.name === name))
+                return "该名称已被其他连接使用";
+              return "";
+            },
+          });
+          if (
+            newName === undefined ||
+            newName.trim() === "" ||
+            newName.trim() === oldName
+          ) {
+            return;
+          }
+          const name = newName.trim();
+          if (connections.some((c) => c.name === name)) {
+            vscode.window.showWarningMessage("该名称已被其他连接使用");
+            return;
+          }
+          try {
+            await provider.renameConnectionRecord(oldName, name);
+          } catch (error) {
+            vscode.window.showErrorMessage(
+              `未找到要重命名的连接: ${toErrorMessage(error)}`,
+            );
+            return;
+          }
+          provider.renameConnection(oldName, name);
+          provider.refresh();
+          vscode.window.showInformationMessage(
+            `已重命名为 "${name}"`,
           );
           return;
         }
-        provider.renameConnection(oldName, name);
-        provider.refresh();
-        vscode.window.showInformationMessage(`已重命名为 "${name}"`);
+
+        // ——— 重命名表 ———
+        if (item.type === "document") {
+          const dsNode = getDatasourceNode(item);
+          const loader = dsNode?.dataloader as any;
+          if (typeof loader?.renameTable !== "function") {
+            vscode.window.showWarningMessage("当前连接不支持重命名表");
+            return;
+          }
+          const databaseName = getDatabaseName(item);
+          const tableName = item.label?.toString() ?? "";
+          if (!databaseName || !tableName) {
+            vscode.window.showErrorMessage("无法解析库名或表名");
+            return;
+          }
+          const newName = await vscode.window.showInputBox({
+            title: "重命名表",
+            prompt: `将 "${databaseName}.${tableName}" 重命名为`,
+            value: tableName,
+            validateInput: (v) => (v?.trim() ? null : "表名不能为空"),
+          });
+          if (!newName || !newName.trim() || newName.trim() === tableName) return;
+          try {
+            await dsNode?.connect();
+            await loader.renameTable(databaseName, tableName, newName.trim());
+            provider.refresh();
+          } catch (error) {
+            vscode.window.showErrorMessage(
+              `重命名表失败: ${toErrorMessage(error)}`,
+            );
+          }
+          return;
+        }
       },
     ),
   );
@@ -1495,9 +1663,25 @@ export function registerDatasourceCommands(
         try {
           await dsNode.connect();
           const conn: any = loader.getConnection?.();
-          if (!conn || typeof conn.query !== "function") {
-            throw new Error("无法获取 MySQL 连接");
-          }
+
+          const run = (sql: string) =>
+            new Promise<void>((resolve, reject) => {
+              if (typeof conn.query === "function") {
+                conn.query(sql, (err: any) => {
+                  if (err) reject(err);
+                  else resolve();
+                });
+              } else if (typeof conn.run === "function") {
+                conn.run(sql, (err: any) => {
+                  if (err) reject(err);
+                  else resolve();
+                });
+              } else if (typeof loader.runExec === "function") {
+                loader.runExec(sql).then(resolve).catch(reject);
+              } else {
+                reject(new Error("当前连接类型不支持删除操作"));
+              }
+            });
 
           if (item.type === "datasource") {
             const name = item.label?.toString() ?? "";
@@ -1515,24 +1699,14 @@ export function registerDatasourceCommands(
               });
             } catch (_) {}
             provider.refresh();
-            vscode.window.showInformationMessage(`已删除连接 "${name}"`);
             return;
           }
-
-          const run = (sql: string) =>
-            new Promise<void>((resolve, reject) => {
-              conn.query(sql, (err: any) => {
-                if (err) reject(err);
-                else resolve();
-              });
-            });
 
           if (item.type === "collection") {
             const db = item.label?.toString() ?? "";
             if (!db) throw new Error("无法获取数据库名");
             await run(`DROP DATABASE \`${escapeMySqlId(db)}\``);
             provider.refresh();
-            vscode.window.showInformationMessage(`已删除数据库 "${db}"`);
             return;
           }
 
@@ -1540,11 +1714,15 @@ export function registerDatasourceCommands(
             const db = getDatabaseName(item);
             const table = item.label?.toString() ?? "";
             if (!db || !table) throw new Error("无法解析库名或表名");
-            await run(
-              `DROP TABLE \`${escapeMySqlId(db)}\`.\`${escapeMySqlId(table)}\``,
-            );
+            if (dbType === "sqlite") {
+              const escapedTable = String(table).replace(/"/g, '""');
+              await run(`DROP TABLE "${escapedTable}"`);
+            } else {
+              await run(
+                `DROP TABLE \`${escapeMySqlId(db)}\`.\`${escapeMySqlId(table)}\``,
+              );
+            }
             provider.refresh();
-            vscode.window.showInformationMessage(`已删除表 "${db}.${table}"`);
             return;
           }
 
@@ -1564,9 +1742,6 @@ export function registerDatasourceCommands(
               originalName: col,
             });
             provider.refresh();
-            vscode.window.showInformationMessage(
-              `已删除字段 "${db}.${table}.${col}"`,
-            );
             return;
           }
 
@@ -1586,9 +1761,6 @@ export function registerDatasourceCommands(
               originalName: idxName,
             });
             provider.refresh();
-            vscode.window.showInformationMessage(
-              `已删除索引 "${db}.${table}.${idxName}"`,
-            );
             return;
           }
 
@@ -1602,7 +1774,6 @@ export function registerDatasourceCommands(
               `DROP USER ${conn.escape(parsed.user)}@${conn.escape(parsed.host)}`,
             );
             provider.refresh();
-            vscode.window.showInformationMessage(`已删除用户 "${label}"`);
             return;
           }
 
@@ -1629,9 +1800,6 @@ export function registerDatasourceCommands(
     vscode.commands.registerCommand("cadb.datasource.search", async () => {
       const allNodes = provider.getFlattenedNodes();
       if (allNodes.length === 0) {
-        vscode.window.showInformationMessage(
-          "暂无数据源节点可搜索，请先添加连接并刷新。",
-        );
         return;
       }
       interface SearchItem extends vscode.QuickPickItem {
@@ -1913,7 +2081,6 @@ export function registerDatasourceCommands(
           const address = `${host}:${port}`;
 
           await vscode.env.clipboard.writeText(address);
-          vscode.window.showInformationMessage(`已复制连接地址: ${address}`);
         } catch (error) {
           vscode.window.showErrorMessage(
             `复制失败: ${
@@ -1941,7 +2108,6 @@ export function registerDatasourceCommands(
           const credentials = `${username}@${password}`;
 
           await vscode.env.clipboard.writeText(credentials);
-          vscode.window.showInformationMessage("已复制用户名密码");
         } catch (error) {
           vscode.window.showErrorMessage(
             `复制失败: ${
@@ -2003,7 +2169,6 @@ export function registerDatasourceCommands(
           }
 
           await vscode.env.clipboard.writeText(jdbcUrl);
-          vscode.window.showInformationMessage("已复制完整连接地址");
         } catch (error) {
           vscode.window.showErrorMessage(
             `复制失败: ${
@@ -2866,7 +3031,9 @@ async function openTableStructureGridView(
     }, 150);
     const ts = new Date();
     const stamp = `${ts.getFullYear()}-${String(ts.getMonth() + 1).padStart(2, "0")}-${String(ts.getDate()).padStart(2, "0")} ${String(ts.getHours()).padStart(2, "0")}:${String(ts.getMinutes()).padStart(2, "0")}:${String(ts.getSeconds()).padStart(2, "0")}`;
-    outputChannel.appendLine(`[${stamp}] [表结构] ${databaseName}.${tableName}`);
+    outputChannel.appendLine(
+      `[${stamp}] [表结构] ${databaseName}.${tableName}`,
+    );
     return;
   }
 
@@ -3453,7 +3620,7 @@ export function registerDatasourceItemCommands(
   vscode.commands.registerCommand("cadb.item.showData", async (args) => {
     const datasource = args as Datasource;
     const dbType = datasource.dataloader?.dbType() || "";
-    if (dbType === "mysql") {
+    if (dbType === "mysql" || dbType === "sqlite") {
       await sqlResultView(datasource, provider, outputChannel);
     } else if (dbType === "redis") {
       await keyValueResultView(datasource, provider);
@@ -3597,7 +3764,6 @@ export function registerDatasourceItemCommands(
       let list = await loader.listObjectsWithPrefix(bucket, key);
       list = list.filter((o) => o.Key && o.Key !== key && !o.Key.endsWith("/"));
       if (list.length === 0) {
-        vscode.window.showInformationMessage("该文件夹为空");
         return;
       }
       const dirUri = await vscode.window.showOpenDialog({
@@ -3636,7 +3802,6 @@ export function registerDatasourceItemCommands(
           }
         },
       );
-      vscode.window.showInformationMessage(`已下载 ${list.length} 个文件`);
       return;
     }
     const defaultName = key.split("/").pop() || "download";
@@ -3652,7 +3817,6 @@ export function registerDatasourceItemCommands(
     try {
       const buf = await loader.getObject(bucket, key);
       await vscode.workspace.fs.writeFile(uri, buf);
-      vscode.window.showInformationMessage("下载完成");
     } catch (e) {
       vscode.window.showErrorMessage(
         `下载失败: ${e instanceof Error ? e.message : String(e)}`,
@@ -3676,7 +3840,6 @@ export function registerDatasourceItemCommands(
         return;
       }
     }
-    vscode.window.showInformationMessage("OSS 临时缓存已清除");
   });
 
   vscode.commands.registerCommand("cadb.redis.pubsub", async (args) => {
@@ -3781,8 +3944,6 @@ export function registerDatasourceItemCommands(
         overwrite: false,
       });
 
-      vscode.window.showInformationMessage(`文件已重命名为 "${finalName}"`);
-
       // 刷新父节点以更新文件列表
       if (fileItem.parent) {
         provider.refresh(fileItem.parent);
@@ -3819,8 +3980,6 @@ export function registerDatasourceItemCommands(
     try {
       const fileUri = vscode.Uri.file(filePath);
       await workspaceFsDeleteWithTrashFallback(fileUri, { recursive: false });
-
-      vscode.window.showInformationMessage(`文件 "${fileName}" 已删除`);
 
       // 刷新父节点以更新文件列表
       if (fileItem.parent) {
@@ -4179,4 +4338,3 @@ export function registerGridSidePanelCommand(): vscode.Disposable {
     void p.webview.postMessage({ command: "toggleSidePanel" });
   });
 }
-

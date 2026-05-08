@@ -14,7 +14,16 @@
   </head>
   <body>
     <div class="edit-toolbar" style="padding:8px 12px;border-bottom:1px solid var(--vscode-panel-border);display:flex;align-items:center;">
-      <a href="#" data-action="switchToTableData" title="切换至表数据" class="edit-nav-link">表数据</a>
+      <a href="#" data-action="switchToTableData" title="切换至表数据" class="edit-nav-link" id="switch-to-data-link">表数据</a>
+    </div>
+    <div class="edit-header" id="create-table-header" style="display:none;padding:8px 12px;border-bottom:1px solid var(--vscode-panel-border);align-items:center;gap:8px;">
+      <label style="display:flex;align-items:center;gap:8px;flex:1;">
+        <span>表名</span>
+        <input type="text" id="table-name-input" class="layui-input" style="flex:1;max-width:300px;" placeholder="请输入表名" />
+      </label>
+      <button type="button" class="layui-btn layui-btn-sm layui-btn-normal" id="create-table-btn">
+        <i class="layui-icon layui-icon-ok"></i> 创建表
+      </button>
     </div>
     <div class="edit-container">
       <!-- 左侧：Layui Tab -->

@@ -1,5 +1,27 @@
 # 更新日志
 
+## [0.4.2]
+
+### 新增
+
+- **SQLite 数据源（内置驱动）**：基于 `sqlite3` 接入本地文件数据库：连接测试、`OPEN_READWRITE | OPEN_CREATE` 打开、缺失目录时自动创建、树展示（虚拟 `main` 库 + 表/字段/索引）、**`.sql` 编辑器与快速执行等路径的 SQL 执行**（结果面板与 MySQL 一致链路）、**表重命名**（`ALTER TABLE … RENAME TO`）。驱动能力：`sqlExecutionTarget`、侧栏删除、Schema 悬浮提示；**不支持**「创建数据库」（单文件即库）。Webpack 将 `sqlite3` 标为 `externals`，避免打包原生 `.node`。
+- **连接配置 · SQLite**：配置表单新增类型「SQLite」与 **数据库文件路径** 字段（`sqlitePath`）；设置 Webview 支持 **`openFileDialog` / `fileSelected`**，由扩展弹出「打开文件」对话框（默认筛选 `.db` / `.sqlite` / `.sqlite3`），避免手填长路径易错。
+- **侧栏新建表（SQLite）**：在「表」列表节点上下文菜单中，若当前驱动实现 `createTable`，可打开表结构编辑 Webview 的**创建模式**，提交后生成 `CREATE TABLE` 及索引。
+- **表重命名（MySQL + SQLite）**：`Dataloader` 增加可选 `renameTable`；MySQL 使用 `RENAME TABLE`，SQLite 使用 `ALTER TABLE … RENAME TO`；树或相关命令在驱动支持时可调起重命名。
+
+### 变更
+
+- **数据库连接扫描**：SQLAlchemy 等 URL 解析中补充对 `sqlite` scheme 的识别，扫描结果展示为 SQLite。
+- **状态栏 / 管理器**：当前连接为 SQLite 时，状态信息优先展示文件路径（`sqlitePath` / `database`）。
+- **AI 助手配置保存**：写入 `cadb.ai` 后不再每次弹出「AI 配置已保存」提示，减少干扰。
+- **查询结果导出**：导出成功后不再弹出「已导出查询结果」信息框；失败仍通过错误消息提示。
+- **快速执行 SQL 历史**：历史为空时直接返回，不再弹出「暂无快速执行 SQL 历史」说明。
+
+### 内部
+
+- 依赖：`dependencies` 增加 `sqlite3`，`devDependencies` 增加 `@types/sqlite3`。
+- 图标：`resources/icons/sqlite/` 下 SQLite 明暗主题 SVG。
+
 ## [0.4.0]
 
 ### 新增

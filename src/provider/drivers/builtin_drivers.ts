@@ -4,6 +4,7 @@ import { Datasource, type DatasourceInputData } from "../entity/datasource";
 import { MySQLDataloader } from "../entity/mysql_dataloader";
 import { RedisDataloader } from "../entity/redis_dataloader";
 import { OssDataLoader } from "../entity/oss_dataloader";
+import { SQLiteDataloader } from "../entity/sqlite_dataloader";
 import { registerDatabaseDriver, type RegisteredDatabaseDriver } from "./registry";
 
 const iconDir: string[] = ["..", "..", "resources", "icons"];
@@ -101,9 +102,34 @@ function registerOss(): void {
   registerDatabaseDriver(driver);
 }
 
+function registerSqlite(): void {
+  const driver: RegisteredDatabaseDriver = {
+    id: "sqlite",
+    displayName: "SQLite",
+    description: "SQLite（本地文件数据库，客户端：sqlite3）",
+    npmDependencyNames: ["sqlite3"],
+    capabilities: {
+      createDatabase: false,
+      sqlExecutionTarget: true,
+      supportsTreeDelete: true,
+      supportsSchemaHover: true,
+    },
+    applyPresentation(treeItem: Datasource, input: DatasourceInputData) {
+      treeItem.description = input.sqlitePath || input.database || "";
+      treeItem.resourceUri = undefined;
+      treeItem.iconPath = iconPair("sqlite", "SQLite_light.svg", "SQLite_dark.svg");
+    },
+    createDataloader(treeItem: Datasource, input: DatasourceInputData) {
+      return new SQLiteDataloader(treeItem, input);
+    },
+  };
+  registerDatabaseDriver(driver);
+}
+
 /** 在扩展激活最早阶段调用一次；后续可通过 registerDatabaseDriver 追加驱动 */
 export function registerBuiltinDatabaseDrivers(): void {
   registerMysql();
+  registerSqlite();
   registerRedis();
   registerOss();
 }

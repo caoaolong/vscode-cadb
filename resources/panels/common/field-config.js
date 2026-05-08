@@ -27,6 +27,7 @@
       fullRow: true,
       options: [
         { value: "mysql", label: "MySQL" },
+        { value: "sqlite", label: "SQLite" },
         { value: "redis", label: "Redis" },
         { value: "oss", label: "OSS" },
       ],
@@ -141,7 +142,7 @@
       category: "base",
       colspan: 2,
       placeholder: "localhost 或 IP 地址",
-      hidden: "dbType == 'oss'",
+      hidden: "dbType == 'sqlite' || dbType == 'oss'",
     },
     port: {
       type: "number",
@@ -152,7 +153,7 @@
       default: "dbType == 'mysql' ? 3306 : (dbType == 'redis' ? 6379 : 5432)",
       min: 1,
       max: 65535,
-      hidden: "dbType == 'sqlite' || dbType == 'oss'", // 当数据库类型是 sqlite 时隐藏（hidden 优先级高于 show）
+      hidden: "dbType == 'sqlite' || dbType == 'oss'",
     },
     username: {
       type: "text",
@@ -160,8 +161,8 @@
       category: "base",
       colspan: 2,
       placeholder: "数据库用户名",
-      show: "dbType != 'redis'", // 当数据库类型不是 redis 时显示
-      hidden: "dbType == 'oss'",
+      show: "dbType != 'redis'",
+      hidden: "dbType == 'sqlite' || dbType == 'oss'",
     },
     password: {
       type: "password",
@@ -169,7 +170,7 @@
       category: "base",
       colspan: 2,
       placeholder: "数据库密码",
-      hidden: "dbType == 'oss'",
+      hidden: "dbType == 'sqlite' || dbType == 'oss'",
     },
     database: {
       type: "text",
@@ -178,20 +179,19 @@
       colspan: 2,
       placeholder: "数据库名称",
       hint: "要连接的数据库名称（可选）",
-      show: "dbType != 'redis'", // 当数据库类型不是 redis 时显示
-      hidden: "dbType == 'oss'",
+      show: "dbType != 'redis'",
+      hidden: "dbType == 'sqlite' || dbType == 'oss'",
     },
 
     // SQLite 专用字段
     sqlitePath: {
-      type: "text",
+      type: "file",
       label: "文件路径",
       category: "base",
       colspan: 2,
-      placeholder: "/path/to/database.db",
-      hint: "SQLite 数据库文件的完整路径",
-      show: "dbType == 'sqlite'", // 当数据库类型是 sqlite 时显示
-      // 也可以使用 hidden: "dbType != 'sqlite'" 实现相同效果
+      placeholder: "选择 SQLite 数据库文件…",
+      hint: "点击浏览选择 .db 文件；若文件不存在将自动创建",
+      show: "dbType == 'sqlite'",
     },
 
     // 高级字段

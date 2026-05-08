@@ -21,6 +21,7 @@ class DynamicForm {
     this.onSubmit = options.onSubmit;
     this.onCancel = options.onCancel;
     this.onTest = options.onTest;
+    this.onFileBrowse = options.onFileBrowse;
     this.testButton = options.testButton || null;
     this.flatLayout = options.flatLayout || false;
     this.form = null;
@@ -358,6 +359,9 @@ class DynamicForm {
       case "password":
         html += this.generatePasswordField(fieldName, config);
         break;
+      case "file":
+        html += this.generateFileField(fieldName, config);
+        break;
       case "ordered-multi-select":
         html += this.generateTransferField(fieldName, config);
         break;
@@ -557,6 +561,40 @@ class DynamicForm {
           <span class="password-toggle-icon" data-field-id="${fieldId}">
             <i class="layui-icon layui-icon-eye"></i>
           </span>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * 生成文件选择字段（带浏览按钮）
+   */
+  generateFileField(fieldName, config) {
+    const required = config.required ? 'lay-verify="required"' : "";
+    const placeholder = config.placeholder || "";
+    const fieldId = `${this.formId}-${fieldName}`;
+
+    return `
+      <label class="layui-form-label">${config.label}</label>
+      <div class="layui-input-block">
+        <div class="layui-input-wrap file-input-wrap" style="display:flex;gap:8px;">
+          <input
+            type="text"
+            name="${fieldName}"
+            id="${fieldId}"
+            placeholder="${placeholder}"
+            ${required}
+            class="layui-input"
+            readonly
+            style="flex:1;"
+          />
+          <button
+            type="button"
+            class="layui-btn layui-btn-primary file-browse-btn"
+            data-field-name="${fieldName}"
+          >
+            <i class="layui-icon layui-icon-upload"></i> 浏览…
+          </button>
         </div>
       </div>
     `;
@@ -1645,6 +1683,17 @@ class DynamicForm {
           }
         });
     }
+
+    // 文件浏览按钮
+    this.container
+      .find(".file-browse-btn")
+      .off("click")
+      .on("click", function () {
+        const fieldName = $(this).attr("data-field-name");
+        if (self.onFileBrowse) {
+          self.onFileBrowse(fieldName);
+        }
+      });
 
     // 监听所有字段变化，更新条件显示
     const $form = this.container.find("form");

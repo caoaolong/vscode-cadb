@@ -7,7 +7,10 @@ const QUERY_HISTORY_GLOBAL_KEY = "cadb.queryHistory";
 
 function sanitizeExportBaseName(name: string): string {
   const t = (name || "query-result").trim() || "query-result";
-  return t.replace(/[/\\?%*:|"<>]/g, "_").replace(/\s+/g, "_").slice(0, 120);
+  return t
+    .replace(/[/\\?%*:|"<>]/g, "_")
+    .replace(/\s+/g, "_")
+    .slice(0, 120);
 }
 
 function isBufferLike(v: unknown): v is { type: string; data: number[] } {
@@ -20,12 +23,7 @@ function isBufferLike(v: unknown): v is { type: string; data: number[] } {
 }
 
 function bufferLikeToHex(v: { data: number[] }): string {
-  return (
-    "0x" +
-    Buffer.from(v.data)
-      .toString("hex")
-      .toUpperCase()
-  );
+  return "0x" + Buffer.from(v.data).toString("hex").toUpperCase();
 }
 
 function serializeCellForDelimited(value: unknown): string {
@@ -146,9 +144,9 @@ export class ResultWebviewProvider implements vscode.WebviewViewProvider {
         this.context.extensionPath,
         "resources",
         "panels",
-        "result.html"
+        "result.html",
       ),
-      "utf-8"
+      "utf-8",
     );
   }
 
@@ -159,7 +157,7 @@ export class ResultWebviewProvider implements vscode.WebviewViewProvider {
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
     context: vscode.WebviewViewResolveContext,
-    token: vscode.CancellationToken
+    token: vscode.CancellationToken,
   ): void | Thenable<void> {
     this.webviewView = webviewView;
     this.isWebviewReady = false;
@@ -170,7 +168,7 @@ export class ResultWebviewProvider implements vscode.WebviewViewProvider {
       enableScripts: true,
       localResourceRoots: [
         vscode.Uri.file(
-          path.join(this.context.extensionPath, "resources", "panels")
+          path.join(this.context.extensionPath, "resources", "panels"),
         ),
       ],
     };
@@ -300,9 +298,8 @@ export class ResultWebviewProvider implements vscode.WebviewViewProvider {
 
     // 获取执行时间（秒）
     const executionTime = result.executionTime || 0;
-    const timeDisplay = executionTime < 0.01 
-      ? '<0.01s' 
-      : `${executionTime.toFixed(2)}s`;
+    const timeDisplay =
+      executionTime < 0.01 ? "<0.01s" : `${executionTime.toFixed(2)}s`;
 
     // 递增结果编号
     this.resultCounter++;
@@ -338,14 +335,16 @@ export class ResultWebviewProvider implements vscode.WebviewViewProvider {
     const columns = Array.isArray(message.columns) ? message.columns : [];
     const data = Array.isArray(message.data) ? message.data : [];
     const fields = resolveExportFields(columns, data);
-    const base = sanitizeExportBaseName(String(message.title ?? "query-result"));
+    const base = sanitizeExportBaseName(
+      String(message.title ?? "query-result"),
+    );
     const ext = fmt;
     const filters: Record<string, string[]> =
       fmt === "json"
-        ? { "JSON": ["json"] }
+        ? { JSON: ["json"] }
         : fmt === "csv"
-          ? { "CSV": ["csv"] }
-          : { "TSV": ["tsv"] };
+          ? { CSV: ["csv"] }
+          : { TSV: ["tsv"] };
 
     const folder =
       vscode.workspace.workspaceFolders?.[0]?.uri ??
@@ -365,13 +364,8 @@ export class ResultWebviewProvider implements vscode.WebviewViewProvider {
       const content =
         fmt === "json"
           ? buildExportJson(fields, data)
-          : buildExportDelimited(
-              fields,
-              data,
-              fmt === "csv" ? "," : "\t",
-            );
+          : buildExportDelimited(fields, data, fmt === "csv" ? "," : "\t");
       await vscode.workspace.fs.writeFile(target, Buffer.from(content, "utf8"));
-      void vscode.window.showInformationMessage(`已导出查询结果：${target.fsPath}`);
     } catch (e) {
       void vscode.window.showErrorMessage(
         `导出失败：${e instanceof Error ? e.message : String(e)}`,
@@ -384,7 +378,7 @@ export class ResultWebviewProvider implements vscode.WebviewViewProvider {
    */
   private getHtmlContent(webview: vscode.Webview): string {
     const resourcesUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.context.extensionUri, "resources", "panels")
+      vscode.Uri.joinPath(this.context.extensionUri, "resources", "panels"),
     );
     const nonce = generateNonce();
 
@@ -398,7 +392,7 @@ export class ResultWebviewProvider implements vscode.WebviewViewProvider {
     style-src ${webview.cspSource} 'unsafe-inline';
     script-src 'nonce-${nonce}';
     connect-src ${webview.cspSource};
-  `.trim()
+  `.trim(),
       )
       .replace(/{{resources-uri}}/g, resourcesUri.toString())
       .replace(/{{resource-nonce}}/g, nonce);

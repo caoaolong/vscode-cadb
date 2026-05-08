@@ -121,4 +121,12 @@ export interface Dataloader {
    * @returns 保存结果
    */
   saveData(params: SaveDataParams): Promise<SaveResult>;
+
+  /**
+   * 重命名表
+   * @param databaseName 数据库名
+   * @param oldName 原表名
+   * @param newName 新表名
+   */
+  renameTable?(databaseName: string, oldName: string, newName: string): Promise<void>;
 }

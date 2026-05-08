@@ -1129,4 +1129,15 @@ ORDER BY
 
     throw new Error(`不支持的 operation: ${operation}`);
   }
+
+  async renameTable(databaseName: string, oldName: string, newName: string): Promise<void> {
+    await this.ensureConnection();
+    const sql = `RENAME TABLE \`${this.escapeId(databaseName)}\`.\`${this.escapeId(oldName)}\` TO \`${this.escapeId(databaseName)}\`.\`${this.escapeId(newName)}\``;
+    return new Promise((resolve, reject) => {
+      this.pool.query(sql, (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+  }
 }

@@ -13,10 +13,11 @@ const mockData = {
   indexes: [],
 };
 
-// 当前编辑的项
-let currentEditItem = null;
-let currentEditType = null; // 'field' 或 'index'
-let dynamicForm = null;
+  // 当前编辑的项
+  let currentEditItem = null;
+  let currentEditType = null; // 'field' 或 'index'
+  let dynamicForm = null;
+  let isCreateMode = false;
 
 // ==================== 从全局配置获取字段映射 ====================
 
@@ -472,6 +473,52 @@ const indexMapping = FieldConfig.index;
 
   let tableMeta = { connectionName: "", databaseName: "", tableName: "" };
 
+  // ==================== 创建表模式 ====================
+  function setCreateMode(enabled) {
+    isCreateMode = enabled;
+    const header = document.getElementById("create-table-header");
+    const link = document.getElementById("switch-to-data-link");
+    if (header) header.style.display = enabled ? "flex" : "none";
+    if (link) link.style.display = enabled ? "none" : "";
+    if (enabled) {
+      document.title = "创建表";
+    }
+  }
+
+  $(document).on("click", "#create-table-btn", function () {
+    if (!isCreateMode || !vscode) return;
+    const tableName = $("#table-name-input").val()?.toString().trim() || "";
+    if (!tableName) {
+      layer.msg("请输入表名", { icon: 5 });
+      return;
+    }
+    if (mockData.fields.length === 0) {
+      layer.msg("请至少添加一个字段", { icon: 5 });
+      return;
+    }
+    // 校验字段名非空
+    for (const f of mockData.fields) {
+      if (!f.name || !f.name.trim()) {
+        layer.msg("存在字段名称为空", { icon: 5 });
+        return;
+      }
+    }
+    // 处理索引字段格式
+    const indexes = mockData.indexes.map((idx) => {
+      const copy = { ...idx };
+      if (typeof copy.fields === "string") {
+        copy.fields = copy.fields.split(",").map((s) => s.trim()).filter(Boolean);
+      }
+      return copy;
+    });
+    vscode.postMessage({
+      command: "createTable",
+      tableName,
+      fields: mockData.fields.map((f) => ({ ...f })),
+      indexes,
+    });
+  });
+
   document.addEventListener("click", (e) => {
     const link = e.target.closest("[data-action]");
     if (!link || link.dataset.action !== "switchToTableData") return;
@@ -497,6 +544,15 @@ const indexMapping = FieldConfig.index;
           databaseName: data.databaseName ?? "",
           tableName: data.tableName ?? "",
         };
+      }
+      if (data && data.mode === "create") {
+        setCreateMode(true);
+        mockData.fields = [];
+        mockData.indexes = [];
+        renderFieldList();
+        renderIndexList();
+        scheduleUpdateScroll();
+        return;
       }
       // 加载数据
       if (data && data.rowData) {

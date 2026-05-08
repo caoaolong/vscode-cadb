@@ -160,6 +160,12 @@ function initDatasourceForm(data = {}, driverOptionsFromHost) {
     onSubmit: handleDatasourceSave,
     onCancel: handleCancel,
     onTest: handleTest,
+    onFileBrowse: (fieldName) => {
+      vscode.postMessage({
+        command: "openFileDialog",
+        fieldName,
+      });
+    },
     testButton: {
       label: "测试连接",
       icon: "layui-icon-link",
@@ -795,6 +801,15 @@ window.addEventListener("message", (event) => {
         }
       } else {
         showStatus(msg, success ? "success" : "error");
+      }
+      break;
+    }
+    case "fileSelected": {
+      if (dynamicForm && message.fieldName && message.path) {
+        const $field = $(`[name="${message.fieldName}"]`);
+        if ($field.length) {
+          $field.val(message.path).trigger("change");
+        }
       }
       break;
     }
