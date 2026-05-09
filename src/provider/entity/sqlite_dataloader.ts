@@ -16,7 +16,8 @@ import {
 import { Datasource, DatasourceInputData } from "./datasource";
 
 function getSqlite3() {
-  const _req = createRequire(path.join(__dirname, "..", "dummy.js"));
+  // createRequire 需指向真实模块路径；锚定 package.json 以便 VSIX（dist/extension.js）中能 resolve externals sqlite3。
+  const _req = createRequire(path.join(__dirname, "..", "package.json"));
   return _req("sqlite3") as typeof import("sqlite3");
 }
 
