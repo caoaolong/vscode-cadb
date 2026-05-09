@@ -15,9 +15,22 @@ import {
 } from "./dataloader";
 import { Datasource, DatasourceInputData } from "./datasource";
 
+function resolveExtensionRoot(): string {
+  try {
+    const ext = vscode.extensions.getExtension("codingsoul.vscode-cadb");
+    if (ext?.extensionPath) {
+      return ext.extensionPath;
+    }
+  } catch {
+    /* 忽略：极少数环境下 extensions API 不可用 */
+  }
+  // 开发与常规 CommonJS 加载：extension.js 位于 dist/，上一级为扩展根目录。
+  return path.join(__dirname, "..");
+}
+
 function getSqlite3() {
-  // createRequire 需指向真实模块路径；锚定 package.json 以便 VSIX（dist/extension.js）中能 resolve externals sqlite3。
-  const _req = createRequire(path.join(__dirname, "..", "package.json"));
+  // createRequire 锚定扩展根目录的 package.json；extensionPath 可避免 Extension Host 中非真实 __dirname（如 dummy.js）导致找不到 node_modules。
+  const _req = createRequire(path.join(resolveExtensionRoot(), "package.json"));
   return _req("sqlite3") as typeof import("sqlite3");
 }
 
