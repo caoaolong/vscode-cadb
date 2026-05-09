@@ -3,7 +3,7 @@
     "displayName": "vscode-cadb",
     "publisher": "codingsoul",
     "description": "Powerful database management VSCode plugin!",
-    "version": "0.4.2",
+    "version": "0.4.4",
     "engines": {
         "vscode": "^1.104.0"
     },
@@ -180,7 +180,6 @@
                 "title": "删除",
                 "icon": "$(close)"
             },
-
             {
                 "command": "cadb.delete",
                 "title": "删除",
