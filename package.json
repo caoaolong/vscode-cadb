@@ -1,9 +1,10 @@
 {
+    "$schema": "vscode://schemas/vscode-extensions",
     "name": "vscode-cadb",
     "displayName": "vscode-cadb",
     "publisher": "codingsoul",
     "description": "Powerful database management VSCode plugin!",
-    "version": "0.4.4",
+    "version": "0.4.5",
     "engines": {
         "vscode": "^1.104.0"
     },

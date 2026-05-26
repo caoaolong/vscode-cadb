@@ -1,5 +1,19 @@
 # 更新日志
 
+## [0.4.5]
+
+### 新增
+
+- **推荐文档**：新增使用体推荐文档（`examples/`）。
+
+### 变更
+
+- **移除快捷查询功能**：移除「快捷查询」（`cadb.quickQuery`）命令及 Grid 工具栏入口、`cadb.quickExecuteSql` / `cadb.quickExecuteSqlFromHistory`（含快捷键 `Ctrl+Alt+Q` / `Ctrl+Alt+A`）以及 `cadb.scanDbConnections`（扫描数据库连接）命令及其相关实现与配置项 `cadb.quickExecuteSql.historyMaxEntries`；同步清理对应的右键菜单、快捷键绑定与 `package.json` 贡献。
+
+### 修复
+
+- **MySQL 大数字（BIGINT / DECIMAL）精度丢失与排序错误**：连接池新增 `supportBigNumbers: true` + `bigNumberStrings: true`，将 `BIGINT` / `DECIMAL` 等列以字符串形式返回，避免 JavaScript `Number` 精度溢出；`mysql_dataloader` 中对 `bigint` 类型值调用 `.toString()` 序列化；Grid 前端数值排序改为优先使用 `BigInt` 比较，回退 `Number`；数值单元格解析对整数字符串保留原始文本，不再丢精度。
+
 ## [0.4.4]
 
 + 尝试修复Sqlite3依赖问题
