@@ -51,6 +51,8 @@ export class MysqlPoolRegistry {
         connectTimeout: 2000,
         enableKeepAlive: true,
         keepAliveInitialDelay: 10000,
+        supportBigNumbers: true,
+        bigNumberStrings: true,
         typeCast: buildTypeCast(),
       });
       this.pools.set(key, pool);

@@ -27,7 +27,6 @@ import {
   resolveTableDatasource,
 } from "./provider/workspace_symbol_provider";
 import { registerBuiltinDatabaseDrivers } from "./provider/drivers/builtin_drivers";
-import { driverSupportsSqlExecution } from "./provider/drivers/registry";
 import { getMysqlPoolRegistry } from "./provider/mysql/pool_registry";
 import {
   CADB_GLOBAL_DATASOURCE_SIDEBAR_LAST_VISIBLE_KEY,
@@ -35,7 +34,6 @@ import {
 } from "./provider/cadb_storage_keys";
 import { format as formatSql } from "sql-formatter";
 import { CadbDragAndDropController } from "./provider/component/cadb_drag_drop_controller";
-import { showScanResultsInQuickPick } from "./provider/component/db_connection_scanner";
 
 interface SqlStatementSpan {
   start: number;
@@ -49,101 +47,6 @@ interface SqlFileDatabaseBinding {
 }
 
 const SQL_FILE_DATABASE_STATE_KEY = "cadb.sqlFileDatabaseBindings";
-
-/** 快速执行 SQL（Ctrl+Alt+Q）记住的连接名（与配置 name 一致）与库名 */
-interface QuickExecuteSqlLastTarget {
-  connectionName: string;
-  databaseName: string;
-}
-
-const QUICK_EXECUTE_SQL_LAST_KEY = "cadb.quickExecuteSql.lastTarget";
-
-function getQuickExecuteSqlLastTarget(
-  ctx: vscode.ExtensionContext,
-): QuickExecuteSqlLastTarget | undefined {
-  const v = ctx.globalState.get<QuickExecuteSqlLastTarget>(
-    QUICK_EXECUTE_SQL_LAST_KEY,
-  );
-  if (!v?.connectionName?.trim() || !v?.databaseName?.trim()) {
-    return undefined;
-  }
-  return {
-    connectionName: v.connectionName.trim(),
-    databaseName: v.databaseName.trim(),
-  };
-}
-
-async function setQuickExecuteSqlLastTarget(
-  ctx: vscode.ExtensionContext,
-  conn: Datasource,
-  db: Datasource,
-): Promise<void> {
-  const connectionName = String(conn.data?.name ?? conn.label ?? "").trim();
-  const databaseName = String(db.label ?? "").trim();
-  if (!connectionName || !databaseName) {
-    return;
-  }
-  await ctx.globalState.update(QUICK_EXECUTE_SQL_LAST_KEY, {
-    connectionName,
-    databaseName,
-  });
-}
-
-function isQuickExecuteSqlLastStillValid(
-  provider: DataSourceProvider,
-  last: QuickExecuteSqlLastTarget,
-): boolean {
-  const raw = provider
-    .getConnections()
-    .find((ds) => ds.name === last.connectionName);
-  return !!raw && driverSupportsSqlExecution(raw.dbType);
-}
-
-const QUICK_EXECUTE_SQL_HISTORY_KEY = "cadb.quickExecuteSql.history";
-
-function getQuickExecuteSqlHistoryMaxEntries(): number {
-  const n =
-    vscode.workspace
-      .getConfiguration("cadb")
-      .get<number>("quickExecuteSql.historyMaxEntries", 10) ?? 10;
-  return Math.max(1, Math.min(200, Math.floor(n)));
-}
-
-/** 历史列表 QuickPick 主行：取首行并截断 */
-function previewQuickExecuteHistoryLabel(sql: string, maxLen: number): string {
-  const line = sql.trim().split(/\r?\n/)[0]?.replace(/\s+/g, " ").trim() ?? "";
-  if (!line) {
-    return "(空语句)";
-  }
-  if (line.length <= maxLen) {
-    return line;
-  }
-  return `${line.slice(0, Math.max(1, maxLen - 1))}…`;
-}
-
-async function appendQuickExecuteSqlHistory(
-  ctx: vscode.ExtensionContext,
-  sql: string,
-): Promise<void> {
-  const max = getQuickExecuteSqlHistoryMaxEntries();
-  const t = sql.trim();
-  if (!t) {
-    return;
-  }
-  const prev =
-    ctx.globalState.get<string[]>(QUICK_EXECUTE_SQL_HISTORY_KEY) ?? [];
-  await ctx.globalState.update(
-    QUICK_EXECUTE_SQL_HISTORY_KEY,
-    [t, ...prev].slice(0, max),
-  );
-}
-
-function readQuickExecuteSqlHistory(ctx: vscode.ExtensionContext): string[] {
-  const max = getQuickExecuteSqlHistoryMaxEntries();
-  const prev =
-    ctx.globalState.get<string[]>(QUICK_EXECUTE_SQL_HISTORY_KEY) ?? [];
-  return prev.slice(0, max).filter((s) => s.trim());
-}
 
 /** 与编辑器缩进选项一致的 SQL 格式化（供普通 .sql 等 languageId 为 sql 的文档使用） */
 function formatSqlWithEditorOptions(
@@ -1088,158 +991,6 @@ export function activate(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(sqlExecutor);
 
-  const getDocumentForQuickSqlExecution = (): Thenable<vscode.TextDocument> => {
-    const ed = vscode.window.activeTextEditor;
-    if (ed?.document.languageId === "sql") {
-      return Promise.resolve(ed.document);
-    }
-    return vscode.workspace.openTextDocument({
-      language: "sql",
-      content: "",
-    });
-  };
-
-  const runBundledQuickSqlStatements = async (
-    trimmed: string,
-  ): Promise<boolean> => {
-    const docForExec = await getDocumentForQuickSqlExecution();
-    const statements = splitSqlStatements(trimmed);
-    if (statements.length === 0) {
-      vscode.window.showWarningMessage("没有可执行的 SQL 语句");
-      return false;
-    }
-    for (const stmt of statements) {
-      await sqlExecutor.executeSql(stmt, docForExec);
-    }
-    return true;
-  };
-
-  // Ctrl+Alt+Q / Cmd+Alt+Q：快速选择连接与库（可「使用上次选择」）→ 输入 SQL → Enter 执行
-  context.subscriptions.push(
-    vscode.commands.registerCommand("cadb.quickExecuteSql", async () => {
-      try {
-        const last = getQuickExecuteSqlLastTarget(context);
-
-        const picked = await databaseManager.selectConnectionAndDatabase(
-          last && isQuickExecuteSqlLastStillValid(provider, last)
-            ? last
-            : undefined,
-        );
-        if (!picked) {
-          return;
-        }
-
-        databaseManager.setCurrentDatabase(picked.database, true);
-        const connForSave = picked.connection;
-        const dbForSave = picked.database;
-
-        const connLabel = connForSave.label?.toString() ?? "";
-        const dbLabel = dbForSave.label?.toString() ?? "";
-
-        const sqlText = await vscode.window.showInputBox({
-          title: "CADB：快速执行 SQL",
-          prompt: `将在「${connLabel} / ${dbLabel}」上执行，结果在查询结果视图`,
-          placeHolder: "输入 SQL，按 Enter 执行；多条语句请用分号分隔",
-          ignoreFocusOut: true,
-        });
-        if (sqlText === undefined) {
-          return;
-        }
-        const trimmed = sqlText.trim();
-        if (!trimmed) {
-          vscode.window.showWarningMessage("SQL 为空");
-          return;
-        }
-
-        const ok = await runBundledQuickSqlStatements(trimmed);
-        if (ok) {
-          await setQuickExecuteSqlLastTarget(context, connForSave, dbForSave);
-          await appendQuickExecuteSqlHistory(context, trimmed);
-        }
-      } catch (e) {
-        vscode.window.showErrorMessage(
-          `快速执行 SQL 失败: ${e instanceof Error ? e.message : String(e)}`,
-        );
-      }
-    }),
-  );
-
-  // Ctrl+Alt+A / Cmd+Alt+A：从快速执行历史中选一条，用当前连接与库立即执行
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "cadb.quickExecuteSqlFromHistory",
-      async () => {
-        try {
-          const list = readQuickExecuteSqlHistory(context);
-          if (list.length === 0) {
-            return;
-          }
-
-          interface HistPick extends vscode.QuickPickItem {
-            fullSql: string;
-          }
-          const detailCap = 400;
-          const items: HistPick[] = list.map((sql, i) => {
-            const detail =
-              sql.length <= detailCap ? sql : `${sql.slice(0, detailCap - 1)}…`;
-            return {
-              label: `${i + 1}. ${previewQuickExecuteHistoryLabel(sql, 56)}`,
-              description:
-                sql.includes("\n") || sql.length > 80
-                  ? `(${sql.length} 字符)`
-                  : undefined,
-              detail,
-              fullSql: sql,
-            };
-          });
-
-          const pick = await vscode.window.showQuickPick(items, {
-            placeHolder:
-              "选择一条历史 SQL 立即执行（使用当前 CADB 连接与数据库）",
-            matchOnDetail: true,
-          });
-          if (!pick) {
-            return;
-          }
-
-          let conn = databaseManager.getCurrentConnection();
-          let db = databaseManager.getCurrentDatabase();
-          if (!conn || !db) {
-            const choice = await vscode.window.showWarningMessage(
-              "当前未选择数据源或数据库，执行前请先选择",
-              "选择数据库",
-              "取消",
-            );
-            if (choice !== "选择数据库") {
-              return;
-            }
-            await databaseManager.selectDatabase();
-            conn = databaseManager.getCurrentConnection();
-            db = databaseManager.getCurrentDatabase();
-            if (!conn || !db) {
-              return;
-            }
-          }
-
-          const sqlRun = pick.fullSql.trim();
-          if (!sqlRun) {
-            vscode.window.showWarningMessage("所选历史为空");
-            return;
-          }
-
-          const ok = await runBundledQuickSqlStatements(sqlRun);
-          if (ok) {
-            await appendQuickExecuteSqlHistory(context, sqlRun);
-          }
-        } catch (e) {
-          vscode.window.showErrorMessage(
-            `从历史执行 SQL 失败: ${e instanceof Error ? e.message : String(e)}`,
-          );
-        }
-      },
-    ),
-  );
-
   const getActiveSqlEditor = (): vscode.TextEditor | undefined => {
     const editor = vscode.window.activeTextEditor;
     if (!editor) return undefined;
@@ -1592,13 +1343,6 @@ export function activate(context: vscode.ExtensionContext) {
           await persistSelectionForDocument(document);
         }
       },
-    ),
-  );
-
-  // 扫描工作区文件中的数据库连接配置
-  context.subscriptions.push(
-    vscode.commands.registerCommand("cadb.scanDbConnections", () =>
-      showScanResultsInQuickPick(),
     ),
   );
 }

@@ -2762,15 +2762,6 @@ async function sqlResultView(
       if (tableDs) editEntry(provider, tableDs, outputChannel);
       return;
     }
-    if (message.command === "quickQuery") {
-      const conn = message.connectionName ?? connectionName;
-      const db = message.databaseName ?? databaseName;
-      const tbl = message.tableName ?? tableName;
-      if (conn && db && tbl) {
-        vscode.commands.executeCommand("cadb.quickQuery", conn, db, tbl);
-      }
-      return;
-    }
     if (message.command === "copyTableDdl") {
       const conn = message.connectionName ?? connectionName;
       const db = message.databaseName ?? databaseName;
@@ -3142,15 +3133,6 @@ async function openTableStructureGridView(
       );
       if (tableDs) {
         await editEntry(provider, tableDs, outputChannel);
-      }
-      return;
-    }
-    if (message.command === "quickQuery") {
-      const conn = message.connectionName ?? connectionName;
-      const db = message.databaseName ?? databaseName;
-      const tbl = message.tableName ?? tableName;
-      if (conn && db && tbl) {
-        vscode.commands.executeCommand("cadb.quickQuery", conn, db, tbl);
       }
       return;
     }
@@ -3630,126 +3612,6 @@ export function registerDatasourceItemCommands(
       vscode.window.showWarningMessage(`${dbType} 数据源查看数据功能待实现`);
     }
   });
-
-  vscode.commands.registerCommand(
-    "cadb.quickQuery",
-    async (connectionName: string, databaseName: string, tableName: string) => {
-      const escapeTable = (s: string) =>
-        "`" + String(s).replace(/`/g, "``") + "`";
-      const baseSql = `SELECT * FROM ${escapeTable(tableName)} LIMIT 100`;
-
-      await databaseManager.setActiveDatabase(connectionName, databaseName);
-
-      const connDir = provider.getConnectionFilesDirUri(connectionName);
-
-      const appendToFile = async (uri: vscode.Uri) => {
-        const docOpen = vscode.workspace.textDocuments.find(
-          (d) => d.uri.fsPath.toLowerCase() === uri.fsPath.toLowerCase(),
-        );
-        if (docOpen) {
-          const lastLine = Math.max(0, docOpen.lineCount - 1);
-          const pos = new vscode.Position(
-            lastLine,
-            docOpen.lineAt(lastLine).text.length,
-          );
-          const edit = new vscode.WorkspaceEdit();
-          edit.insert(uri, pos, `\n\n${baseSql}\n`);
-          await vscode.workspace.applyEdit(edit);
-          const endLineIdx = docOpen.lineCount - 1;
-          const endPos = new vscode.Position(
-            endLineIdx,
-            docOpen.lineAt(endLineIdx).text.length,
-          );
-          const editor = await vscode.window.showTextDocument(docOpen, {
-            viewColumn: vscode.ViewColumn.Active,
-            selection: new vscode.Range(endPos, endPos),
-          });
-          editor.revealRange(
-            new vscode.Range(endPos, endPos),
-            vscode.TextEditorRevealType.InCenter,
-          );
-        } else {
-          const buf = await vscode.workspace.fs.readFile(uri);
-          const text = new TextDecoder().decode(buf);
-          const lines = text.split(/\r?\n/);
-          const lastLine = Math.max(0, lines.length - 1);
-          const lastLineLen = lines[lastLine]?.length ?? 0;
-          const edit = new vscode.WorkspaceEdit();
-          edit.insert(
-            uri,
-            new vscode.Position(lastLine, lastLineLen),
-            `\n\n${baseSql}\n`,
-          );
-          await vscode.workspace.applyEdit(edit);
-          const doc = await vscode.workspace.openTextDocument(uri);
-          const endLineIdx = doc.lineCount - 1;
-          const endPos = new vscode.Position(
-            endLineIdx,
-            doc.lineAt(endLineIdx).text.length,
-          );
-          const editor = await vscode.window.showTextDocument(doc, {
-            viewColumn: vscode.ViewColumn.Active,
-            selection: new vscode.Range(endPos, endPos),
-          });
-          editor.revealRange(
-            new vscode.Range(endPos, endPos),
-            vscode.TextEditorRevealType.InCenter,
-          );
-        }
-      };
-
-      let entries: [string, vscode.FileType][] = [];
-      try {
-        entries = await vscode.workspace.fs.readDirectory(connDir);
-      } catch {
-        await vscode.workspace.fs.createDirectory(connDir);
-      }
-
-      const allFiles = entries.filter(([name]) =>
-        name.toLowerCase().endsWith(".sql"),
-      );
-
-      const queryFiles: {
-        label: string;
-        description: string;
-        value: vscode.Uri;
-      }[] = [];
-      for (const [name] of allFiles) {
-        queryFiles.push({
-          label: `$(file-code) ${name}`,
-          description: name,
-          value: vscode.Uri.joinPath(connDir, name),
-        });
-      }
-      queryFiles.sort((a, b) => a.description.localeCompare(b.description));
-
-      const newSqlItem = {
-        label: "$(add) 新建 SQL 文件",
-        description: "在本连接下新建 .sql",
-        value: "__new_sql__" as const,
-      };
-
-      const items = [newSqlItem, ...queryFiles];
-
-      const choice = await vscode.window.showQuickPick(items, {
-        placeHolder: `选择要追加查询的文件（${connectionName} / ${databaseName}）`,
-      });
-      if (!choice) return;
-
-      if (choice.value === "__new_sql__") {
-        const dayjs = require("dayjs");
-        const filename = dayjs().format("YYYYMMDDHHmmss") + ".sql";
-        const uri = vscode.Uri.joinPath(connDir, filename);
-        const content = `-- ${connectionName} / ${databaseName}\n${baseSql}\n`;
-        await vscode.workspace.fs.writeFile(uri, Buffer.from(content, "utf-8"));
-        const doc = await vscode.workspace.openTextDocument(uri);
-        await vscode.window.showTextDocument(doc);
-        provider.refresh();
-      } else {
-        await appendToFile(choice.value as vscode.Uri);
-      }
-    },
-  );
 
   vscode.commands.registerCommand("cadb.oss.download", async (args) => {
     const node = args as Datasource;

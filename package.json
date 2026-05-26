@@ -226,26 +226,6 @@
                 "icon": "$(play)"
             },
             {
-                "command": "cadb.scanDbConnections",
-                "title": "扫描数据库连接",
-                "icon": "$(search)"
-            },
-            {
-                "command": "cadb.quickQuery",
-                "title": "快捷查询",
-                "icon": "$(search-sparkle)"
-            },
-            {
-                "command": "cadb.quickExecuteSql",
-                "title": "快速执行 SQL…",
-                "icon": "$(run)"
-            },
-            {
-                "command": "cadb.quickExecuteSqlFromHistory",
-                "title": "从快速执行历史中选择并执行…",
-                "icon": "$(history)"
-            },
-            {
                 "command": "cadb.hover.openTableData",
                 "title": "进入表数据"
             },
@@ -432,11 +412,6 @@
                     "command": "cadb.sql.runFile",
                     "when": "resourceExtname == .sql",
                     "group": "cadb@1"
-                },
-                {
-                    "command": "cadb.scanDbConnections",
-                    "when": "explorerResourceIsFolder || resourceScheme == file",
-                    "group": "cadb@2"
                 }
             ]
         },
@@ -459,13 +434,6 @@
         "configuration": {
             "title": "CADB",
             "properties": {
-                "cadb.quickExecuteSql.historyMaxEntries": {
-                    "type": "number",
-                    "default": 10,
-                    "minimum": 1,
-                    "maximum": 200,
-                    "description": "通过「快速执行 SQL」（Ctrl+Alt+Q）记录的语句历史条数；列表中最上方为最新，超出后丢弃最旧记录"
-                },
                 "cadb.grid.pageSize": {
                     "type": "number",
                     "default": 2000,
@@ -548,24 +516,6 @@
                 "command": "cadb.datasource.search",
                 "key": "cmd+f",
                 "when": "view =~ /datasource/ && isMac"
-            },
-            {
-                "command": "cadb.quickExecuteSql",
-                "key": "ctrl+alt+q"
-            },
-            {
-                "command": "cadb.quickExecuteSql",
-                "key": "cmd+alt+q",
-                "when": "isMac"
-            },
-            {
-                "command": "cadb.quickExecuteSqlFromHistory",
-                "key": "ctrl+alt+a"
-            },
-            {
-                "command": "cadb.quickExecuteSqlFromHistory",
-                "key": "cmd+alt+a",
-                "when": "isMac"
             }
         ]
     },

@@ -975,6 +975,10 @@ ORDER BY
     for (const col of columnDefs) {
       const v = out[col.field];
       if (v === null || v === undefined) continue;
+      if (typeof v === "bigint") {
+        out[col.field] = v.toString();
+        continue;
+      }
       if (Buffer.isBuffer(v)) {
         const type = (col.type != null ? String(col.type) : "").toLowerCase();
         if (/^bit\s*\(/.test(type) || type.startsWith("bit")) {

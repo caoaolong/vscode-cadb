@@ -293,20 +293,6 @@
         });
       }
     },
-    quickQuery: () => {
-      if (
-        tableMeta.connectionName &&
-        tableMeta.databaseName &&
-        tableMeta.tableName
-      ) {
-        vscode?.postMessage({
-          command: "quickQuery",
-          connectionName: tableMeta.connectionName,
-          databaseName: tableMeta.databaseName,
-          tableName: tableMeta.tableName,
-        });
-      }
-    },
     clearFieldSearch: () => {
       const input = document.getElementById("grid-field-search");
       if (input) {
@@ -911,7 +897,7 @@
         tableMeta.tableName;
       document
         .querySelectorAll(
-          "[data-action=switchToTableEdit], [data-action=quickQuery]",
+          "[data-action=switchToTableEdit]",
         )
         .forEach((el) => {
           el.style.display = hasMeta ? "" : "none";

@@ -528,12 +528,19 @@ class DatabaseTableData {
     if (isNumeric) {
       return {
         comparator: (a, b) => {
-          const na = a == null || a === "" ? null : Number(a);
-          const nb = b == null || b === "" ? null : Number(b);
-          if (na == null && nb == null) return 0;
-          if (na == null) return 1;
-          if (nb == null) return -1;
-          return na - nb;
+          if (a == null && b == null) return 0;
+          if (a == null) return 1;
+          if (b == null) return -1;
+          if (a === "" && b === "") return 0;
+          if (a === "") return 1;
+          if (b === "") return -1;
+          try {
+            const na = typeof a === "bigint" ? a : BigInt(a);
+            const nb = typeof b === "bigint" ? b : BigInt(b);
+            return na < nb ? -1 : na > nb ? 1 : 0;
+          } catch {
+            return Number(a) - Number(b);
+          }
         },
       };
     }
@@ -1118,8 +1125,14 @@ class DatabaseTableData {
       }
     }
     if (isNumeric) {
-      const n = Number(rawString);
-      if (!Number.isNaN(n) && String(rawString).trim() !== "") {
+      const trimmed = String(rawString).trim();
+      if (trimmed === "") return rawString;
+      const isBigInt = /^bigint(\s|\(|$)/i.test(type);
+      if (isBigInt && /^-?\d+$/.test(trimmed)) {
+        return trimmed;
+      }
+      const n = Number(trimmed);
+      if (!Number.isNaN(n)) {
         return n;
       }
       return rawString;
@@ -1269,6 +1282,9 @@ class DatabaseTableData {
     }
     if (typeof value === "number" && Number.isFinite(value)) {
       return String(value);
+    }
+    if (typeof value === "string" && /^-?\d+$/.test(value.trim())) {
+      return value.trim();
     }
     if (typeof value === "object" && value.type === "Buffer" && Array.isArray(value.data)) {
       const hex = value.data
