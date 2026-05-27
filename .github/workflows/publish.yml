@@ -9,9 +9,6 @@
 #   OVSX_PAT   — 可选。未配置时跳过 Open VSX 步骤。https://open-vsx.org 用户设置中生成的 Personal Access Token
 #
 # 推送前请确保 package.json 的 version 与标签一致（例如标签 v0.3.0 对应 version 0.3.0）。
-#
-# 说明：sqlite3 为原生模块且通过 webpack externals 加载，必须在各目标平台上执行 npm ci 以安装对应预编译二进制，
-# 并使用「平台专属扩展」分别发布；切勿使用 --no-dependencies（会省略 node_modules，导致 Cannot find module 'sqlite3'）。
 
 name: Publish Extension
 
@@ -26,23 +23,7 @@ permissions:
 
 jobs:
   publish:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            target: win32-x64
-          - os: ubuntu-latest
-            target: linux-x64
-          - os: macos-latest
-            target: darwin-arm64
-          - os: macos-13
-            target: darwin-x64
-    runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        shell: bash
-
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -59,7 +40,7 @@ jobs:
       - name: Publish to Visual Studio Marketplace
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        run: npx --yes @vscode/vsce publish --target ${{ matrix.target }}
+        run: npx --yes @vscode/vsce publish --no-dependencies
 
       # 注意：不能在 steps.if 里使用 secrets.*（GitHub 不允许）。未配置 OVSX_PAT 时在脚本内跳过。
       - name: Publish to Open VSX Registry
@@ -70,4 +51,4 @@ jobs:
             echo "OVSX_PAT 未配置，跳过 Open VSX 发布"
             exit 0
           fi
-          npx --yes ovsx publish --target ${{ matrix.target }}
+          npx --yes ovsx publish --no-dependencies
