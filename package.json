@@ -523,10 +523,11 @@
     "scripts": {
         "vscode:prepublish": "npm run package",
         "copy-ai-chat-vendor": "node scripts/copy-ai-chat-vendor.cjs",
+        "copy-sqlite3-runtime": "node scripts/copy-sqlite3-runtime.cjs",
         "postinstall": "node scripts/copy-ai-chat-vendor.cjs && node scripts/copy-layui-modules.cjs && node scripts/copy-webview-vendor.cjs",
         "compile": "npm run copy-ai-chat-vendor && npm run copy-layui-modules && npm run copy-webview-vendor && webpack",
         "watch": "npm run copy-ai-chat-vendor && npm run copy-layui-modules && npm run copy-webview-vendor && webpack --watch",
-        "package": "npm run copy-ai-chat-vendor && npm run copy-layui-modules && npm run copy-webview-vendor && webpack --mode production --devtool hidden-source-map",
+        "package": "npm run copy-ai-chat-vendor && npm run copy-layui-modules && npm run copy-webview-vendor && npm run copy-sqlite3-runtime && webpack --mode production --devtool hidden-source-map",
         "copy-layui-modules": "node scripts/copy-layui-modules.cjs",
         "copy-webview-vendor": "node scripts/copy-webview-vendor.cjs",
         "compile-tests": "tsc -p . --outDir out",

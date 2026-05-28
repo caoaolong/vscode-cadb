@@ -1,9 +1,11 @@
 out
 dist
 test/
+build/
 node_modules/
 resources/panels/ai-chat/vendor/
 resources/panels/common/vendor/
 .vscode-test/
 *.vsix
 .env
+.claude
