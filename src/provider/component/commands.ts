@@ -1661,6 +1661,27 @@ export function registerDatasourceCommands(
           return;
         }
         try {
+          // 删除连接记录时不需要连接数据库，直接删除即可
+          if (item.type === "datasource") {
+            const name = item.label?.toString() ?? "";
+            if (!name) {
+              throw new Error("连接名称为空");
+            }
+            await provider.deleteConnectionRecord(name);
+            try {
+              const dsPath = vscode.Uri.joinPath(
+                provider.context.globalStorageUri,
+                name,
+              );
+              await workspaceFsDeleteWithTrashFallback(dsPath, {
+                recursive: true,
+              });
+            } catch (_) {}
+            provider.refresh();
+            return;
+          }
+
+          // 其他操作需要连接数据库
           await dsNode.connect();
           const conn: any = loader.getConnection?.();
 
@@ -1682,25 +1703,6 @@ export function registerDatasourceCommands(
                 reject(new Error("当前连接类型不支持删除操作"));
               }
             });
-
-          if (item.type === "datasource") {
-            const name = item.label?.toString() ?? "";
-            if (!name) {
-              throw new Error("连接名称为空");
-            }
-            await provider.deleteConnectionRecord(name);
-            try {
-              const dsPath = vscode.Uri.joinPath(
-                provider.context.globalStorageUri,
-                name,
-              );
-              await workspaceFsDeleteWithTrashFallback(dsPath, {
-                recursive: true,
-              });
-            } catch (_) {}
-            provider.refresh();
-            return;
-          }
 
           if (item.type === "collection") {
             const db = item.label?.toString() ?? "";
